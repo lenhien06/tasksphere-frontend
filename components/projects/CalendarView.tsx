@@ -1,0 +1,460 @@
+"use client"
+
+import React, { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  Calendar as CalendarIcon,
+  Plus,
+  
+  ClipboardList,
+  X,
+  CheckCircle2,
+  AlertCircle,
+  User,
+  ListFilter,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { UserAvatar } from '@/components/common/UserAvatar'
+import { useQuery } from '@tanstack/react-query'
+import { TaskService } from '@/app/services/TaskService'
+import type { CalendarApiTask, TaskPriority, TaskStatus } from '@/app/types/task.schema'
+
+// ════════════════════════════════════════
+// CONFIGS
+// ════════════════════════════════════════
+
+const PRIORITY_CONFIG: Record<TaskPriority, { bg: string; text: string; border: string }> = {
+  CRITICAL: { bg: 'bg-red-200',   text: 'text-red-800',   border: 'border-red-400' },
+  HIGH:     { bg: 'bg-red-100',   text: 'text-red-700',   border: 'border-red-300' },
+  MEDIUM:   { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
+  LOW:      { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300' },
+}
+
+const STATUS_DOT: Record<TaskStatus, string> = {
+  TODO:        'bg-gray-400',
+  IN_PROGRESS: 'bg-blue-500',
+  IN_REVIEW:   'bg-purple-500',
+  DONE:        'bg-green-500',
+  CANCELLED:   'bg-gray-300',
+}
+
+
+// ════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════
+
+function buildCalendarDays(year: number, month: number) {
+  const firstDay = new Date(year, month - 1, 1)
+  const lastDay  = new Date(year, month, 0)
+  const startDow = (firstDay.getDay() + 6) % 7
+  const days: { date: Date; isCurrentMonth: boolean }[] = []
+  for (let i = startDow; i > 0; i--) {
+    days.push({ date: new Date(year, month - 1, 1 - i), isCurrentMonth: false })
+  }
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    days.push({ date: new Date(year, month - 1, d), isCurrentMonth: true })
+  }
+  while (days.length < 42) {
+    const last = days[days.length - 1].date
+    const next = new Date(last)
+    next.setDate(next.getDate() + 1)
+    days.push({ date: next, isCurrentMonth: false })
+  }
+  return days
+}
+
+function toDateStr(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+// ════════════════════════════════════════
+// MAIN COMPONENT
+// ════════════════════════════════════════
+
+export default function CalendarView({
+  projectId,
+  onTaskClick,
+  onViewChange,
+  currentView = 'calendar',
+}: {
+  projectId?: string
+  onTaskClick: (id: string) => void
+  onViewChange: (v: any) => void
+  currentView?: string
+}) {
+  const { t } = useTranslation()
+  const STATUS_LABEL: Record<TaskStatus, string> = {
+    TODO:        t('task.status_TODO'),
+    IN_PROGRESS: t('task.status_IN_PROGRESS'),
+    IN_REVIEW:   t('task.status_IN_REVIEW'),
+    DONE:        t('task.status_DONE'),
+    CANCELLED:   t('task.status_CANCELLED'),
+  }
+  const now = new Date()
+  const [currentYear,  setCurrentYear]  = useState(now.getFullYear())
+  const [currentMonth, setCurrentMonth] = useState(now.getMonth() + 1)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ['calendar', projectId, currentYear, currentMonth],
+    queryFn:  () => TaskService.getCalendar(projectId!, currentYear, currentMonth),
+    staleTime: 60_000,
+    enabled: !!projectId,
+    placeholderData: (prev) => prev,
+  })
+
+  const tasks: CalendarApiTask[] = data?.tasks ?? []
+
+  const tasksByDate = useMemo(() => {
+    const map: Record<string, CalendarApiTask[]> = {}
+    tasks.forEach(t => {
+      if (!map[t.dueDate]) map[t.dueDate] = []
+      map[t.dueDate].push(t)
+    })
+    return map
+  }, [tasks])
+
+  const selectedTasks = useMemo(
+    () => (selectedDate ? tasksByDate[selectedDate] ?? [] : []),
+    [selectedDate, tasksByDate]
+  )
+
+  const overdueCount   = tasks.filter(t => t.isOverdue).length
+  const completedCount = tasks.filter(t => t.taskStatus === 'DONE').length
+
+  const days = useMemo(
+    () => buildCalendarDays(currentYear, currentMonth),
+    [currentYear, currentMonth]
+  )
+
+  const goPrev = () => {
+    if (currentMonth === 1) { setCurrentMonth(12); setCurrentYear(y => y - 1) }
+    else setCurrentMonth(m => m - 1)
+  }
+  const goNext = () => {
+    if (currentMonth === 12) { setCurrentMonth(1); setCurrentYear(y => y + 1) }
+    else setCurrentMonth(m => m + 1)
+  }
+
+  return (
+    <div className="flex flex-col min-h-full bg-[#F9FAFB]">
+
+      {/* ── TOOLBAR ── */}
+      <div className="px-5 md:px-8 py-4 flex flex-col gap-4 shrink-0 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <h1 className="text-[20px] md:text-[24px] font-bold text-gray-900 tracking-tight whitespace-nowrap">
+            {t('calendar.title')}
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-4 md:gap-6 overflow-x-auto hide-scrollbar pb-1">
+          {/* Month Navigation */}
+          <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 shrink-0">
+            <button onClick={goPrev} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-gray-600 transition-all">
+              <ChevronLeft size={18} />
+            </button>
+            <div className="px-3 font-bold text-[14px] min-w-[140px] text-center text-gray-900">
+              {new Date(currentYear, currentMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </div>
+            <button onClick={goNext} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-gray-600 transition-all">
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          <div className="flex-1" />
+
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 mr-2">
+            <button
+              onClick={() => onViewChange('board')}
+              className={cn('p-1.5 rounded-lg transition-all', currentView === 'board' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600')}
+            >
+              <LayoutGrid size={18} />
+            </button>
+            <button className={cn('p-1.5 rounded-lg transition-all', currentView === 'calendar' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600')}>
+              <CalendarIcon size={18} />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 md:gap-4 shrink-0">
+            <button className="p-2.5 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-all shadow-sm shrink-0">
+              <ListFilter className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── SUMMARY ROW ── */}
+      <div className="px-5 md:px-8 py-4 border-b border-gray-100 flex items-center justify-between gap-4 md:gap-8 overflow-x-auto hide-scrollbar shrink-0">
+        <div className="flex-1 min-w-[180px] bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm border border-blue-100">
+            <ClipboardList size={22} />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1.5">{t('report.totalTasks')}</div>
+            <div className="text-[18px] font-bold text-gray-900 leading-tight">
+              {isLoading ? '...' : (data?.totalTasks ?? 0)} {t('nav.tasks').toLowerCase()}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-[180px] bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-600 shadow-sm border border-red-100">
+            <AlertCircle size={22} />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1.5">{t('task.overdue')}</div>
+            <div className="text-[18px] font-bold text-gray-900 leading-tight">
+              {isLoading ? '...' : overdueCount} {t('nav.tasks').toLowerCase()}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-[180px] bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100">
+            <CheckCircle2 size={22} />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1.5">{t('sprint.status_COMPLETED')}</div>
+            <div className="text-[18px] font-bold text-gray-900 leading-tight">
+              {isLoading ? '...' : completedCount} {t('nav.tasks').toLowerCase()}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex p-5 gap-5 items-start">
+
+        {/* ── CALENDAR GRID ── */}
+        <div className="flex-1 min-w-0 rounded-2xl border border-gray-200 shadow-sm bg-white overflow-hidden">
+
+          {/* Loading skeleton */}
+          {isLoading && (
+            <div className="grid grid-cols-7 auto-rows-[130px]">
+              {Array.from({ length: 42 }).map((_, i) => (
+                <div key={i} className="border-r border-b border-gray-100 p-2">
+                  <div className="h-4 w-6 bg-gray-200 rounded animate-pulse mb-2" />
+                  <div className="h-3 bg-gray-100 rounded animate-pulse mb-1" />
+                  <div className="h-3 bg-gray-100 rounded animate-pulse w-3/4" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Error state */}
+          {isError && (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+              <AlertCircle size={32} className="mb-3 text-red-400" />
+              <p className="text-sm font-medium mb-3">{t('calendar.loadError')}</p>
+              <button
+                onClick={() => refetch()}
+                className="text-sm text-blue-500 underline hover:text-blue-700"
+              >
+                {t('common.retry')}
+              </button>
+            </div>
+          )}
+
+          {/* Calendar */}
+          {!isLoading && !isError && (
+            <div className="flex flex-col w-full">
+              {/* Weekdays header */}
+              <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50 sticky top-0 z-10">
+                {[t('calendar.mon'), t('calendar.tue'), t('calendar.wed'), t('calendar.thu'), t('calendar.fri'), t('calendar.sat'), t('calendar.sun')].map(day => (
+                  <div key={day} className="py-3 text-center text-[11px] font-bold text-gray-600 uppercase tracking-widest">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Grid */}
+              <div className="grid grid-cols-7 auto-rows-fr">
+                {days.map((dayObj, idx) => {
+                  const dateStr    = toDateStr(dayObj.date)
+                  const isDaySelected = selectedDate === dateStr
+                  const dayTasks   = tasksByDate[dateStr] ?? []
+                  const isToday    = toDateStr(new Date()) === dateStr
+
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => { setSelectedDate(dateStr); setIsSidebarOpen(true) }}
+                      className={cn(
+                        'min-h-[130px] border-r border-b border-gray-100 p-2 flex flex-col gap-1 transition-all cursor-pointer relative',
+                        !dayObj.isCurrentMonth && 'bg-gray-50/30 opacity-40',
+                        isDaySelected ? 'bg-blue-50/20 ring-2 ring-inset ring-blue-500/10 z-[5]' : 'hover:bg-gray-50/40'
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={cn(
+                          'text-[13px] font-bold w-7 h-7 flex items-center justify-center rounded-full transition-all duration-200',
+                          isToday ? 'bg-blue-600 text-white shadow-md scale-110' :
+                          isDaySelected ? 'bg-[#111827] text-white scale-110 shadow-sm' : 'text-gray-700 font-extrabold'
+                        )}>
+                          {dayObj.date.getDate()}
+                        </span>
+                      </div>
+
+                      <div className="flex-1 overflow-hidden">
+                        {isSidebarOpen ? (
+                          <div className="flex flex-col gap-0.5">
+                            {dayTasks.slice(0, 3).map(task => {
+                              const pc = PRIORITY_CONFIG[task.priority]
+                              return (
+                                <div
+                                  key={task.id}
+                                  className={cn(
+                                    'px-1 py-0.5 rounded-[3px] text-[9px] font-bold truncate border shadow-xs flex items-center gap-1',
+                                    pc.bg, pc.text,
+                                    task.isOverdue && 'border-red-400'
+                                  )}
+                                >
+                                  <div className={cn('w-1 h-1 rounded-full shrink-0', pc.text.replace('text', 'bg'))} />
+                                  {task.isOverdue && '⚠ '}
+                                  {task.taskCode}
+                                </div>
+                              )
+                            })}
+                            {dayTasks.length > 3 && (
+                              <div className="text-[8px] font-bold text-gray-400 ml-1">+{dayTasks.length - 3}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            {dayTasks.slice(0, 4).map(task => {
+                              const pc = PRIORITY_CONFIG[task.priority]
+                              return (
+                                <div
+                                  key={task.id}
+                                  className={cn(
+                                    'px-2 py-0.5 rounded-[4px] text-[10px] font-bold truncate border shadow-sm',
+                                    pc.bg, pc.text,
+                                    task.isOverdue && 'border-red-400'
+                                  )}
+                                >
+                                  {task.isOverdue && '⚠ '}
+                                  {task.title}
+                                </div>
+                              )
+                            })}
+                            {dayTasks.length > 4 && (
+                              <div className="text-[9px] font-bold text-gray-400 ml-1">+{dayTasks.length - 4} {t('nav.tasks').toLowerCase()}</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── SIDEBAR ── */}
+        {isSidebarOpen && selectedDate && (
+          <div className="w-[320px] bg-white border border-gray-200 rounded-2xl flex flex-col shrink-0 overflow-hidden shadow-sm sticky top-5 h-fit max-h-[calc(100vh-40px)]">
+            {/* Header */}
+            <div className="px-5 py-4 flex items-center justify-between border-b border-gray-100 bg-white">
+              <h2 className="text-[18px] font-bold text-gray-900 tracking-tight">
+                {new Intl.DateTimeFormat('en-US', { weekday: 'long', day: 'numeric', month: 'long' }).format(
+                  new Date(selectedDate + 'T00:00:00')
+                )}
+              </h2>
+              <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-5 py-3 flex items-center justify-between bg-white shrink-0 border-b border-gray-50">
+              <h3 className="text-[14px] font-bold text-gray-700">{selectedTasks.length} {t('nav.tasks').toLowerCase()}</h3>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 space-y-3 bg-white custom-scrollbar">
+              {selectedTasks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                  <ClipboardList size={36} strokeWidth={1} className="mb-3 opacity-20" />
+                  <p className="text-xs font-medium italic">{t('task.noTasks')}</p>
+                </div>
+              ) : (
+                selectedTasks.map(task => {
+                  const pc = PRIORITY_CONFIG[task.priority]
+                  return (
+                    <div
+                      key={task.id}
+                      onClick={() => onTaskClick(task.id)}
+                      className={cn(
+                        'group relative bg-white border rounded-[10px] p-3.5 cursor-pointer transition-shadow hover:shadow-md',
+                        task.isOverdue ? 'border-red-200' : 'border-gray-200'
+                      )}
+                    >
+                      {/* Priority stripe */}
+                      <div className={cn(
+                        'absolute left-0 top-3 bottom-3 w-[4px] rounded-r-full',
+                        task.priority === 'CRITICAL' || task.priority === 'HIGH' ? 'bg-red-500'
+                          : task.priority === 'MEDIUM' ? 'bg-amber-500' : 'bg-green-500'
+                      )} />
+
+                      <div className="flex items-center gap-2 mb-2 pl-1">
+                        <span className="bg-[#EFF6FF] text-[#1677FF] text-[10px] font-bold px-1.5 py-0.5 rounded font-mono">
+                          {task.taskCode}
+                        </span>
+                        <span className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full', pc.bg, pc.text)}>
+                          {task.priority === 'CRITICAL' ? `⇈ ${t('task.priority_CRITICAL')}` : task.priority === 'HIGH' ? `↑ ${t('task.priority_HIGH')}` : task.priority === 'MEDIUM' ? `→ ${t('task.priority_MEDIUM')}` : `↓ ${t('task.priority_LOW')}`}
+                        </span>
+                        {task.isOverdue && (
+                          <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-200">
+                            ⚠ {t('task.overdue')}
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="text-[13px] font-bold text-gray-900 leading-snug mb-2 pl-1 line-clamp-2">
+                        {task.title}
+                      </h4>
+
+                      <div className="flex items-center justify-between pl-1">
+                        <div className="flex items-center gap-1.5">
+                          <div className={cn('w-2 h-2 rounded-full', STATUS_DOT[task.taskStatus])} />
+                          <span className="text-[11px] text-gray-500 font-medium">{STATUS_LABEL[task.taskStatus]}</span>
+                        </div>
+                        {task.assignee ? (
+                          <UserAvatar name={task.assignee.fullName} src={task.assignee.avatarUrl ?? undefined} size={22} className="border-2 border-white shadow-sm" />
+                        ) : (
+                          <div className="w-[22px] h-[22px] rounded-full bg-gray-100 flex items-center justify-center">
+                            <User size={12} className="text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+    </div>
+  )
+}

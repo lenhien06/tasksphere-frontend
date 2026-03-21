@@ -1,0 +1,22 @@
+import { TaskStatus, VALID_TRANSITIONS, canTransitionTo } from "@/app/types/task.schema"
+
+export { VALID_TRANSITIONS, canTransitionTo }
+
+export const getAvailableTransitions = (current: TaskStatus): TaskStatus[] =>
+    VALID_TRANSITIONS[current] ?? []
+
+export const STATUS_LABELS: Record<TaskStatus, string> = {
+    TODO:        "To Do",
+    IN_PROGRESS: "In Progress",
+    IN_REVIEW:   "In Review",
+    DONE:        "Done",
+    CANCELLED:   "Cancelled",
+}
+
+export const STATUS_STYLES: Record<TaskStatus, { bg: string; text: string; dot: string }> = {
+    TODO:        { bg: "bg-gray-100",  text: "text-gray-600",   dot: "bg-gray-400"   },
+    IN_PROGRESS: { bg: "bg-blue-50",   text: "text-blue-600",   dot: "bg-blue-500"   },
+    IN_REVIEW:   { bg: "bg-purple-50", text: "text-purple-600", dot: "bg-purple-500" },
+    DONE:        { bg: "bg-green-50",  text: "text-green-600",  dot: "bg-green-500"  },
+    CANCELLED:   { bg: "bg-red-50",    text: "text-red-500",    dot: "bg-red-400"    },
+}
