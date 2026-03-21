@@ -14,6 +14,7 @@ import {
   Pencil,
   Trash2,
   Archive,
+  RotateCcw,
   Loader2,
   AlertCircle,
   Calendar as CalendarIcon
@@ -611,6 +612,58 @@ export const DeleteProjectModal = ({
           onClick={handleConfirm}
         >
           {t('project.deletePermanently')}
+        </PrimaryButton>
+      </div>
+    </Modal>
+  );
+};
+
+// ——————————————————————————————————————————————————————————————————————————————————
+// 5. RESTORE PROJECT MODAL
+// ——————————————————————————————————————————————————————————————————————————————————
+
+export const RestoreProjectModal = ({
+  isOpen,
+  onClose,
+  project,
+  onConfirm,
+  loading = false,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  project: any;
+  onConfirm: () => void;
+  loading?: boolean;
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={t('project.restoreTitle', { defaultValue: 'Khôi phục dự án' })} maxWidth="max-w-md">
+      <div className="flex flex-col items-center text-center">
+        <div className="h-16 w-16 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 mb-4 border-4 border-white shadow-xl">
+          <RotateCcw size={32} />
+        </div>
+        <h4 className="text-[16px] font-bold text-gray-900 mb-2">
+          {t('project.restoreConfirm', { defaultValue: `Khôi phục "${project?.name}"?`, name: project?.name })}
+        </h4>
+        <p className="text-[13px] text-gray-500 leading-relaxed px-4">
+          {t('project.restoreDescription', { defaultValue: 'Dự án sẽ xuất hiện lại trong danh sách và các thành viên có thể tiếp tục làm việc.' })}
+        </p>
+      </div>
+
+      <div className="mt-8 flex gap-3">
+        <SecondaryButton className="flex-1" onClick={onClose} disabled={loading}>
+          {t('common.cancel')}
+        </SecondaryButton>
+        <PrimaryButton
+          className="flex-1 bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"
+          disabled={loading}
+          loading={loading}
+          onClick={() => {
+            onConfirm();
+          }}
+        >
+          {t('common.restore', { defaultValue: 'Khôi phục' })}
         </PrimaryButton>
       </div>
     </Modal>

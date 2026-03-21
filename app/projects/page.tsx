@@ -26,6 +26,7 @@ import {
     SortAsc,
     SortDesc,
     CheckCircle2,
+    RotateCcw,
     X,
     Loader2
 } from "lucide-react";
@@ -42,6 +43,7 @@ import {
     EditProjectModal,
     ArchiveProjectModal,
     DeleteProjectModal,
+    RestoreProjectModal,
 } from "@/components/projects/ProjectModals";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { toast } from "sonner";
@@ -272,8 +274,9 @@ export default function ProjectsPage() {
     // UI state
     const [showCreate, setShowCreate] = useState(false);
     const [activeProject, setActiveProject] = useState<any>(null);
-    const [modalType, setModalType] = useState<"edit" | "archive" | "delete" | null>(null);
+    const [modalType, setModalType] = useState<"edit" | "archive" | "delete" | "restore" | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [restoreLoading, setRestoreLoading] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [isResettingFilters, setIsResettingFilters] = useState(false);
 
@@ -369,7 +372,21 @@ export default function ProjectsPage() {
         }
     });
 
-    function openModal(project: Project, type: "edit" | "archive" | "delete") {
+    const restoreMutation = useMutation({
+        mutationFn: (id: string) => ProjectService.restore(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            toast.success(t('project.restoreSuccess', { defaultValue: 'Dự án đã được khôi phục thành công' }));
+            closeModal();
+            // If we are on the Archived filter, the project will disappear, which is correct.
+            // If we want to switch to Active, we could do it here, but typically invalidation is enough.
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message || t('project.restoreFailed', { defaultValue: 'Không thể khôi phục dự án' }));
+        }
+    });
+
+    function openModal(project: Project, type: "edit" | "archive" | "delete" | "restore") {
         setActiveProject(project);
         setModalType(type);
         setDeleteError(null);
@@ -572,24 +589,34 @@ export default function ProjectsPage() {
                         // Empty state for no results in search/filter
                         <div className="flex flex-col items-center justify-center pt-12 pb-12">
                             <div className="h-20 w-20 rounded-full bg-slate-100/80 flex items-center justify-center mb-6 border-2 border-slate-200">
-                                <Search className="w-10 h-10 text-slate-400" strokeWidth={1.5} />
+                                {statusFilter === "Archived" ? (
+                                    <Archive className="w-10 h-10 text-slate-400" strokeWidth={1.5} />
+                                ) : (
+                                    <Search className="w-10 h-10 text-slate-400" strokeWidth={1.5} />
+                                )}
                             </div>
-                            <h3 className="text-[20px] md:text-[24px] font-bold text-gray-800 mb-2">{t('project.noResults')}</h3>
+                            <h3 className="text-[20px] md:text-[24px] font-bold text-gray-800 mb-2">
+                                {statusFilter === "Archived" ? t('project.noArchivedProjects', { defaultValue: 'Không có dự án lưu trữ' }) : t('project.noResults')}
+                            </h3>
                             <p className="text-[13px] md:text-[14px] text-gray-500 text-center max-w-sm mb-6 font-medium">
-                                {t('project.noResultsHint')}
+                                {statusFilter === "Archived" 
+                                    ? t('project.noArchivedHint', { defaultValue: 'Các dự án sau khi lưu trữ sẽ xuất hiện tại đây.' }) 
+                                    : t('project.noResultsHint')}
                             </p>
-                            <button
-                                onClick={() => {
-                                    setIsResettingFilters(true);
-                                    setSearch("");
-                                    setStatusFilter("All");
-                                    setVisibilityFilter("All");
-                                    setPage(1);
-                                }}
-                                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[13px] hover:bg-blue-700 transition-all shadow-sm"
-                            >
-                                {t('project.clearFilters')}
-                            </button>
+                            {(search || statusFilter !== "All" || visibilityFilter !== "All") && statusFilter !== "Archived" && (
+                                <button
+                                    onClick={() => {
+                                        setIsResettingFilters(true);
+                                        setSearch("");
+                                        setStatusFilter("All");
+                                        setVisibilityFilter("All");
+                                        setPage(1);
+                                    }}
+                                    className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[13px] hover:bg-blue-700 transition-all shadow-sm"
+                                >
+                                    {t('project.clearFilters')}
+                                </button>
+                            )}
                         </div>
                     ) : (
                         // Empty state for no projects at all
@@ -618,7 +645,16 @@ export default function ProjectsPage() {
                 ) : view === "grid" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-10">
                         {projects.map((p) => (
-                            <div key={p.id} className="group flex flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer relative" onClick={() => router.push(`/projects/${p.id}`)}>
+                            <div 
+                                key={p.id} 
+                                className={cn(
+                                    "group flex flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all cursor-pointer relative",
+                                    p.status === "Archived" 
+                                        ? "opacity-60 grayscale-[30%] hover:shadow-md" 
+                                        : "hover:shadow-xl hover:border-blue-200"
+                                )} 
+                                onClick={() => router.push(`/projects/${p.id}`)}
+                            >
                                 {currentUser && (
                                     <div className="absolute top-3 right-2 z-10" onClick={(e) => e.stopPropagation()}>
                                         <DropdownMenu>
@@ -629,12 +665,28 @@ export default function ProjectsPage() {
                                                 <DropdownMenuItem onClick={() => router.push(`/projects/${p.id}`)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
                                                     <Folder size={14} className="mr-2" /> {t('project.viewDetails', { defaultValue: 'Xem chi tiết' })}
                                                 </DropdownMenuItem>
-                                                {canEditProject(p) && (
-                                                    <DropdownMenuItem onClick={() => openModal(p, "edit")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer"><Pencil size={14} className="mr-2" /> {t('project.edit')}</DropdownMenuItem>
+                                                
+                                                {p.status === "Archived" ? (
+                                                    // Menu for archived
+                                                    <>
+                                                        {(p.isOwner || isAdmin) && (
+                                                            <DropdownMenuItem onClick={() => openModal(p, "restore")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
+                                                                <RotateCcw size={14} className="mr-2" /> {t('common.restore', { defaultValue: 'Khôi phục dự án' })}
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    // Menu for active/completed
+                                                    <>
+                                                        {canEditProject(p) && (
+                                                            <DropdownMenuItem onClick={() => openModal(p, "edit")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer"><Pencil size={14} className="mr-2" /> {t('project.edit')}</DropdownMenuItem>
+                                                        )}
+                                                        {canArchiveProject(p) && (
+                                                            <DropdownMenuItem onClick={() => openModal(p, "archive")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer"><Archive size={14} className="mr-2" /> {t('project.archive')}</DropdownMenuItem>
+                                                        )}
+                                                    </>
                                                 )}
-                                                {canArchiveProject(p) && (
-                                                    <DropdownMenuItem onClick={() => openModal(p, "archive")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer"><Archive size={14} className="mr-2" /> {t('project.archive')}</DropdownMenuItem>
-                                                )}
+
                                                 {isAdmin && (
                                                     <>
                                                         <DropdownMenuSeparator className="my-1" />
@@ -697,7 +749,14 @@ export default function ProjectsPage() {
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {projects.map((p) => (
-                                    <tr key={p.id} className="group hover:bg-blue-50/30 transition-all cursor-pointer" onClick={() => router.push(`/projects/${p.id}`)}>
+                                    <tr 
+                                        key={p.id} 
+                                        className={cn(
+                                            "group transition-all cursor-pointer",
+                                            p.status === "Archived" ? "bg-gray-50/30 opacity-60 grayscale-[30%] hover:bg-gray-100/50" : "hover:bg-blue-50/30"
+                                        )} 
+                                        onClick={() => router.push(`/projects/${p.id}`)}
+                                    >
                                         <td className="py-4 pl-6 pr-4 min-w-[150px]">
                                             <div className="min-w-0">
                                                 <div className="text-[12px] font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">{p.name}</div>
@@ -742,16 +801,32 @@ export default function ProjectsPage() {
                                                         <DropdownMenuItem onClick={() => router.push(`/projects/${p.id}`)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
                                                             <Folder size={14} className="mr-2" /> {t('project.viewDetails', { defaultValue: 'Xem chi tiết' })}
                                                         </DropdownMenuItem>
-                                                        {canEditProject(p) && (
-                                                            <DropdownMenuItem onClick={() => openModal(p, "edit")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                                <Pencil size={14} className="mr-2" /> {t('project.edit')}
-                                                            </DropdownMenuItem>
+                                                        
+                                                        {p.status === "Archived" ? (
+                                                            // Menu for archived
+                                                            <>
+                                                                {(p.isOwner || isAdmin) && (
+                                                                    <DropdownMenuItem onClick={() => openModal(p, "restore")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
+                                                                        <RotateCcw size={14} className="mr-2" /> {t('common.restore', { defaultValue: 'Khôi phục dự án' })}
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            // Menu for active/completed
+                                                            <>
+                                                                {canEditProject(p) && (
+                                                                    <DropdownMenuItem onClick={() => openModal(p, "edit")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
+                                                                        <Pencil size={14} className="mr-2" /> {t('project.edit')}
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                {canArchiveProject(p) && (
+                                                                    <DropdownMenuItem onClick={() => openModal(p, "archive")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
+                                                                        <Archive size={14} className="mr-2" /> {t('project.archive')}
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                            </>
                                                         )}
-                                                        {canArchiveProject(p) && (
-                                                            <DropdownMenuItem onClick={() => openModal(p, "archive")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                                <Archive size={14} className="mr-2" /> {t('project.archive')}
-                                                            </DropdownMenuItem>
-                                                        )}
+
                                                         {isAdmin && (
                                                             <>
                                                                 <DropdownMenuSeparator className="my-1" />
@@ -794,6 +869,7 @@ export default function ProjectsPage() {
                     <EditProjectModal isOpen={modalType === "edit"} onClose={closeModal} project={activeProject} onSubmit={handleEdit} />
                     <ArchiveProjectModal isOpen={modalType === "archive"} onClose={closeModal} project={activeProject} onConfirm={handleArchive} />
                     <DeleteProjectModal isOpen={modalType === "delete"} onClose={closeModal} project={activeProject} onConfirm={handleDelete} loading={deleteLoading} error={deleteError} />
+                    <RestoreProjectModal isOpen={modalType === "restore"} onClose={closeModal} project={activeProject} onConfirm={() => restoreMutation.mutate(activeProject.id)} loading={restoreMutation.isPending} />
                 </>
             )}
         </div>

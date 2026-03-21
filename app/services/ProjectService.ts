@@ -71,4 +71,12 @@ export const ProjectService = {
     );
     return response.data;
   },
+
+  // Restore an archived project
+  restore: async (id: string) => {
+    const response = await apiJava.patch<ApiResponse<Project>>(
+      `/v1/projects/${id}/restore`
+    );
+    return response.data;
+  },
 };
