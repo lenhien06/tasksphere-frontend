@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useMemo } from 'react'
-import { UserCircle, Calendar, Zap, Loader2 } from 'lucide-react'
+import { UserCircle, Calendar, Clock, Zap, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { UserAvatar } from '@/components/common/UserAvatar'
@@ -24,6 +24,7 @@ export interface CreateTaskPayload {
     assigneeId: string | null
     dueDate: string | null
     storyPoints: number | null
+    estimatedHours: number | null
     statusColumnId: string
     parentTaskId: string | null
     sprintId: string | null
@@ -73,7 +74,7 @@ const PRIORITY_CONFIG: Record<TaskPriority, { bg: string; text: string }> = {
     LOW:      { bg: "bg-[#DBEAFE]", text: "text-[#1D4ED8]" },
 }
 
-const STORY_POINT_PRESETS = [1, 2, 3, 5, 8]
+const STORY_POINT_PRESETS = [1, 2, 3, 5]
 
 // ── SprintSelector (FIX 5) ────────────────────────────────────
 // ≤3 sprints → button group, >3 → dropdown
@@ -254,14 +255,16 @@ export function FullCreateTask({
     const [assigneeId, setAssigneeId] = useState<string | null>(null)
     const [dueDate, setDueDate]       = useState<string | null>(null)
     const [sprintId, setSprintId]     = useState<string | null>(null)
-    const [columnId, setColumnId]     = useState(defaultColumnId || columns[0]?.id || "")
     const [createAnother, setCreateAnother] = useState(false)
     const [isSubmitting, setIsSubmitting]   = useState(false)
 
-    // FIX 3 — Story Points with custom input
+    // FIX 3 — Story Points with custom input (range 1-127)
     const [storyPoints, setStoryPoints] = useState<number | null>(null)
     const [customSP, setCustomSP]       = useState("")
     const [isCustomSP, setIsCustomSP]   = useState(false)
+
+    // NEW field: estimatedHours
+    const [estimatedHours, setEstimatedHours] = useState<string>("")
 
     const selectedMember = useMemo(
         () => projectMembers.find(m => m.id === assigneeId),
@@ -294,10 +297,18 @@ export function FullCreateTask({
             toast.error(t('task.dueDateAfterToday'))
             return
         }
-        if (storyPoints !== null && (storyPoints < 0 || storyPoints > 100)) {
+        // Updated range for Story Points (1-127)
+        if (storyPoints !== null && (storyPoints < 1 || storyPoints > 127)) {
             toast.error(t('task.storyPointsRange'))
             return
         }
+
+        const estHoursNum = estimatedHours.trim() ? parseFloat(estimatedHours) : null;
+        if (estHoursNum !== null && (isNaN(estHoursNum) || estHoursNum < 0 || estHoursNum > 999.99)) {
+            toast.error(t('task.estimatedHoursRange'))
+            return
+        }
+
         // Validate sprint belongs to the correct project
         if (sprintId && !sprints.find(s => s.id === sprintId)) {
             toast.error(t('task.invalidSprint'))
@@ -315,7 +326,8 @@ export function FullCreateTask({
             assigneeId,
             dueDate,
             storyPoints,
-            statusColumnId: columnId,
+            estimatedHours: estHoursNum,
+            statusColumnId: defaultColumnId || columns[0]?.id || "", // Always use default TODO status
             parentTaskId: parentTask?.id || null,
             sprintId,
         }
@@ -328,6 +340,7 @@ export function FullCreateTask({
                 setStoryPoints(null)
                 setCustomSP("")
                 setIsCustomSP(false)
+                setEstimatedHours("")
                 setIsSubmitting(false)
             } else {
                 onClose()
@@ -365,11 +378,11 @@ export function FullCreateTask({
                     <span className="bg-[#E5E7EB] text-gray-500 font-mono text-sm px-2 py-0.5 rounded-md">{taskCode}</span>
                 </div>
 
-                <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[75vh]">
+                <div className="px-6 py-4 space-y-3.5 overflow-y-auto max-h-[75vh] custom-scrollbar">
 
-                    {/* Title — FIX 2 */}
+                    {/* Title */}
                     <div>
-                        <label className="text-sm font-semibold text-gray-800 flex gap-1 mb-1.5">
+                        <label className="text-sm font-semibold text-gray-800 flex gap-1 mb-1">
                             {t('task.name')} <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -380,14 +393,14 @@ export function FullCreateTask({
                             placeholder={t('task.namePlaceholder')}
                             className="w-full h-10 border border-gray-200 rounded-lg px-3 text-[15px] focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
                         />
-                        <div className={cn("text-right text-xs mt-1", titleCounterClass)}>
+                        <div className={cn("text-right text-[10px] mt-0.5", titleCounterClass)}>
                             {title.length}/255
                         </div>
                     </div>
 
                     {/* Description */}
                     <div>
-                        <label className="text-sm font-semibold text-gray-800 mb-1.5 block">{t('task.description')}</label>
+                        <label className="text-sm font-semibold text-gray-800 mb-1 block">{t('task.description')}</label>
                         <textarea
                             rows={3}
                             maxLength={2000}
@@ -396,6 +409,25 @@ export function FullCreateTask({
                             placeholder={t('task.descriptionPlaceholder')}
                             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[15px] resize-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
                         />
+                    </div>
+
+                    {/* Estimated Hours */}
+                    <div className="w-1/2">
+                        <label className="text-sm font-semibold text-gray-800 mb-1 block">{t('task.estimatedHours')}</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                max="999.99"
+                                value={estimatedHours}
+                                onChange={e => setEstimatedHours(e.target.value)}
+                                placeholder="0.0"
+                                className="w-full h-10 border border-gray-200 rounded-lg pl-10 pr-3 text-sm focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                            />
+                            <Clock size={16} className="absolute left-3 top-3 text-gray-400" />
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1">{t('task.estimatedHoursHint')}</p>
                     </div>
 
                     {/* Type + Priority */}
@@ -518,11 +550,12 @@ export function FullCreateTask({
                                             const val = e.target.value
                                             setCustomSP(val)
                                             const num = parseInt(val)
-                                            setStoryPoints(!isNaN(num) && num >= 0 && num <= 100 ? num : null)
+                                            setStoryPoints(!isNaN(num) && num >= 1 && num <= 127 ? num : null)
                                         }}
                                         onBlur={() => { if (!customSP) { setIsCustomSP(false) } }}
-                                        placeholder="0–100"
+                                        placeholder="1–127"
                                         className="w-20 h-9 border-2 border-blue-400 rounded-xl text-sm text-center outline-none font-medium"
+
                                     />
                                 ) : (
                                     <button
@@ -548,34 +581,6 @@ export function FullCreateTask({
                         </div>
                     </div>
 
-                    {/* Kanban Column */}
-                    <div>
-                        <label className="text-sm font-semibold text-gray-800 mb-2 block">{t('task.kanbanColumn')}</label>
-                        <div className="flex gap-5 flex-wrap">
-                            {columns.map(col => {
-                                const isSelected = columnId === col.id
-                                return (
-                                    <button
-                                        key={col.id}
-                                        type="button"
-                                        onClick={() => setColumnId(col.id)}
-                                        className="flex items-center gap-2 group cursor-pointer"
-                                    >
-                                        <div className={cn(
-                                            "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
-                                            isSelected ? "border-blue-500" : "border-gray-300 group-hover:border-gray-400"
-                                        )}>
-                                            {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: col.color }} />
-                                            <span className={cn("text-sm font-medium transition-all", isSelected ? "text-gray-900" : "text-gray-500")}>{col.name}</span>
-                                        </div>
-                                    </button>
-                                )
-                            })}
-                        </div>
-                    </div>
                 </div>
 
                 {/* Footer */}

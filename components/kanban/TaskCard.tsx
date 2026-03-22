@@ -31,11 +31,12 @@ export interface KanbanTaskCard {
 interface TaskCardProps {
   task: KanbanTaskCard;
   canDrag: boolean;
+  dragDisabledReason?: string;
   isDimmed?: boolean;
   onClick: (taskId: string) => void;
 }
 
-export default function TaskCard({ task, canDrag, isDimmed, onClick }: TaskCardProps) {
+export default function TaskCard({ task, canDrag, dragDisabledReason, isDimmed, onClick }: TaskCardProps) {
   const { t, i18n } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -61,12 +62,14 @@ export default function TaskCard({ task, canDrag, isDimmed, onClick }: TaskCardP
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
+      {...(canDrag ? listeners : {})}
       onClick={() => onClick(task.id)}
+      title={!canDrag ? dragDisabledReason || t("kanban.dragDisabled", { defaultValue: "You do not have permission to drag this task" }) : undefined}
       className={cn(
-        "rounded-xl border border-gray-200 bg-white px-3 py-2.5 cursor-pointer select-none shadow-sm",
+        "rounded-xl border border-gray-200 bg-white px-3 py-2.5 select-none shadow-sm",
         getPriorityBorder(task.priority),
         "hover:-translate-y-[1px] hover:border-gray-300 hover:shadow transition-shadow duration-200",
+        canDrag ? "cursor-pointer" : "cursor-not-allowed",
         task.isOverdue && "border-red-200 bg-red-50/30",
         isDragging && "opacity-0",
         isDimmed && "opacity-30 blur-[1px]"

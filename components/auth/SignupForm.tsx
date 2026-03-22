@@ -35,6 +35,7 @@ function SignupFormInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const inviteToken = searchParams.get("inviteToken");
+    const callbackUrl = searchParams.get("callbackUrl");
     
     const queryClient = useQueryClient();
     const [showPassword, setShowPassword] = useState(false);
@@ -148,7 +149,14 @@ function SignupFormInner() {
                 queryClient.invalidateQueries({ queryKey: ["currentUser"] });
 
                 setTimeout(() => {
-                    router.push("/dashboard");
+                    const fallbackRedirect =
+                        callbackUrl ||
+                        (typeof window !== "undefined" ? sessionStorage.getItem("redirectAfterLogin") : null) ||
+                        "/dashboard";
+                    if (typeof window !== "undefined") {
+                        sessionStorage.removeItem("redirectAfterLogin");
+                    }
+                    router.push(fallbackRedirect);
                 }, 1000);
             } else {
                 toast.error(res.message || "Registration failed");

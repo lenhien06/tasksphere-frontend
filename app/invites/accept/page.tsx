@@ -8,17 +8,26 @@ import { VerifyInviteResponse } from "@/app/types/member.schema";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { getBeErrorMessage, getStructuredErrorCode } from "@/lib/axios";
 
 function AcceptInviteContent() {
     const { t } = useTranslation();
     const searchParams = useSearchParams();
     const router = useRouter();
     const token = searchParams.get("token");
-    const { accessToken } = useAuthStore();
+    const shouldAutoAccept = searchParams.get("autoAccept") === "1";
+    const { accessToken, userDetail, logout } = useAuthStore() as any;
+    const currentUserEmail = userDetail?.email;
 
-    const [status, setStatus] = useState<"verifying" | "verified" | "accepting" | "declining" | "success" | "declined" | "error">("verifying");
+    const [status, setStatus] = useState<"verifying" | "verified" | "accepting" | "declining" | "success" | "declined" | "error" | "mismatch">("verifying");
     const [inviteData, setInviteData] = useState<VerifyInviteResponse | null>(null);
     const [message, setMessage] = useState(t('invite.verifying'));
+
+    const rememberInviteRedirect = () => {
+        if (typeof window === "undefined" || !token) return;
+        const callbackPath = `/invites/accept?token=${encodeURIComponent(token)}&autoAccept=1`;
+        sessionStorage.setItem("redirectAfterLogin", callbackPath);
+    };
 
     // 1. Verify Token on Load
     useEffect(() => {
@@ -34,34 +43,91 @@ function AcceptInviteContent() {
                 setInviteData(data);
                 setStatus("verified");
             } catch (error: any) {
-                setStatus("error");
-                setMessage(error.response?.data?.meta?.message || t('invite.invalidToken'));
+                const statusCode = error?.response?.status;
+                const errCode = getStructuredErrorCode(error);
+                const errorData = error?.response?.data;
+
+                if (
+                    statusCode === 410 ||
+                    errCode === "TOKEN_EXPIRED_OR_REVOKED" ||
+                    (statusCode === 400 && errorData?.error === "INVITE_EXPIRED")
+                ) {
+                    setStatus("error");
+                    setMessage(
+                        getBeErrorMessage(error) ||
+                            "Lời mời đã hết hạn hoặc không còn hiệu lực. Vui lòng liên hệ PM để được mời lại."
+                    );
+                } else if (
+                    statusCode === 404 ||
+                    errCode === "TOKEN_NOT_FOUND" ||
+                    errCode === "NOT_FOUND" ||
+                    (statusCode === 400 && errorData?.error === "INVITE_NOT_FOUND")
+                ) {
+                    setStatus("error");
+                    setMessage(getBeErrorMessage(error) || "Lời mời không tồn tại hoặc đã bị hủy.");
+                } else if (statusCode === 403 && errorData?.error === "EMAIL_MISMATCH") {
+                    setInviteData(errorData?.data);
+                    setStatus("mismatch");
+                    setMessage(
+                        `Tài khoản đang đăng nhập (${currentUserEmail}) không khớp với email được mời (${errorData?.data?.inviteeEmail || "email khác"}). Vui lòng đăng xuất và đăng nhập bằng đúng tài khoản.`
+                    );
+                } else {
+                    setStatus("error");
+                    setMessage(getBeErrorMessage(error) || t("invite.invalidToken"));
+                }
             }
         };
 
         verifyToken();
-    }, [token]);
+    }, [token, t, currentUserEmail]);
+
+    useEffect(() => {
+        if (!accessToken || !shouldAutoAccept || status !== "verified" || !token) return;
+        if (typeof window !== "undefined") {
+            const cleanedUrl = `/invites/accept?token=${encodeURIComponent(token)}`;
+            window.history.replaceState({}, "", cleanedUrl);
+        }
+        handleAccept();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [accessToken, shouldAutoAccept, status, token]);
 
     // 2. Handle Accept
     const handleAccept = async () => {
-        if (!accessToken) {
-            // Not logged in — redirect to Signup with token
-            toast.info(t('invite.signupRequired'));
-            router.push(`/signup?inviteToken=${token}&email=${inviteData?.inviteeEmail}`);
-            return;
-        }
+        if (!accessToken || !token) return;
 
         setStatus("accepting");
         try {
-            const res = await ProjectMemberService.acceptInvite(token!);
+            const res = await ProjectMemberService.acceptInvite(token);
             setStatus("success");
             setMessage(res.message);
             setTimeout(() => {
                 router.push(`/projects/${res.projectId}`);
             }, 2000);
         } catch (error: any) {
-            setStatus("error");
-            setMessage(error.response?.data?.meta?.message || t('invite.acceptError'));
+            const statusCode = error?.response?.status;
+            const errCode = getStructuredErrorCode(error);
+            const errorData = error?.response?.data;
+
+            if (statusCode === 400 && errorData?.error === "EMAIL_MISMATCH") {
+                setStatus("mismatch");
+                setMessage(
+                    getBeErrorMessage(error) ||
+                        `Tài khoản đang đăng nhập (${currentUserEmail}) không khớp với email được mời (${inviteData?.inviteeEmail || "email khác"}). Vui lòng đăng xuất và đăng nhập bằng đúng tài khoản.`
+                );
+            } else if (statusCode === 409 || errCode === "ALREADY_MEMBER") {
+                toast.error(getBeErrorMessage(error) || "Bạn đã là thành viên dự án hoặc lời mời đã được xử lý.");
+                setStatus("error");
+                setMessage(getBeErrorMessage(error) || "Không thể chấp nhận lời mời này.");
+            } else if (statusCode === 410 || errCode === "TOKEN_EXPIRED_OR_REVOKED") {
+                setStatus("error");
+                setMessage(getBeErrorMessage(error) || "Lời mời đã hết hạn hoặc không còn hiệu lực.");
+            } else if (statusCode === 404 || errCode === "TOKEN_NOT_FOUND") {
+                setStatus("error");
+                setMessage(getBeErrorMessage(error) || "Không tìm thấy lời mời.");
+            } else {
+                setStatus("error");
+                setMessage(getBeErrorMessage(error) || t("invite.acceptError"));
+            }
         }
     };
 
@@ -75,8 +141,32 @@ function AcceptInviteContent() {
             setStatus("declined");
             setMessage(res.message || t('invite.declineSuccess'));
         } catch (error: any) {
-            setStatus("error");
-            setMessage(error.response?.data?.meta?.message || t('invite.declineError'));
+            const statusCode = error?.response?.status;
+            const errorData = error?.response?.data;
+
+            const errCodeDecl = getStructuredErrorCode(error);
+
+            if (statusCode === 403 && errorData?.error === "EMAIL_MISMATCH") {
+                toast.error(getBeErrorMessage(error) || "Tài khoản đang đăng nhập không khớp với email được mời.");
+                setStatus("mismatch");
+                setMessage(
+                    getBeErrorMessage(error) ||
+                        `Tài khoản đang đăng nhập (${currentUserEmail}) không khớp với email được mời (${inviteData?.inviteeEmail || "email khác"}). Vui lòng đăng xuất và đăng nhập bằng đúng tài khoản.`
+                );
+            } else if (statusCode === 409 || errCodeDecl === "ALREADY_ACCEPTED") {
+                toast.error(getBeErrorMessage(error) || "Lời mời đã được chấp nhận trước đó.");
+                setStatus("error");
+                setMessage(getBeErrorMessage(error) || "Không thể từ chối lời mời này.");
+            } else if (statusCode === 410 || errCodeDecl === "TOKEN_EXPIRED_OR_REVOKED") {
+                setStatus("error");
+                setMessage(getBeErrorMessage(error) || "Lời mời đã hết hạn hoặc không còn hiệu lực.");
+            } else if (statusCode === 404 || errCodeDecl === "TOKEN_NOT_FOUND") {
+                setStatus("error");
+                setMessage(getBeErrorMessage(error) || "Không tìm thấy lời mời.");
+            } else {
+                setStatus("error");
+                setMessage(getBeErrorMessage(error) || t("invite.declineError"));
+            }
         }
     };
 
@@ -122,21 +212,47 @@ function AcceptInviteContent() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 w-full">
-                            <button
-                                onClick={handleDecline}
-                                className="h-12 rounded-xl border border-[#DADCE0] bg-white text-[14px] font-bold text-[#5F6368] hover:bg-[#F8F9FA] transition-all active:scale-95"
-                            >
-                                {t('invite.decline')}
-                            </button>
-                            <button
-                                onClick={handleAccept}
-                                className="h-12 rounded-xl bg-[#1A73E8] text-[14px] font-bold text-white shadow-lg shadow-blue-200 hover:bg-[#1557B0] transition-all flex items-center justify-center gap-2 active:scale-95"
-                            >
-                                {accessToken ? t('invite.acceptNow') : t('invite.signupToJoin')}
-                                <ArrowRight size={16} />
-                            </button>
-                        </div>
+                        {accessToken ? (
+                            <div className="grid grid-cols-2 gap-4 w-full">
+                                <button
+                                    onClick={handleDecline}
+                                    className="h-12 rounded-xl border border-[#DADCE0] bg-white text-[14px] font-bold text-[#5F6368] hover:bg-[#F8F9FA] transition-all active:scale-95"
+                                >
+                                    {t('invite.decline')}
+                                </button>
+                                <button
+                                    onClick={handleAccept}
+                                    className="h-12 rounded-xl bg-[#1A73E8] text-[14px] font-bold text-white shadow-lg shadow-blue-200 hover:bg-[#1557B0] transition-all flex items-center justify-center gap-2 active:scale-95"
+                                >
+                                    {t('invite.acceptNow')}
+                                    <ArrowRight size={16} />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-4 w-full">
+                                <button
+                                    onClick={() => {
+                                        rememberInviteRedirect();
+                                        const callbackUrl = encodeURIComponent(`/invites/accept?token=${encodeURIComponent(token || "")}&autoAccept=1`);
+                                        router.push(`/signin?callbackUrl=${callbackUrl}`);
+                                    }}
+                                    className="h-12 rounded-xl border border-[#DADCE0] bg-white text-[14px] font-bold text-[#5F6368] hover:bg-[#F8F9FA] transition-all active:scale-95"
+                                >
+                                    Đăng nhập để chấp nhận
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        rememberInviteRedirect();
+                                        const callbackUrl = encodeURIComponent(`/invites/accept?token=${encodeURIComponent(token || "")}&autoAccept=1`);
+                                        router.push(`/signup?inviteToken=${encodeURIComponent(token || "")}&email=${encodeURIComponent(inviteData?.inviteeEmail || "")}&callbackUrl=${callbackUrl}`);
+                                    }}
+                                    className="h-12 rounded-xl bg-[#1A73E8] text-[14px] font-bold text-white shadow-lg shadow-blue-200 hover:bg-[#1557B0] transition-all flex items-center justify-center gap-2 active:scale-95"
+                                >
+                                    Đăng ký tài khoản mới
+                                    <ArrowRight size={16} />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -173,6 +289,25 @@ function AcceptInviteContent() {
                             className="w-full h-12 rounded-xl bg-gray-900 text-[14px] font-bold text-white hover:bg-black transition-all"
                         >
                             {t('invite.backToHome')}
+                        </button>
+                    </div>
+                )}
+
+                {status === "mismatch" && (
+                    <div className="flex flex-col items-center py-6">
+                        <div className="rounded-full bg-amber-50 p-4 mb-6 ring-8 ring-amber-50/50">
+                            <AlertTriangle className="h-14 w-14 text-amber-500" />
+                        </div>
+                        <h2 className="text-[20px] font-black text-gray-900 mb-2 leading-tight">Sai tài khoản người nhận</h2>
+                        <p className="text-[14px] text-[#5F6368] mb-10 px-6 whitespace-pre-wrap">{message}</p>
+                        <button
+                            onClick={() => {
+                                logout();
+                                router.push("/signin");
+                            }}
+                            className="w-full h-12 rounded-xl bg-gray-900 text-[14px] font-bold text-white hover:bg-black transition-all flex items-center justify-center gap-2"
+                        >
+                            Đăng xuất & Đăng nhập lại
                         </button>
                     </div>
                 )}

@@ -7,10 +7,10 @@ import {
     Search, Lock, Users, Globe, Check, Mail, Crown, Shield, Eye, Settings, Bell,
     AlertTriangle, MessageCircle, Plus, CheckCircle2, BarChart2,
     ShieldOff, ArrowLeft, X, Calendar, Clock, Trash2, Loader2, ChevronDown, ChevronRight, Archive, RefreshCw, Filter,
-    Layout, Kanban, ListTodo
+    Layout, Kanban, ListTodo, MoreHorizontal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -31,10 +31,10 @@ import {
 
 // IMPORT SERVICES
 import { ProjectService } from "@/app/services/ProjectService";
-import { ProjectMemberService, type ProjectRole as ApiProjectRole } from "@/app/services/project-member.service";
+import { ProjectMemberService } from "@/app/services/project-member.service";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { UserAvatar } from "@/components/common/UserAvatar";
-import { apiJava } from "@/lib/axios";
+import { getBeErrorMessage, getStructuredErrorCode } from "@/lib/axios";
 
 import ProjectOverview from "@/components/projects/ProjectOverview";
 import KanbanBoard from "@/components/projects/KanbanBoard";
@@ -107,13 +107,59 @@ function mapToUIProject(be: any): Project {
 
 function RoleBadge({ role }: { role: string }) {
     const map: Record<string, { label: string; cls: string }> = {
-        project_manager: { label: "Manager", cls: "bg-amber-50 text-amber-700 border-amber-100" },
-        member: { label: "Member", cls: "bg-blue-50 text-blue-700 border-blue-100" },
-        viewer: { label: "Viewer", cls: "bg-slate-50 text-slate-600 border-slate-100" },
-        system_admin: { label: "Admin", cls: "bg-red-50 text-red-700 border-red-100" },
+        project_manager: { label: "Project Manager", cls: "bg-blue-100 text-blue-600 border-blue-200" },
+        pm: { label: "Project Manager", cls: "bg-blue-100 text-blue-600 border-blue-200" },
+        member: { label: "Member", cls: "bg-emerald-100 text-emerald-600 border-emerald-200" },
+        viewer: { label: "Viewer", cls: "bg-slate-100 text-slate-600 border-slate-200" },
+        owner: { label: "Owner", cls: "bg-amber-100 text-amber-600 border-amber-200" },
+        system_admin: { label: "Admin", cls: "bg-red-100 text-red-600 border-red-200" },
     };
-    const cfg = map[role?.toLowerCase()] || map["viewer"];
-    return <span className={cn("inline-flex items-center rounded-lg px-2 py-0.5 text-[10px] font-bold border uppercase tracking-wider", cfg.cls)}>{cfg.label}</span>;
+    const cfg = map[String(role || "").toLowerCase()] || map["viewer"];
+    return <span className={cn("inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold border", cfg.cls)}>{cfg.label}</span>;
+}
+
+function StatusBadge({ status, daysLeft }: { status: string; daysLeft?: number | null }) {
+    const s = status?.toUpperCase();
+    if (s === "PENDING") {
+        return (
+            <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-blue-100 text-blue-600 border border-blue-200 uppercase tracking-tight">
+                ĐANG CHỜ
+            </span>
+        );
+    }
+    if (s === "DECLINED") {
+        return (
+            <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-orange-100 text-orange-600 border border-orange-200 uppercase tracking-tight">
+                ĐÃ TỪ CHỐI
+            </span>
+        );
+    }
+    if (s === "EXPIRED") {
+        return (
+            <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-slate-100 text-slate-400 border border-slate-200 uppercase tracking-tight">
+                HẾT HẠN
+            </span>
+        );
+    }
+    if (s === "REVOKED") {
+        return (
+            <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-red-100 text-red-600 border border-red-200 uppercase tracking-tight">
+                ĐÃ HỦY
+            </span>
+        );
+    }
+    if (s === "ACCEPTED") {
+        return (
+            <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase tracking-tight">
+                ĐÃ CHẤP NHẬN
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-tight">
+            {s}
+        </span>
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -230,34 +276,150 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen: boolean; onClose: () => void; projectId: string; initialEmail?: string; }) {
     const { t } = useTranslation()
+    const router = useRouter()
     const [email, setEmail] = useState(initialEmail);
-    const [role, setRole] = useState<ApiProjectRole>("member");
+    const [role, setRole] = useState<"MEMBER" | "VIEWER" | "">("");
+    const [emailError, setEmailError] = useState<string | null>(null);
     const queryClient = useQueryClient();
-    useEffect(() => { if (isOpen) setEmail(initialEmail); }, [isOpen, initialEmail]);
-    const isValidEmail = EMAIL_REGEX.test(email);
+    useEffect(() => {
+        if (!isOpen) return;
+        setEmail(initialEmail);
+        setEmailError(null);
+    }, [isOpen, initialEmail]);
+    const normalizedEmail = email.trim();
+    const emailHasValue = normalizedEmail.length > 0;
+    const isValidEmail = EMAIL_REGEX.test(normalizedEmail);
+    const showEmailError = emailHasValue && !isValidEmail;
+    const canSubmit = isValidEmail && !!role;
     const inviteMutation = useMutation({
-        mutationFn: () => ProjectMemberService.inviteMember(projectId, { email, role }),
-        onSuccess: (response) => {
-            const { data, meta } = response;
+        mutationFn: () =>
+            ProjectMemberService.inviteMember(projectId, {
+                email: normalizedEmail,
+                role: role as "MEMBER" | "VIEWER",
+            }),
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["project-pending-invites", projectId] });
-            if (data.isNewUser) toast.info(meta.message || "An invitation email to register an account has been sent.");
-            else { toast.success(meta.message || "Member added successfully."); queryClient.invalidateQueries({ queryKey: ["project-members", projectId] }); }
-            setEmail(""); onClose();
+            queryClient.invalidateQueries({ queryKey: ["project-members", projectId] });
+            toast.success(`Đã gửi lời mời đến ${normalizedEmail}`);
+            setEmail("");
+            setRole("");
+            setEmailError(null);
+            onClose();
         },
-        onError: (error: any) => toast.error(error?.response?.data?.meta?.message || "Failed to send invitation."),
+        onError: (error: any) => {
+            const status = error?.response?.status;
+            const code = getStructuredErrorCode(error);
+            const data = error?.response?.data;
+            if (status === 409 || code === "ALREADY_MEMBER") {
+                toast.error(getBeErrorMessage(error) || "Người dùng này đã là thành viên của dự án");
+                return;
+            }
+            if (status === 403 || code === "FORBIDDEN") {
+                toast.error(getBeErrorMessage(error) || "Bạn không có quyền thực hiện thao tác này");
+                return;
+            }
+            if (status === 422 || code === "MEMBER_LIMIT_EXCEEDED") {
+                const { currentCount, limit, plan } = data?.meta || {};
+                const base =
+                    getBeErrorMessage(error) ||
+                    (currentCount != null && limit != null
+                        ? `Đã đạt giới hạn ${currentCount}/${limit} thành viên${plan ? ` (Gói ${plan})` : ""}.`
+                        : "Đã đạt giới hạn thành viên theo gói dịch vụ.");
+                toast.error(base, {
+                    action: {
+                        label: "Nâng cấp",
+                        onClick: () => router.push("/settings/page?tab=billing"),
+                    },
+                });
+                return;
+            }
+            if (status === 400) {
+                setEmailError(getBeErrorMessage(error) || "Email hoặc role không hợp lệ");
+                return;
+            }
+            toast.error(getBeErrorMessage(error) || "Failed to send invitation.");
+        },
     });
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={t('project.inviteMember')} description="Invite a teammate to join the project." maxWidth="max-w-md">
             <div className="space-y-5">
-                <div><FieldLabel required>Email Address</FieldLabel><InputStyled value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="email@example.com" /></div>
-                <div><FieldLabel>{t('nav.team')}</FieldLabel><div className="grid grid-cols-1 gap-2">
-                    {["project_manager", "member", "viewer"].map((v) => (
-                        <button key={v} onClick={() => setRole(v as ApiProjectRole)} className={cn("p-3 rounded-xl border-2 text-left transition-all", role === v ? "border-blue-500 bg-blue-50" : "border-slate-100 hover:border-slate-200")}>
-                            <span className="text-sm font-bold capitalize">{v.replace('_', ' ')}</span>
+                <div>
+                    <FieldLabel required>Email Address</FieldLabel>
+                    <InputStyled
+                        value={email}
+                        onChange={(e: any) => {
+                            setEmail(e.target.value);
+                            setEmailError(null);
+                        }}
+                        placeholder="email@example.com"
+                    />
+                    {(showEmailError || emailError) && (
+                        <p className="mt-1 text-xs font-medium text-red-500">{emailError || "Email không đúng định dạng"}</p>
+                    )}
+                </div>
+                <div><FieldLabel>Vai trò</FieldLabel><div className="grid grid-cols-1 gap-2">
+                    {([
+                        { id: "MEMBER" as const, label: "Member", desc: "Tạo và sửa task, kéo thả Kanban, comment, upload file" },
+                        { id: "VIEWER" as const, label: "Viewer", desc: "Chỉ xem dự án và task, không thực hiện thao tác ghi" },
+                    ]).map((v) => (
+                        <button 
+                            key={v.id} 
+                            onClick={() => setRole(v.id)} 
+                            className={cn(
+                                "p-4 rounded-xl border-2 text-left transition-all flex flex-col gap-1", 
+                                role === v.id ? "border-blue-500 bg-blue-50" : "border-slate-100 hover:border-slate-200 bg-white"
+                            )}
+                        >
+                            <span className="text-[15px] font-bold text-gray-900">{v.label}</span>
+                            <span className="text-sm text-gray-500 font-medium leading-tight">{v.desc}</span>
                         </button>
                     ))}
                 </div></div>
-                <div className="flex justify-end gap-3 pt-4"><SecondaryButton onClick={onClose}>{t('common.cancel')}</SecondaryButton><PrimaryButton onClick={() => inviteMutation.mutate()} disabled={!isValidEmail || inviteMutation.isPending} loading={inviteMutation.isPending}>Send Invitation</PrimaryButton></div>
+                <div className="flex justify-end gap-3 pt-4"><SecondaryButton onClick={onClose}>{t('common.cancel')}</SecondaryButton><PrimaryButton onClick={() => inviteMutation.mutate()} disabled={!canSubmit || inviteMutation.isPending} loading={inviteMutation.isPending}>Gửi lời mời</PrimaryButton></div>
+            </div>
+        </Modal>
+    );
+}
+
+function ChangeRoleModal({ isOpen, onClose, member, onSubmit, isLoading }: {
+    isOpen: boolean;
+    onClose: () => void;
+    member: { fullName: string; currentRole: string };
+    onSubmit: (role: string) => void;
+    isLoading: boolean;
+}) {
+    const [selectedRole, setSelectedRole] = useState<string>(member.currentRole);
+    const ROLES = [
+        { id: "PROJECT_MANAGER", label: "Project Manager", desc: "Quản lý dự án, mời thành viên, đổi role" },
+        { id: "MEMBER", label: "Member", desc: "Tạo và sửa task, kéo thả Kanban, comment" },
+        { id: "VIEWER", label: "Viewer", desc: "Chỉ xem dự án và task" },
+    ];
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Đổi vai trò" description={`Đổi vai trò cho ${member.fullName}`} maxWidth="max-w-sm">
+            <div className="space-y-3">
+                {ROLES.map((r) => (
+                    <button
+                        key={r.id}
+                        onClick={() => setSelectedRole(r.id)}
+                        className={cn(
+                            "w-full p-4 rounded-xl border-2 text-left transition-all flex flex-col gap-1",
+                            selectedRole === r.id ? "border-blue-500 bg-blue-50" : "border-slate-100 hover:border-slate-200 bg-white"
+                        )}
+                    >
+                        <span className="text-[14px] font-bold text-gray-900">{r.label}</span>
+                        <span className="text-xs text-gray-500 font-medium leading-tight">{r.desc}</span>
+                    </button>
+                ))}
+                <div className="flex justify-end gap-3 pt-2">
+                    <SecondaryButton onClick={onClose} disabled={isLoading}>Hủy</SecondaryButton>
+                    <PrimaryButton
+                        onClick={() => onSubmit(selectedRole)}
+                        loading={isLoading}
+                        disabled={selectedRole === member.currentRole || isLoading}
+                    >
+                        Lưu thay đổi
+                    </PrimaryButton>
+                </div>
             </div>
         </Modal>
     );
@@ -265,9 +427,10 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
 
 function TabMembers({ project }: { project: Project }) {
     const { t } = useTranslation()
+    const router = useRouter();
     const [showInviteModal, setShowInviteModal] = useState(false);
-    const [search, setSearch] = useState("");
-    const [roleFilter, setRoleFilter] = useState<string>("all");
+    const [inviteStatusFilter, setInviteStatusFilter] = useState<string>("PENDING");
+    const [changeRoleTarget, setChangeRoleTarget] = useState<{ id: string; userId: string; fullName: string; currentRole: string } | null>(null);
     const queryClient = useQueryClient();
     
     const currentUserId = useAuthStore((state: any) => state.userDetail?.id || state.userDetail?.userId);
@@ -280,9 +443,9 @@ function TabMembers({ project }: { project: Project }) {
         enabled: !!project.id 
     });
 
-    const { data: pendingData, isLoading: isPendingLoading } = useQuery({
-        queryKey: ["project-pending-invites", project.id],
-        queryFn: () => ProjectMemberService.getPendingInvites(project.id),
+    const { data: invitesData } = useQuery({
+        queryKey: ["project-invites", project.id, inviteStatusFilter],
+        queryFn: () => ProjectMemberService.getPendingInvites(project.id, { status: inviteStatusFilter, size: 50 }),
         enabled: !!project.id && canManageMembers
     });
 
@@ -291,50 +454,72 @@ function TabMembers({ project }: { project: Project }) {
         onSuccess: () => { 
             toast.success("Member removed."); 
             queryClient.invalidateQueries({ queryKey: ["project-members", project.id] }); 
-        } 
-    });
-
-    const updateRoleMutation = useMutation({
-        mutationFn: ({ userId, role }: { userId: string, role: ApiProjectRole }) => 
-            ProjectMemberService.updateRole(project.id, userId, role),
-        onSuccess: () => {
-            toast.success("Role updated successfully.");
-            queryClient.invalidateQueries({ queryKey: ["project-members", project.id] });
         },
-        onError: (err: any) => toast.error(err?.response?.data?.meta?.message || "Failed to update role")
+        onError: (error: any) => {
+            const code = getStructuredErrorCode(error);
+            if (code === "CANNOT_REMOVE_OWNER" || error?.response?.status === 403) {
+                toast.error(getBeErrorMessage(error) || "Không thể xóa Owner khỏi dự án.");
+                return;
+            }
+            toast.error(getBeErrorMessage(error) || "Không thể xóa thành viên.");
+        },
     });
 
     const revokeMutation = useMutation({
         mutationFn: (inviteId: string) => ProjectMemberService.revokeInvite(project.id, inviteId),
         onSuccess: () => {
             toast.success("Invitation revoked.");
-            queryClient.invalidateQueries({ queryKey: ["project-pending-invites", project.id] });
+            queryClient.invalidateQueries({ queryKey: ["project-invites", project.id, inviteStatusFilter] });
+        }
+    });
+
+    const leaveMutation = useMutation({
+        mutationFn: () => ProjectMemberService.leaveProject(project.id),
+        onSuccess: () => {
+            toast.success(`Bạn đã rời khỏi dự án ${project.name}`);
+            queryClient.invalidateQueries({ queryKey: ["project-detail", project.id] });
+            router.push('/projects');
+        },
+        onError: (error: any) => {
+            const code = getStructuredErrorCode(error);
+            if (code === "OWNER_CANNOT_LEAVE" || error.response?.status === 403) {
+                toast.error(getBeErrorMessage(error) || "Bạn là Owner của dự án. Hãy chuyển quyền sở hữu cho thành viên khác trước khi rời.");
+            } else {
+                toast.error(getBeErrorMessage(error) || "Lỗi khi rời dự án");
+            }
         }
     });
 
     const resendMutation = useMutation({
         mutationFn: (inviteId: string) => ProjectMemberService.resendInvite(project.id, inviteId),
-        onSuccess: () => {
-            toast.success("Invitation resent.");
+        onSuccess: (data: any, inviteId: string) => {
+            const invite = invitesData?.invites.find(i => i.id === inviteId);
+            toast.success(`Đã gửi lại lời mời đến ${invite?.email || 'người dùng'}`);
+            queryClient.invalidateQueries({ queryKey: ["project-invites", project.id, inviteStatusFilter] });
+        },
+        onError: (error: any) => {
+            const code = getStructuredErrorCode(error);
+            if (error.response?.status === 422 || code === "INVITE_NOT_RESENDABLE") {
+                toast.error(getBeErrorMessage(error) || "Chỉ có thể gửi lại lời mời đang ở trạng thái PENDING.");
+                queryClient.invalidateQueries({ queryKey: ["project-invites", project.id, inviteStatusFilter] });
+            } else {
+                toast.error(getBeErrorMessage(error) || "Lỗi khi gửi lại lời mời");
+            }
         }
     });
 
-    const filteredMembers = members?.filter((m: any) => {
-        const matchesSearch = m.user.fullName.toLowerCase().includes(search.toLowerCase()) || 
-                             m.user.email.toLowerCase().includes(search.toLowerCase());
-        const matchesRole = roleFilter === "all" || m.projectRole === roleFilter;
-        return matchesSearch && matchesRole;
+    const updateRoleMutation = useMutation({
+        mutationFn: ({ userId, role }: { userId: string; role: string }) =>
+            ProjectMemberService.updateRole(project.id, userId, role as any),
+        onSuccess: (data) => {
+            toast.success(data.message || "Đã cập nhật vai trò.");
+            queryClient.invalidateQueries({ queryKey: ["project-members", project.id] });
+            setChangeRoleTarget(null);
+        },
+        onError: (error: any) => {
+            toast.error(getBeErrorMessage(error) || "Lỗi khi cập nhật vai trò.");
+        },
     });
-
-    const stats = useMemo(() => {
-        if (!members) return { total: 0, pm: 0, member: 0, viewer: 0 };
-        return {
-            total: members.length,
-            pm: members.filter(m => ["project_manager", "pm", "admin"].includes(m.projectRole?.toLowerCase())).length,
-            member: members.filter(m => m.projectRole?.toLowerCase() === "member").length,
-            viewer: members.filter(m => m.projectRole?.toLowerCase() === "viewer").length
-        };
-    }, [members]);
 
     if (isMembersLoading) return (
         <div className="py-40 flex flex-col items-center justify-center gap-4">
@@ -344,226 +529,255 @@ function TabMembers({ project }: { project: Project }) {
     );
 
     return (
-        <div className="space-y-8 pb-20">
-            {/* Header & Stats */}
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <MemberStatCard title="Total Team" value={stats.total} icon={<Users size={18} />} color="blue" />
-                    <MemberStatCard title="Managers" value={stats.pm} icon={<Crown size={18} />} color="amber" />
-                    <MemberStatCard title="Contributors" value={stats.member} icon={<Shield size={18} />} color="indigo" />
-                    <MemberStatCard title="Pending" value={pendingData?.totalElements || 0} icon={<Mail size={18} />} color="slate" />
-                </div>
-                
-                {canManageMembers && (
-                    <button 
-                        onClick={() => setShowInviteModal(true)} 
-                        className="group relative flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-3.5 rounded-2xl text-sm font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-[0.98] overflow-hidden shrink-0"
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <Plus size={18} strokeWidth={3} className="relative" /> 
-                        <span className="relative">{t('project.inviteMember')}</span>
-                    </button>
-                )}
-            </div>
-
-            {/* Main Content Area */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-                
-                {/* Member List */}
-                <div className="xl:col-span-8 space-y-4">
-                    <div className="bg-white p-4 rounded-3xl border border-slate-200/60 shadow-sm flex flex-col md:flex-row gap-4 items-center">
-                        <div className="relative flex-1 w-full">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input 
-                                type="text" 
-                                placeholder="Search members by name or email..." 
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 rounded-2xl bg-slate-50 border border-transparent focus:bg-white focus:border-blue-500 outline-none transition-all text-sm font-bold"
-                            />
-                        </div>
-                        <div className="flex items-center gap-2 w-full md:w-auto">
-                            <Filter size={16} className="text-slate-400 ml-2 hidden md:block" />
-                            <select 
-                                value={roleFilter}
-                                onChange={(e) => setRoleFilter(e.target.value)}
-                                className="flex-1 md:flex-none px-4 py-3 rounded-2xl bg-slate-50 border border-transparent focus:bg-white focus:border-blue-500 outline-none transition-all text-sm font-bold appearance-none cursor-pointer pr-10 relative"
-                                style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0/0 24 24\' stroke=\'%2394a3b8\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
-                            >
-                                <option value="all">All Roles</option>
-                                <option value="PROJECT_MANAGER">Managers</option>
-                                <option value="MEMBER">Members</option>
-                                <option value="VIEWER">Viewers</option>
-                            </select>
-                        </div>
+        <div className="space-y-6 pb-20">
+            {/* Current Members Section */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-3.5 border-b border-slate-100 bg-slate-100/80 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-slate-900">Thành viên dự án</h2>
+                        <span className="bg-white text-slate-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-slate-200 shadow-sm">
+                            {members?.length || 0}
+                        </span>
                     </div>
-
-                    <div className="bg-white rounded-[32px] border border-slate-200/60 shadow-sm overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="bg-slate-50/50 border-b border-slate-100">
-                                        <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest">{t('common.members')}</th>
-                                        <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Role</th>
-                                        <th className="px-8 py-5 text-right"></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    <AnimatePresence mode="popLayout">
-                                        {filteredMembers?.map((m: any, idx: number) => (
-                                            <motion.tr 
-                                                layout
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                exit={{ opacity: 0 }}
-                                                transition={{ duration: 0.2, delay: idx * 0.05 }}
-                                                key={m.id} 
-                                                className="group hover:bg-slate-50/50 transition-colors"
-                                            >
-                                                <td className="px-8 py-5">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="relative">
-                                                            <UserAvatar name={m.user.fullName} src={m.user.avatarUrl} size="md" className="h-11 w-11 shadow-sm border border-slate-100" />
-                                                            {m.user.id === project.ownerId && (
-                                                                <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white p-0.5 rounded-full border-2 border-white shadow-sm">
-                                                                    <Crown size={8} />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-[15px] font-bold text-slate-900 leading-tight">
-                                                                {m.user.fullName}
-                                                                {m.user.id === currentUserId && (
-                                                                    <span className="ml-2 text-[10px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 uppercase tracking-wider">You</span>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-[12px] text-slate-400 font-bold mt-0.5">{m.user.email}</div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-5">
-                                                    <div className="flex justify-center">
-                                                        {canManageMembers && m.user.id !== currentUserId && m.user.id !== project.ownerId ? (
-                                                            <select 
-                                                                value={m.projectRole}
-                                                                onChange={(e) => updateRoleMutation.mutate({ userId: m.user.id, role: e.target.value as ApiProjectRole })}
-                                                                className="bg-transparent text-[11px] font-black uppercase tracking-wider text-slate-600 border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-blue-500 hover:bg-white cursor-pointer transition-all"
+                    {canManageMembers && (
+                        <button 
+                            onClick={() => setShowInviteModal(true)} 
+                            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                        >
+                            <Plus size={16} strokeWidth={3} /> 
+                            Mời thành viên
+                        </button>
+                    )}
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="border-b border-slate-100 bg-slate-50/30">
+                                <th className="px-6 py-4 text-xs font-bold text-slate-900">Tên</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-900">Email</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-900">Role</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-900">Ngày tham gia</th>
+                                <th className="px-6 py-4 text-center text-xs font-bold text-slate-900">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            <AnimatePresence mode="popLayout">
+                                {members?.map((m: any, idx: number) => (
+                                    <motion.tr 
+                                        layout
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.2, delay: idx * 0.05 }}
+                                        key={m.id} 
+                                        className="group hover:bg-slate-50/50 transition-colors"
+                                    >
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <UserAvatar name={m.user.fullName} src={m.user.avatarUrl} size="md" className="h-10 w-10 rounded-full border border-slate-100 shadow-sm" />
+                                                <div className="text-sm font-bold text-slate-900">{m.user.fullName}</div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm text-slate-600 font-medium">{m.user.email}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex">
+                                                {m.user.id === project.ownerId ? (
+                                                    <RoleBadge role="owner" />
+                                                ) : (
+                                                    <RoleBadge role={m.projectRole} />
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm text-slate-600">{m.joinedAt ? new Date(m.joinedAt).toISOString().split('T')[0] : '-'}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all">
+                                                        <MoreHorizontal size={18} />
+                                                    </button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48 p-1 rounded-xl shadow-xl border-slate-200">
+                                                    <DropdownMenuItem className="text-sm font-semibold text-slate-700 py-2 rounded-lg cursor-pointer">
+                                                        <Eye size={16} className="mr-2" /> View Profile
+                                                    </DropdownMenuItem>
+                                                    {canManageMembers && m.user.id !== project.ownerId && (
+                                                        <>
+                                                            <div className="h-px bg-slate-100 my-1" />
+                                                            <DropdownMenuItem
+                                                                onClick={() => setChangeRoleTarget({
+                                                                    id: m.id,
+                                                                    userId: m.user.id,
+                                                                    fullName: m.user.fullName,
+                                                                    currentRole: m.projectRole,
+                                                                })}
+                                                                className="text-sm font-semibold text-slate-700 py-2 rounded-lg cursor-pointer"
                                                             >
-                                                                <option value="PROJECT_MANAGER">Manager</option>
-                                                                <option value="MEMBER">Member</option>
-                                                                <option value="VIEWER">Viewer</option>
-                                                            </select>
-                                                        ) : (
-                                                            <RoleBadge role={m.projectRole} />
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-5 text-right">
-                                                    <div className="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        {canManageMembers && m.user.id !== project.ownerId && m.user.id !== currentUserId && (
-                                                            <button 
+                                                                <Shield size={16} className="mr-2" /> Đổi vai trò
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
+                                                    {m.user.id === currentUserId && project.ownerId !== currentUserId && (
+                                                        <>
+                                                            <div className="h-px bg-slate-100 my-1" />
+                                                            <DropdownMenuItem 
+                                                                onClick={() => {
+                                                                    if (confirm(`Bạn có chắc muốn rời dự án ${project.name}? Tất cả task đang được giao cho bạn sẽ chuyển sang chưa phân công.`)) {
+                                                                        leaveMutation.mutate();
+                                                                    }
+                                                                }}
+                                                                className="text-sm font-semibold text-orange-600 py-2 rounded-lg cursor-pointer focus:bg-orange-50 focus:text-orange-600"
+                                                            >
+                                                                <ArrowLeft size={16} className="mr-2" /> Rời dự án
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
+                                                    {canManageMembers && m.user.id !== project.ownerId && m.user.id !== currentUserId && (
+                                                        <>
+                                                            <div className="h-px bg-slate-100 my-1" />
+                                                            <DropdownMenuItem 
                                                                 onClick={() => {
                                                                     if (confirm(`Remove ${m.user.fullName} from project?`)) {
                                                                         removeMutation.mutate(m.user.id);
                                                                     }
                                                                 }}
-                                                                className="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                                                title="Remove Member"
+                                                                className="text-sm font-semibold text-red-600 py-2 rounded-lg cursor-pointer focus:bg-red-50 focus:text-red-600"
                                                             >
-                                                                <Trash2 size={18} />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </motion.tr>
-                                        ))}
-                                    </AnimatePresence>
-                                </tbody>
-                            </table>
-                            {filteredMembers?.length === 0 && (
-                                <div className="py-20 flex flex-col items-center justify-center text-slate-400">
-                                    <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
-                                        <Search size={32} strokeWidth={1} />
-                                    </div>
-                                    <p className="text-sm font-bold">No members found matching your search.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Side Panel: Pending Invites */}
-                {canManageMembers && (
-                    <div className="xl:col-span-4 space-y-6">
-                        <div className="bg-white rounded-[32px] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col">
-                            <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
-                                <h3 className="text-[13px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                                    <Mail size={16} className="text-blue-500" />
-                                    Pending Invites
-                                </h3>
-                                <span className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                                    {pendingData?.totalElements || 0}
-                                </span>
-                            </div>
-                            <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar">
-                                {pendingData?.invites.map((invite) => (
-                                    <div key={invite.id} className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3 group hover:bg-white hover:border-blue-200 hover:shadow-md transition-all">
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-[14px] font-bold text-slate-900 truncate">{invite.email}</div>
-                                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-tight mt-0.5 flex items-center gap-1.5">
-                                                    <Clock size={10} />
-                                                    Sent {new Date(invite.invitedAt).toLocaleDateString()}
-                                                </div>
-                                            </div>
-                                            <RoleBadge role={invite.role} />
-                                        </div>
-                                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 opacity-60 group-hover:opacity-100 transition-opacity">
-                                            <button 
-                                                onClick={() => resendMutation.mutate(invite.id)}
-                                                disabled={resendMutation.isPending}
-                                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-black uppercase text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                            >
-                                                <RefreshCw size={12} className={resendMutation.isPending ? "animate-spin" : ""} /> Resend
-                                            </button>
-                                            <button 
-                                                onClick={() => revokeMutation.mutate(invite.id)}
-                                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-black uppercase text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                            >
-                                                <X size={12} /> Revoke
-                                            </button>
-                                        </div>
-                                    </div>
+                                                                <Trash2 size={16} className="mr-2" /> Remove from project
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </td>
+                                    </motion.tr>
                                 ))}
-                                {(!pendingData?.invites || pendingData.invites.length === 0) && (
-                                    <div className="py-12 flex flex-col items-center justify-center text-center">
-                                        <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-3">
-                                            <Mail size={24} strokeWidth={1} className="text-slate-300" />
-                                        </div>
-                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-6">No pending invitations</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Additional Info / Help */}
-                        <div className="bg-indigo-600 rounded-[32px] p-8 text-white relative overflow-hidden group shadow-xl shadow-indigo-200">
-                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
-                                <Users size={120} strokeWidth={1} />
-                             </div>
-                             <h4 className="text-[15px] font-black uppercase tracking-widest mb-4 relative z-10">Manage Roles</h4>
-                             <p className="text-[13px] font-medium text-indigo-100 leading-relaxed mb-6 relative z-10">
-                                 Assign roles to control access. Managers can edit settings, while Viewers can only read content.
-                             </p>
-                             <button className="relative z-10 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl transition-all">
-                                 Read Documentation <ChevronRight size={14} />
-                             </button>
-                        </div>
-                    </div>
-                )}
+                            </AnimatePresence>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
+            {/* Invites Section */}
+            {canManageMembers && (
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-8">
+                    <div className="px-6 py-3.5 border-b border-slate-100 bg-slate-100/80 flex items-center justify-between">
+                        <h3 className="font-bold text-slate-900">Lời mời</h3>
+                        <div className="flex gap-1 bg-white rounded-xl p-1 border border-slate-200">
+                            {[
+                                { value: 'PENDING', label: 'Đang chờ' },
+                                { value: 'ACCEPTED', label: 'Đã chấp nhận' },
+                                { value: 'DECLINED', label: 'Đã từ chối' },
+                                { value: 'EXPIRED', label: 'Hết hạn' },
+                                { value: 'REVOKED', label: 'Đã thu hồi' },
+                            ].map((tab) => (
+                                <button
+                                    key={tab.value}
+                                    onClick={() => setInviteStatusFilter(tab.value)}
+                                    className={cn(
+                                        "px-3 py-1 rounded-lg text-xs font-bold transition-all",
+                                        inviteStatusFilter === tab.value
+                                            ? "bg-blue-600 text-white shadow-sm"
+                                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                                    )}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="border-b border-slate-100 bg-slate-50/30">
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Email</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Role</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Người mời</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Thời gian gửi</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Hết hạn lúc</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Trạng thái</th>
+                                    <th className="px-6 py-4 text-center text-xs font-bold text-slate-900">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {invitesData && invitesData.invites.length > 0 ? (
+                                    invitesData.invites.map((invite) => (
+                                        <tr key={invite.id} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm font-bold text-slate-900">{invite.email}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <RoleBadge role={invite.role} />
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm text-slate-600">{invite.inviterName || '-'}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm text-slate-600">{new Date(invite.invitedAt).toLocaleString()}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm text-slate-600">
+                                                    {new Date(invite.expiresAt).toLocaleString()}
+                                                    {invite.daysLeft !== null && invite.daysLeft >= 0 && (
+                                                        <span className="ml-1 text-slate-400">(còn {invite.daysLeft}h)</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <StatusBadge status={invite.status} />
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    {invite.status === 'PENDING' && (
+                                                        <>
+                                                            <button 
+                                                                onClick={() => resendMutation.mutate(invite.id)}
+                                                                disabled={resendMutation.isPending}
+                                                                className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all disabled:opacity-50"
+                                                            >
+                                                                {resendMutation.isPending && resendMutation.variables === invite.id ? '...' : 'Gửi lại'}
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => revokeMutation.mutate(invite.id)}
+                                                                disabled={revokeMutation.isPending}
+                                                                className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all disabled:opacity-50"
+                                                            >
+                                                                Hủy
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={7} className="px-6 py-10 text-center text-slate-400 font-medium italic">
+                                            Không có lời mời nào
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
             <InviteModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} projectId={project.id} />
+            {changeRoleTarget && (
+                <ChangeRoleModal
+                    key={changeRoleTarget.userId}
+                    isOpen={!!changeRoleTarget}
+                    onClose={() => setChangeRoleTarget(null)}
+                    member={changeRoleTarget}
+                    onSubmit={(role) => updateRoleMutation.mutate({ userId: changeRoleTarget.userId, role })}
+                    isLoading={updateRoleMutation.isPending}
+                />
+            )}
         </div>
     );
 }
@@ -609,9 +823,17 @@ function TabSettings({ project, onBack }: { project: Project; onBack?: () => voi
 export default function ProjectDetailPage({ projectId: propProjectId, onBack }: { projectId?: string; onBack?: () => void } = {}) {
     const { t } = useTranslation()
     const params = useParams();
+    const searchParams = useSearchParams();
     const router = useRouter();
     const projectId = propProjectId || (params.id as string);
     const [activeTab, setActiveTab] = useState<Tab>("overview");
+    useEffect(() => {
+        const tab = (searchParams.get("tab") || "").toLowerCase();
+        const allowedTabs: Tab[] = ["overview", "board", "backlog", "members", "settings"];
+        if (allowedTabs.includes(tab as Tab)) {
+            setActiveTab(tab as Tab);
+        }
+    }, [searchParams]);
     const { data: projectData, isLoading, error } = useQuery({ queryKey: ["project-detail", projectId], queryFn: () => ProjectService.getById(projectId), enabled: !!projectId, });
     if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
     if ((error as any)?.response?.status === 403) return <ForbiddenPage />;

@@ -279,6 +279,7 @@ export default function ProjectsPage() {
     const [restoreLoading, setRestoreLoading] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [isResettingFilters, setIsResettingFilters] = useState(false);
+    const isArchiveView = statusFilter === "Archived";
 
     // Debounce search
     useEffect(() => {
@@ -343,6 +344,7 @@ export default function ProjectsPage() {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
             setShowCreate(false);
             toast.success(`Project "${res.data.name}" created successfully!`);
+            router.push(`/projects/${res.data.id}?tab=members`);
         }
     });
 
@@ -554,6 +556,23 @@ export default function ProjectsPage() {
                             ))}
                         </DropdownMenuContent>
                     </DropdownMenu>
+
+                    {/* Archive quick filter */}
+                    <button
+                        onClick={() => {
+                            setStatusFilter(isArchiveView ? "All" : "Archived");
+                            setPage(1);
+                        }}
+                        className={cn(
+                            "flex items-center gap-2 h-[36px] px-3 border rounded-xl text-[12px] font-bold transition-all shadow-sm",
+                            isArchiveView
+                                ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                        )}
+                    >
+                        <Archive className="w-3.5 h-3.5" />
+                        <span>{t('project.archiveVault', { defaultValue: 'Kho lưu trữ' })}</span>
+                    </button>
 
                     <div className="flex-1" />
 

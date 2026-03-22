@@ -59,8 +59,10 @@ export function useProjectWebSocket(projectId: string, onEvent?: (event: Project
                     import("sockjs-client"),
                 ])
 
+                const wsUrl = `${(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api").replace(/\/api\/?$/, "")}/ws`
+
                 client = new Client({
-                    webSocketFactory: () => new SockJS(`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "")}/ws`),
+                    webSocketFactory: () => new SockJS(wsUrl),
                     reconnectDelay: 5000,
                     onConnect: () => {
                         projectSub = client.subscribe(`/topic/project/${projectId}`, (msg: any) => {

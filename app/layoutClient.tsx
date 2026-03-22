@@ -74,7 +74,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       />
 
       <div className={cn(
-        "flex flex-col flex-1 overflow-hidden transition-all duration-300",
+        "flex flex-col flex-1 overflow-hidden transition-[margin] duration-300 ease-in-out",
         isCollapsed ? "lg:ml-[68px]" : "lg:ml-[240px]"
       )}>
         <Header 

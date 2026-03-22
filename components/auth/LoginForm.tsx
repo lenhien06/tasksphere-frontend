@@ -33,8 +33,11 @@ function LoginFormContent() {
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
 
-    // Prefer redirecting to previous page, fallback to dashboard
-    const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+    // Prefer callback in URL, then saved invite redirect, fallback dashboard
+    const callbackUrl =
+        searchParams.get("callbackUrl") ||
+        (typeof window !== "undefined" ? sessionStorage.getItem("redirectAfterLogin") : null) ||
+        "/dashboard";
 
     const form = useForm<LoginFormValues>({
         resolver: zodResolver(LoginSchema),
@@ -69,6 +72,9 @@ function LoginFormContent() {
 
                 // 4. Redirect
                 setTimeout(() => {
+                    if (typeof window !== "undefined") {
+                        sessionStorage.removeItem("redirectAfterLogin");
+                    }
                     router.push(callbackUrl);
                 }, 500);
             } else {

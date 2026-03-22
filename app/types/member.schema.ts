@@ -1,59 +1,109 @@
 import { z } from "zod";
 
-// 1. Enums defined per spec (lowercase)
-export const ProjectRoleEnum = z.enum(["project_manager", "member", "viewer"]);
-export const InviteStatusEnum = z.enum(["pending", "accepted", "declined", "revoked", "expired"]);
+/** API enum — project roles (spec A1–A6) */
+export type ProjectRole = "PROJECT_MANAGER" | "MEMBER" | "VIEWER";
 
-export type ProjectRole = z.infer<typeof ProjectRoleEnum>;
-export type InviteStatus = z.infer<typeof InviteStatusEnum>;
+/** Email invite body — only MEMBER | VIEWER (spec A7) */
+export type InviteEmailRole = "MEMBER" | "VIEWER";
 
-// 2. Invite Member Form Schema
+/** API enum — invite lifecycle (spec A8, B4) */
+export type InviteStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED" | "REVOKED";
+
+/** Zod: gửi lời mời email */
 export const InviteMemberSchema = z.object({
   email: z.string().email("Invalid email address"),
-  role: ProjectRoleEnum.default("member")
+  role: z.enum(["MEMBER", "VIEWER"]).default("MEMBER"),
 });
 
 export type InviteMemberRequest = z.infer<typeof InviteMemberSchema>;
 
-// 3. Schema cho Member UI
+/** GET .../members — ProjectMemberResponse */
 export interface ProjectMember {
-    id: string; // Member ID
-    user: {
-        id: string;
-        fullName: string;
-        email: string;
-        avatarUrl?: string;
-    };
-    projectRole: ProjectRole;
-    joinedAt: string;
-}
-
-// 4. Interface cho Pending Invite
-export interface PendingInvite {
+  id: string;
+  user: {
     id: string;
+    fullName: string;
     email: string;
-    role: string; // BE returns uppercase: "MEMBER", "PROJECT_MANAGER", "VIEWER"
-    status: string; // BE returns uppercase: "PENDING", "ACCEPTED", "DECLINED", "REVOKED", "EXPIRED"
-    inviterName: string;
-    invitedAt: string;
-    expiresAt: string;
-    daysLeft: number | null; // null if status is not PENDING; 0 = expires today
+    avatarUrl?: string | null;
+  };
+  projectRole: ProjectRole;
+  joinedAt: string;
 }
 
-// 5. Invite Response (supports isNewUser)
+/** GET .../invites — ProjectInviteListItem (spec A8) */
+export interface ProjectInviteListItem {
+  id: string;
+  email: string;
+  role: ProjectRole;
+  status: InviteStatus | string;
+  inviterName: string;
+  invitedAt: string;
+  expiresAt: string;
+  daysLeft: number | null;
+}
+
+/** @deprecated alias — dùng ProjectInviteListItem */
+export type PendingInvite = ProjectInviteListItem;
+
+/** POST .../invites — 200 (spec A7) */
 export interface InviteMemberResponse {
-    email: string;
-    role: ProjectRole;
-    status: "accepted" | "pending";
-    isNewUser: boolean;
+  email: string;
+  role: ProjectRole;
+  status: string;
+  isNewUser: boolean;
 }
 
-// 6. Verify Token Response
+/** GET /invites/{token} — public (spec B1) */
 export interface VerifyInviteResponse {
-    projectId: string;
-    projectName: string;
-    inviterName: string;
-    inviteeEmail: string;
-    role: ProjectRole;
-    expiresAt: string;
+  projectId: string;
+  projectName: string;
+  inviterName: string;
+  inviteeEmail: string;
+  role: ProjectRole;
+  expiresAt: string;
+}
+
+/** POST .../members — thêm user đã có tài khoản (spec A2) */
+export interface AddMemberRequest {
+  userId: string;
+  role: ProjectRole;
+}
+
+/** GET .../members/search — @mention (spec A4) */
+export interface MemberSearchResponse {
+  id: string;
+  fullName: string;
+  email: string;
+  avatarUrl: string | null;
+  projectRole: ProjectRole;
+}
+
+/** GET /users/me/invites (spec B4) */
+export interface ProjectInviteResponse {
+  id: string;
+  email: string;
+  role: ProjectRole;
+  status: InviteStatus | string;
+  inviterName: string;
+  invitedAt: string;
+  expiresAt: string;
+  daysLeft: number | null;
+  projectId?: string;
+  projectName?: string;
+  token?: string;
+}
+
+/** Map search hit → ProjectMember cho UI mention */
+export function memberSearchToProjectMember(m: MemberSearchResponse): ProjectMember {
+  return {
+    id: m.id,
+    user: {
+      id: m.id,
+      fullName: m.fullName,
+      email: m.email,
+      avatarUrl: m.avatarUrl ?? undefined,
+    },
+    projectRole: m.projectRole,
+    joinedAt: "",
+  };
 }

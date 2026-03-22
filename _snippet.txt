@@ -1,0 +1,14 @@
+''
+'            if (statusCode === 400 && errorData?.error === "EMAIL_MISMATCH") {'
+'                setStatus("mismatch");'
+"                setMessage(`Tài khoản đang đăng nhập (${currentUserEmail}) không khớp với email được mời (${inviteData?.inviteeEmail || 'email khác'}). Vui lòng đăng xuất và đăng nhập bằng đúng tài khoản.`);"
+'            } else if (statusCode === 409) {'
+"                toast.error('Lời mời này đã được chấp nhận trước đó.');"
+'                setStatus("error");'
+'                setMessage("Lời mời đã được chấp nhận trước đó.");'
+'            } else {'
+'                setStatus("error");'
+"                setMessage(error.response?.data?.meta?.message || t('invite.acceptError'));"
+'            }'
+'        }'
+'    };'

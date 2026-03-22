@@ -23,7 +23,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ProjectRequestSchema, ProjectRequest } from "@/app/types/project..schema";
+import { z } from "zod";
+import { ProjectRequest, ProjectVisibilityEnum } from "@/app/types/project..schema";
 import { Form, FormField, FormMessage } from "@/components/ui/form";
 
 // ——————————————————————————————————————————————————————————————————————————————————
@@ -51,7 +52,7 @@ export const Modal = ({
     <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
       <div className={cn(
-        "relative w-full overflow-hidden bg-white shadow-2xl transition-all border border-gray-100 rounded-[28px]",
+        "relative w-full max-h-[calc(100vh-2rem)] overflow-hidden bg-white shadow-2xl transition-all border border-gray-100 rounded-[28px] flex flex-col",
         maxWidth
       )}>
         <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between bg-white">
@@ -63,7 +64,7 @@ export const Modal = ({
             <X size={20} strokeWidth={2.5} />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto min-h-0 modal-scrollbar">{children}</div>
       </div>
     </div>
   );
@@ -127,20 +128,66 @@ export const CreateProjectModal = ({
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<ProjectRequest>({
-    resolver: zodResolver(ProjectRequestSchema),
+  const CreateProjectFormSchema = z
+    .object({
+      name: z
+        .string()
+        .min(1, "Project name is required")
+        .max(255, "Project name must not exceed 255 characters"),
+      projectKey: z.string().max(10, "Project key must not exceed 10 characters"),
+      description: z.string().optional().nullable(),
+      visibility: ProjectVisibilityEnum.default("private"),
+      startDate: z.string().optional().nullable(),
+      endDate: z.string().optional().nullable(),
+    })
+    .superRefine((data, ctx) => {
+      const projectKey = (data.projectKey || "").trim();
+      const hasInvalidProjectKeyChar = /[^A-Z0-9]/.test(projectKey);
+
+      if (hasInvalidProjectKeyChar) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["projectKey"],
+          message: "Chỉ được dùng chữ in hoa và số",
+        });
+      } else if (projectKey.length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["projectKey"],
+          message: "Project Key phải có ít nhất 2 ký tự",
+        });
+      }
+
+      if (data.startDate && data.endDate) {
+        const startDate = new Date(data.startDate);
+        const endDate = new Date(data.endDate);
+        if (endDate <= startDate) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["endDate"],
+            message: "Ngày kết thúc phải sau ngày bắt đầu",
+          });
+        }
+      }
+    });
+
+  type CreateProjectFormValues = z.infer<typeof CreateProjectFormSchema>;
+
+  const form = useForm<CreateProjectFormValues>({
+    resolver: zodResolver(CreateProjectFormSchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: {
       name: "",
       projectKey: "",
       description: "",
-      goal: "",
       visibility: "private",
       startDate: null,
       endDate: null,
     },
   });
 
-  const { control, handleSubmit, setValue, watch, reset } = form;
+  const { control, handleSubmit, setValue, watch, reset, formState } = form;
 
   // Auto-generate Key when Name changes
   useEffect(() => {
@@ -163,13 +210,18 @@ export const CreateProjectModal = ({
     return () => subscription.unsubscribe();
   }, [watch, setValue, form]);
 
-  const onFormSubmit = async (data: ProjectRequest) => {
+  const onFormSubmit = async (data: CreateProjectFormValues) => {
     setIsSubmitting(true);
     try {
-      await onSubmit({
-        ...data,
+      const payload: ProjectRequest = {
         name: data.name.trim(),
-      });
+        projectKey: (data.projectKey || "").trim(),
+        description: data.description ?? null,
+        visibility: data.visibility,
+        startDate: data.startDate ? `${data.startDate}T00:00:00.000Z` : null,
+        endDate: data.endDate ? `${data.endDate}T00:00:00.000Z` : null,
+      };
+      await onSubmit(payload);
       reset();
       onClose();
     } catch (error: any) {
@@ -232,13 +284,13 @@ export const CreateProjectModal = ({
                 <InputStyled
                   {...field}
                   placeholder=""
-                  onChange={(e: any) => field.onChange(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
+                  onChange={(e: any) => field.onChange(e.target.value.slice(0, 10))}
                   maxLength={10}
                   className="uppercase font-bold tracking-widest"
                 />
                 <div className="mt-2 flex items-center gap-1.5 px-1 text-gray-400">
                   <Info size={12} />
-                  <span className="text-[11px] font-medium">Maximum 10 characters. Uppercase letters and numbers only. Used as prefix for tasks.</span>
+                  <span className="text-[11px] font-medium">2–10 characters. Uppercase letters and numbers only. Used as prefix for tasks.</span>
                 </div>
                 <FormMessage className="mt-1.5 text-[11px] font-medium text-red-500 px-1" />
               </div>
@@ -263,44 +315,49 @@ export const CreateProjectModal = ({
             )}
           />
 
-          {/* Start Date */}
-          <FormField
-            control={control}
-            name="startDate"
-            render={({ field }) => (
-              <div>
-                <FieldLabel>{t('project.startDate')} ({t('common.optional')})</FieldLabel>
-                <div className="relative">
-                  <CalendarIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <InputStyled
-                    type="date"
-                    value={field.value || ""}
-                    onChange={(e: any) => field.onChange(e.target.value || null)}
-                    className="pl-10"
-                  />
+          <div className="grid grid-cols-2 gap-3">
+            {/* Start Date */}
+            <FormField
+              control={control}
+              name="startDate"
+              render={({ field }) => (
+                <div>
+                  <FieldLabel>{t('project.startDate')} ({t('common.optional')})</FieldLabel>
+                  <div className="relative">
+                    <CalendarIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <InputStyled
+                      type="date"
+                      value={field.value || ""}
+                      onChange={(e: any) => field.onChange(e.target.value || null)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <FormMessage className="mt-1.5 text-[11px] font-medium text-red-500 px-1" />
                 </div>
-                <FormMessage className="mt-1.5 text-[11px] font-medium text-red-500 px-1" />
-              </div>
-            )}
-          />
+              )}
+            />
 
-          {/* Project Goal */}
-          <FormField
-            control={control}
-            name="goal"
-            render={({ field }) => (
-              <div>
-                <FieldLabel>{t('project.goal', { defaultValue: "Project Goal" })} ({t('common.optional')})</FieldLabel>
-                <textarea
-                  {...field}
-                  value={field.value || ""}
-                  className="w-full min-h-[72px] p-4 rounded-xl border border-gray-200 bg-gray-50/50 text-[14px] outline-none transition-all focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 resize-none"
-                  placeholder={t('project.goalPlaceholder', { defaultValue: "Muc tieu du an..." })}
-                />
-                <FormMessage className="mt-1.5 text-[11px] font-medium text-red-500 px-1" />
-              </div>
-            )}
-          />
+            {/* End Date */}
+            <FormField
+              control={control}
+              name="endDate"
+              render={({ field }) => (
+                <div>
+                  <FieldLabel>{t('project.endDate', { defaultValue: "Ngày kết thúc" })} ({t('common.optional')})</FieldLabel>
+                  <div className="relative">
+                    <CalendarIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <InputStyled
+                      type="date"
+                      value={field.value || ""}
+                      onChange={(e: any) => field.onChange(e.target.value || null)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <FormMessage className="mt-1.5 text-[11px] font-medium text-red-500 px-1" />
+                </div>
+              )}
+            />
+          </div>
 
           {/* Visibility */}
           <div>
@@ -344,7 +401,7 @@ export const CreateProjectModal = ({
             <PrimaryButton
               type="submit"
               loading={isSubmitting}
-              disabled={!watch("name")?.trim() || !watch("projectKey")?.trim()}
+              disabled={!watch("name")?.trim() || !watch("projectKey")?.trim() || !formState.isValid}
             >
               {t('project.create')}
             </PrimaryButton>
@@ -488,21 +545,21 @@ export const ArchiveProjectModal = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('project.archive')} maxWidth="max-w-md">
       <div className="flex flex-col items-center text-center">
-        <div className="h-16 w-16 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mb-4 border-4 border-white shadow-xl">
-          <Archive size={32} />
+        <div className="h-14 w-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-500 mb-4 border border-slate-100 shadow-sm">
+          <Archive size={28} />
         </div>
-        <h4 className="text-[16px] font-bold text-gray-900 mb-2">Confirm archive project?</h4>
+        <h4 className="text-[16px] font-bold text-gray-900 mb-2">{t('project.archiveConfirmTitle', { defaultValue: 'Confirm archive project?' })}</h4>
         <p className="text-[13px] text-gray-500 leading-relaxed px-4">
           Project <span className="font-bold text-gray-900">"{project?.name}"</span> will be moved to the archive. Members can still view but cannot edit tasks until it is restored.
         </p>
       </div>
 
-      <div className="mt-6 bg-amber-50/50 p-4 rounded-2xl border border-amber-100">
-        <label className="block text-[11px] font-bold text-amber-700 uppercase tracking-widest mb-2 text-center">Enter project name to confirm archive:</label>
+      <div className="mt-6 p-1">
+        <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">{t('project.confirmArchiveLabel', { defaultValue: 'Enter project name to confirm:' })}</label>
         <input
           type="text"
           placeholder={project?.name}
-          className="w-full h-10 px-4 rounded-xl border-2 border-white bg-white text-center font-bold text-amber-700 outline-none focus:border-amber-200 transition-all shadow-sm"
+          className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-gray-50/50 text-[14px] font-medium text-gray-900 outline-none focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all"
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
         />
@@ -511,7 +568,7 @@ export const ArchiveProjectModal = ({
       <div className="mt-8 flex gap-3">
         <SecondaryButton className="flex-1" onClick={onClose}>{t('common.cancel')}</SecondaryButton>
         <PrimaryButton
-          className="flex-1 bg-amber-500 hover:bg-amber-600 shadow-amber-500/20"
+          className="flex-1 bg-amber-600 hover:bg-amber-700 shadow-none border border-amber-700/10"
           disabled={confirmText !== project?.name}
           onClick={() => { onConfirm(); onClose(); }}
         >
@@ -544,7 +601,6 @@ export const DeleteProjectModal = ({
   const { t } = useTranslation()
   const [confirmText, setConfirmText] = useState("");
 
-  // Helper function to check if confirmation matches project name or key (case-insensitive)
   const isConfirmationValid = () => {
     const trimmedConfirm = confirmText.trim().toLowerCase();
     const projectName = (project?.name || "").toLowerCase();
@@ -565,38 +621,42 @@ export const DeleteProjectModal = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Permanently Delete Project" maxWidth="max-w-md">
+    <Modal isOpen={isOpen} onClose={handleClose} title={t('project.deletePermanently')} maxWidth="max-w-md">
       <div className="flex flex-col items-center text-center">
-        <div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-4 border-4 border-white shadow-xl">
-          <Trash2 size={32} />
+        <div className="h-14 w-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-500 mb-4 border border-slate-100 shadow-sm">
+          <Trash2 size={28} />
         </div>
-        <h4 className="text-[16px] font-bold text-gray-900 mb-2">⚠️ This action cannot be undone!</h4>
+        <h4 className="text-[16px] font-bold text-gray-900 mb-2">⚠️ {t('project.deleteWarningTitle', { defaultValue: 'This action cannot be undone!' })}</h4>
         <p className="text-[13px] text-gray-500 leading-relaxed px-4">
-          Project <span className="font-bold text-red-600">"{project?.name}"</span> ({project?.key}) will be permanently deleted along with all related data.
+          Project <span className="font-bold text-gray-900">"{project?.name}"</span> will be permanently deleted along with all related data.
         </p>
       </div>
 
-      <div className="mt-6 bg-red-50/50 p-4 rounded-2xl border border-red-100">
-        <label className="block text-[11px] font-bold text-red-700 uppercase tracking-widest mb-2">To confirm, enter the project name or key:</label>
+      <div className="mt-6 p-1">
+        <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+          {t('project.confirmDeleteLabel', { defaultValue: 'Enter project name or key to confirm:' })}
+        </label>
         <input
           type="text"
-          placeholder={`Enter "${project?.name}" or "${project?.key}"`}
+          placeholder={`${project?.name} / ${project?.key}`}
           className={cn(
-            "w-full h-10 px-4 rounded-xl border-2 bg-transparent text-center font-semibold outline-none transition-all",
-            error ? "border-red-400 text-red-600" : "border-red-100 text-gray-700 focus:border-red-200"
+            "w-full h-11 px-4 rounded-xl border text-[14px] font-medium outline-none transition-all",
+            error 
+              ? "border-red-500 bg-red-50/30 text-red-600" 
+              : "border-gray-200 bg-gray-50/50 text-gray-900 focus:bg-white focus:border-red-500 focus:ring-4 focus:ring-red-500/10"
           )}
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
           disabled={loading}
         />
-        <div className="mt-2 text-[11px] text-gray-500 font-medium px-1">
-          (Case insensitive)
+        <div className="mt-2 text-[10px] text-gray-400 font-medium px-1 italic">
+          * {t('common.caseInsensitive', { defaultValue: 'Case insensitive' })}
         </div>
       </div>
 
       {error && (
-        <div className="mt-4 flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200">
-          <AlertCircle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
+        <div className="mt-4 flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-100">
+          <AlertCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
           <p className="text-[12px] text-red-700 font-medium">{error}</p>
         </div>
       )}
@@ -606,12 +666,12 @@ export const DeleteProjectModal = ({
           {t('common.back')}
         </SecondaryButton>
         <PrimaryButton
-          className="flex-1 bg-red-600 hover:bg-red-700 shadow-red-600/30"
+          className="flex-1 bg-red-600 hover:bg-red-700 shadow-none border border-red-700/10"
           disabled={!isConfirmationValid() || loading}
           loading={loading}
           onClick={handleConfirm}
         >
-          {t('project.deletePermanently')}
+          {t('project.delete')}
         </PrimaryButton>
       </div>
     </Modal>

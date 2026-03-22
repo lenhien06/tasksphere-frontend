@@ -12,7 +12,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import rehypeRaw from "rehype-raw"
 import { ProjectMemberService } from "@/app/services/project-member.service"
-import { ProjectMember } from "@/app/types/member.schema"
+import { ProjectMember, memberSearchToProjectMember } from "@/app/types/member.schema"
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 
 // ── Mentions Popover ───────────────────────────────────────
@@ -88,8 +88,15 @@ function CommentEditor({
     const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
     useEffect(() => {
-        ProjectMemberService.getMembers(projectId).then(setMembers).catch(() => {})
-    }, [projectId])
+        if (!showMentions) return
+        const q = mentionSearch
+        const t = setTimeout(() => {
+            ProjectMemberService.searchMembers(projectId, q)
+                .then((rows) => setMembers(rows.map(memberSearchToProjectMember)))
+                .catch(() => setMembers([]))
+        }, 200)
+        return () => clearTimeout(t)
+    }, [projectId, showMentions, mentionSearch])
 
     useEffect(() => setValue(initialContent), [initialContent])
     useEffect(() => {

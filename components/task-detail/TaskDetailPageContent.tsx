@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { Clock, MoreHorizontal, Trash2, X } from "lucide-react"
+import { Clock, Loader2, MoreHorizontal, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -19,10 +19,11 @@ import { TaskService } from "@/app/services/TaskService"
 import { useWorklogs } from "@/hooks/useWorklogs"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useAuthStore } from "@/stores/useAuthStore"
 
 import { SubtaskBlockedDialog } from "@/components/kanban/SubtaskBlockedDialog"
 import { TaskDetailService } from "@/app/services/TaskDetailService"
-import type { SubTaskResponse } from "@/app/types/task.schema"
+import type { CustomFieldDefinition, SubTaskResponse } from "@/app/types/task.schema"
 
 // ── Page skeleton ──────────────────────────────────────────
 
@@ -73,6 +74,7 @@ export default function TaskDetailPageContent({
     const qc = useQueryClient()
     const searchParams = useSearchParams()
     const pathname = usePathname()
+    const currentUserId = String(useAuthStore((s: any) => s.userDetail?.id ?? s.userDetail?.userId ?? ""))
 
     const handleClose = onClose ?? (() => router.back())
 
@@ -87,6 +89,12 @@ export default function TaskDetailPageContent({
         queryFn: () => TaskService.getTaskById(projectId, taskId),
         staleTime: 15_000,
         enabled: !!taskId && !!projectId,
+    })
+    const { data: customFieldDefs = [] } = useQuery({
+        queryKey: ["custom-fields", projectId],
+        queryFn: () => TaskService.getCustomFields(projectId),
+        enabled: !!projectId && !!data?.task?.customFieldValues?.length,
+        staleTime: 60_000,
     })
 
     // Real-time updates
@@ -106,6 +114,8 @@ export default function TaskDetailPageContent({
     })
 
     const { data: worklogData } = useWorklogs(taskId)
+    const [customDrafts, setCustomDrafts] = React.useState<Record<string, string>>({})
+    const [savingCustomFieldId, setSavingCustomFieldId] = React.useState<string | null>(null)
 
     const updateStatus = useMutation({
         mutationFn: (nextStatus: string) => {
@@ -161,6 +171,57 @@ export default function TaskDetailPageContent({
         },
     })
 
+    const saveCustomFieldValue = useMutation({
+        mutationFn: ({ fieldId, value }: { fieldId: string; value: string | null }) =>
+            TaskService.saveCustomFieldValues(taskId, {
+                values: [{ fieldDefinitionId: fieldId, value }],
+            }),
+        onMutate: async ({ fieldId, value }) => {
+            setSavingCustomFieldId(fieldId)
+            await qc.cancelQueries({ queryKey: ["task", projectId, taskId] })
+            const previous = qc.getQueryData<{ task: any; etag: string }>(["task", projectId, taskId])
+            qc.setQueryData(["task", projectId, taskId], (old: any) => {
+                if (!old?.task?.customFieldValues) return old
+                return {
+                    ...old,
+                    task: {
+                        ...old.task,
+                        customFieldValues: old.task.customFieldValues.map((cf: any) =>
+                            cf.fieldDefinitionId === fieldId
+                                ? { ...cf, value, typedValue: value }
+                                : cf
+                        ),
+                    },
+                }
+            })
+            return { previous }
+        },
+        onSuccess: (updatedValues) => {
+            if (!Array.isArray(updatedValues) || updatedValues.length === 0) return
+            qc.setQueryData(["task", projectId, taskId], (old: any) => {
+                if (!old?.task?.customFieldValues) return old
+                const byId = new Map(updatedValues.map((u: any) => [u.fieldDefinitionId, u]))
+                return {
+                    ...old,
+                    task: {
+                        ...old.task,
+                        customFieldValues: old.task.customFieldValues.map((cf: any) =>
+                            byId.has(cf.fieldDefinitionId) ? { ...cf, ...byId.get(cf.fieldDefinitionId) } : cf
+                        ),
+                    },
+                }
+            })
+            toast.success("Custom field updated")
+        },
+        onError: (err: any, _vars, ctx) => {
+            if (ctx?.previous) qc.setQueryData(["task", projectId, taskId], ctx.previous)
+            toast.error(err?.response?.data?.message ?? "Không thể cập nhật custom field")
+        },
+        onSettled: () => {
+            setSavingCustomFieldId(null)
+        },
+    })
+
     if (isLoading) return <PageSkeleton />
 
     if (isError || !data) {
@@ -180,8 +241,18 @@ export default function TaskDetailPageContent({
 
     const { task } = data
     const pendingSubtasks = Math.max(0, (task.subtaskCount ?? 0) - (task.subtaskDone ?? 0))
-    const canDelete = currentUserRole === "PM"
-    const canEdit = currentUserRole !== "VIEWER"
+    const normalizedRole = String(currentUserRole || "").toUpperCase()
+    const isAdminOrPM =
+        normalizedRole === "PM" ||
+        normalizedRole === "ADMIN" ||
+        normalizedRole === "PROJECT_MANAGER" ||
+        normalizedRole === "SYSTEM_ADMIN"
+    const isMember = normalizedRole === "MEMBER"
+    const isAssignee = !!task.assignee?.id && !!currentUserId && String(task.assignee.id) === currentUserId
+    const canEdit = isAdminOrPM || (isMember && isAssignee)
+    const canDelete = isAdminOrPM
+    const canFillCustomFields = canEdit
+    const canManageCustomFieldDefs = isAdminOrPM
     const statusCfg = STATUS_CONFIG[task.taskStatus]
     const priorityCfg = PRIORITY_CONFIG[task.priority]
     const typeCfg = TYPE_CONFIG[task.type]
@@ -232,6 +303,22 @@ export default function TaskDetailPageContent({
         const params = new URLSearchParams(searchParams.toString())
         params.set("tab", "worklog")
         router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    }
+
+    React.useEffect(() => {
+        const values = task.customFieldValues || []
+        const next: Record<string, string> = {}
+        values.forEach((cf: any) => {
+            const fieldType = String(cf.fieldType || "TEXT").toUpperCase()
+            const raw = cf?.value ?? ""
+            next[cf.fieldDefinitionId] = fieldType === "DATE" && raw ? String(raw).slice(0, 10) : String(raw)
+        })
+        setCustomDrafts(next)
+    }, [task.id, task.customFieldValues])
+
+    const getSelectOptions = (fieldId: string) => {
+        const def = (customFieldDefs as CustomFieldDefinition[]).find((f) => f.id === fieldId)
+        return Array.isArray(def?.options) ? def.options : []
     }
 
     return (
@@ -435,6 +522,110 @@ export default function TaskDetailPageContent({
                         </button>
                     )}
                 </div>
+
+                {/* Custom fields */}
+                {Array.isArray(task.customFieldValues) && task.customFieldValues.length > 0 && (
+                    <div className="mt-3 rounded-xl border border-slate-200 p-3 bg-white">
+                        <div className="mb-3 flex items-center justify-between">
+                            <p className="text-xs text-slate-400 uppercase tracking-wide">Custom Fields</p>
+                            {canManageCustomFieldDefs && (
+                                <button
+                                    onClick={() => router.push(`/projects/${projectId}/settings`)}
+                                    className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                >
+                                    Manage fields
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="space-y-3">
+                            {task.customFieldValues.map((cf: any) => {
+                                const fieldType = String(cf.fieldType || "TEXT").toUpperCase()
+                                const originalValue =
+                                    fieldType === "DATE" && cf.value ? String(cf.value).slice(0, 10) : String(cf.value ?? "")
+                                const draftValue = customDrafts[cf.fieldDefinitionId] ?? originalValue
+                                const dirty = draftValue !== originalValue
+                                const saving = savingCustomFieldId === cf.fieldDefinitionId && saveCustomFieldValue.isPending
+                                const disabled = !canFillCustomFields || saving
+
+                                const saveField = () => {
+                                    let normalized: string | null = draftValue
+                                    if (fieldType === "NUMBER") {
+                                        normalized = draftValue.trim() === "" ? null : String(Number(draftValue))
+                                    } else if (fieldType === "BOOLEAN") {
+                                        normalized = draftValue === "true" || draftValue === "false" ? draftValue : null
+                                    } else if (fieldType === "DATE") {
+                                        normalized = draftValue || null
+                                    } else {
+                                        normalized = draftValue.trim() === "" ? null : draftValue.trim()
+                                    }
+                                    saveCustomFieldValue.mutate({
+                                        fieldId: cf.fieldDefinitionId,
+                                        value: normalized,
+                                    })
+                                }
+
+                                return (
+                                    <div key={cf.fieldDefinitionId} className="rounded-lg border border-slate-100 p-2.5">
+                                        <p className="mb-1.5 text-xs font-semibold text-slate-500">{cf.fieldName}</p>
+                                        <div className="flex items-center gap-2">
+                                            {fieldType === "SELECT" ? (
+                                                <select
+                                                    value={draftValue}
+                                                    disabled={disabled}
+                                                    onChange={(e) =>
+                                                        setCustomDrafts((prev) => ({ ...prev, [cf.fieldDefinitionId]: e.target.value }))
+                                                    }
+                                                    className="h-9 flex-1 rounded-lg border border-slate-200 px-2.5 text-sm disabled:bg-slate-50"
+                                                >
+                                                    <option value="">--</option>
+                                                    {getSelectOptions(cf.fieldDefinitionId).map((opt) => (
+                                                        <option key={opt} value={opt}>
+                                                            {opt}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            ) : fieldType === "BOOLEAN" ? (
+                                                <select
+                                                    value={draftValue}
+                                                    disabled={disabled}
+                                                    onChange={(e) =>
+                                                        setCustomDrafts((prev) => ({ ...prev, [cf.fieldDefinitionId]: e.target.value }))
+                                                    }
+                                                    className="h-9 flex-1 rounded-lg border border-slate-200 px-2.5 text-sm disabled:bg-slate-50"
+                                                >
+                                                    <option value="">--</option>
+                                                    <option value="true">Yes</option>
+                                                    <option value="false">No</option>
+                                                </select>
+                                            ) : (
+                                                <input
+                                                    type={fieldType === "NUMBER" ? "number" : fieldType === "DATE" ? "date" : "text"}
+                                                    value={draftValue}
+                                                    disabled={disabled}
+                                                    onChange={(e) =>
+                                                        setCustomDrafts((prev) => ({ ...prev, [cf.fieldDefinitionId]: e.target.value }))
+                                                    }
+                                                    className="h-9 flex-1 rounded-lg border border-slate-200 px-2.5 text-sm disabled:bg-slate-50"
+                                                />
+                                            )}
+
+                                            {canFillCustomFields && (
+                                                <button
+                                                    onClick={saveField}
+                                                    disabled={!dirty || saving}
+                                                    className="h-9 min-w-[80px] rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    {saving ? <Loader2 size={14} className="mx-auto animate-spin" /> : "Save"}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {/* Tabs section */}
                 <div className="mt-3 border-t border-slate-200 pt-1">

@@ -34,6 +34,7 @@ import { ProjectService } from "@/app/services/ProjectService";
 import { ProjectMemberService } from "@/app/services/project-member.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getBeErrorMessage } from "@/lib/axios";
 import { Project } from "@/app/types/project..schema";
 
 // ——————————————————————————————————————————————————————————————————————————————————
@@ -249,7 +250,7 @@ export default function HomeDashboard() {
         router.push(`/projects/${res.projectId}`);
     },
     onError: (error: any) => {
-        toast.error(error.response?.data?.meta?.message || "Unable to accept invitation.");
+        toast.error(getBeErrorMessage(error) || "Unable to accept invitation.");
     }
   });
 
@@ -260,7 +261,7 @@ export default function HomeDashboard() {
         queryClient.invalidateQueries({ queryKey: ["my-invites"] });
     },
     onError: (error: any) => {
-        toast.error(error.response?.data?.meta?.message || "Unable to decline invitation.");
+        toast.error(getBeErrorMessage(error) || "Unable to decline invitation.");
     }
   });
 

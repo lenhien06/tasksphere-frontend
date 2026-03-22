@@ -83,6 +83,24 @@
     background: #CBD5E1;
   }
 
+  .modal-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db transparent;
+  }
+  .modal-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .modal-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .modal-scrollbar::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 9999px;
+  }
+  .modal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #d1d5db;
+  }
+
   /* HIDE SCROLLBAR BUT KEEP SCROLLING */
   .hide-scrollbar {
     -ms-overflow-style: none;  /* IE and Edge */

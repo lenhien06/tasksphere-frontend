@@ -95,6 +95,11 @@ export default function KanbanColumn({
               key={task.id}
               task={task}
               canDrag={userRole === "PROJECT_MANAGER" || userRole === "MEMBER"}
+              dragDisabledReason={
+                userRole === "VIEWER"
+                  ? t("kanban.viewerCannotDrag", { defaultValue: "Viewer cannot change task status" })
+                  : undefined
+              }
               onClick={onTaskClick}
             />
           ))}

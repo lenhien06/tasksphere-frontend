@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/', '/signin', '/signup', '/forgot-password']
+// Invite links must work when the user is not logged in yet
+const PUBLIC_PATHS = ['/', '/signin', '/signup', '/forgot-password', '/invites']
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl

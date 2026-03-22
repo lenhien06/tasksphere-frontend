@@ -3,19 +3,22 @@ export interface PageResponse<T> {
   totalElements: number;
   totalPages: number;
   size: number;
-  number: number;
-  first: boolean;
-  last: boolean;
-  empty: boolean;
+  page: number;
+  number?: number;
+  first?: boolean;
+  last?: boolean;
+  empty?: boolean;
 }
 
 export interface Meta {
-  page: number;
-  size: number;
-  totalElements: number;
-  totalPages: number;
-  timestamp: string;
-  version: string;
+  page?: number;
+  size?: number;
+  totalElements?: number;
+  totalPages?: number;
+  timestamp?: string;
+  version?: string;
+  message?: string;
+  error?: string;
 }
 
 export interface ApiResponse<T> {

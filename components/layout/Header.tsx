@@ -13,7 +13,8 @@ import {
   Clock,
   Folder,
   Loader2,
-  User
+  User,
+  Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/app/services/auth.service";
@@ -25,6 +26,8 @@ import { LanguageToggle } from "@/components/common/LanguageToggle";
 
 // UPDATE THE IMPORT PATH HERE TO MATCH THE CORRECT FILE NAME:
 import { ProjectService } from "@/app/services/ProjectService";
+import { ProjectMemberService } from "@/app/services/project-member.service";
+import { getBeErrorMessage } from "@/lib/axios";
 
 // ——————————————————————————————————————————————————————————————————————————————————
 // MOCK DATA
@@ -63,7 +66,13 @@ export default function Header({ onMenuToggle, currentUser }: { onMenuToggle?: (
   const { t } = useTranslation()
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuthStore();
+  const { logout, accessToken } = useAuthStore();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
   const [activeDropdown, setActiveDropdown] = useState<null | 'notif' | 'avatar' | 'search'>(null);
 
   const displayName = currentUser?.fullName || currentUser?.displayName || "User";
@@ -95,13 +104,45 @@ export default function Header({ onMenuToggle, currentUser }: { onMenuToggle?: (
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // DATE/TIME STATE
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [myInvites, setMyInvites] = useState<any[]>([]);
+  const [isInvitesLoading, setIsInvitesLoading] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    const fetchInvites = async () => {
+      if (!accessToken) return;
+      setIsInvitesLoading(true);
+      try {
+        const res = await ProjectMemberService.getMyInvites();
+        setMyInvites(res || []);
+      } catch (error) {
+        console.error("Error fetching invites:", error);
+      } finally {
+        setIsInvitesLoading(false);
+      }
+    };
+    fetchInvites();
+  }, [accessToken]);
+
+  const handleAcceptInvite = async (token: string) => {
+    try {
+      const res = await ProjectMemberService.acceptInvite(token);
+      toast.success("Đã chấp nhận lời mời");
+      setMyInvites(prev => prev.filter(i => i.token !== token));
+      router.push(`/projects/${res.projectId}`);
+    } catch (error: any) {
+      toast.error(getBeErrorMessage(error) || "Không thể chấp nhận lời mời");
+    }
+  };
+
+  const handleDeclineInvite = async (token: string) => {
+    try {
+      await ProjectMemberService.declineInvite(token);
+      toast.success("Đã từ chối lời mời");
+      setMyInvites(prev => prev.filter(i => i.token !== token));
+    } catch (error: any) {
+      toast.error(getBeErrorMessage(error) || "Không thể từ chối lời mời");
+    }
+  };
 
   const formatDateTime = (date: Date) => {
     const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(date);
@@ -254,16 +295,51 @@ export default function Header({ onMenuToggle, currentUser }: { onMenuToggle?: (
               )}
             >
               <Bell size={16} />
-              <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#FF4D4F] rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold shadow-sm animate-in zoom-in">5</div>
+              {(NOTIFICATIONS.filter(n => n.unread).length + myInvites.length) > 0 && (
+                <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#FF4D4F] rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold shadow-sm animate-in zoom-in">
+                  {NOTIFICATIONS.filter(n => n.unread).length + myInvites.length}
+                </div>
+              )}
             </button>
 
             {activeDropdown === 'notif' && (
-              <div className="absolute top-[52px] right-0 w-[min(360px,calc(100vw-1rem))] max-h-[480px] bg-white border border-[#E8E8E8] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2">
+              <div className="absolute top-[52px] right-0 w-[min(380px,calc(100vw-1rem))] max-h-[520px] bg-white border border-[#E8E8E8] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2">
                 <div className="px-4 py-3 border-b border-[#E8E8E8] flex justify-between items-center bg-white">
                   <span className="font-semibold text-[15px] text-[#141414]">{t('notification.title')}</span>
                   <button className="text-xs text-[#1677FF] hover:underline font-medium">{t('notification.markAllRead')}</button>
                 </div>
                 <div className="overflow-y-auto custom-scrollbar flex-1 bg-white">
+                  {/* PROJECT INVITES */}
+                  {myInvites.map((invite) => (
+                    <div key={invite.id} className="px-4 py-4 border-b border-[#F5F5F5] bg-blue-50/30 hover:bg-blue-50/50 transition-colors">
+                      <div className="flex gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                          <Users size={18} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[13px] text-[#141414] leading-snug mb-2">
+                            <span className="font-bold">{invite.inviterName}</span> mời bạn tham gia dự án <span className="font-bold text-blue-600">"{invite.projectName}"</span> với vai trò <span className="font-semibold">{invite.role}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleAcceptInvite(invite.token)}
+                              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-sm shadow-blue-200"
+                            >
+                              Chấp nhận
+                            </button>
+                            <button 
+                              onClick={() => handleDeclineInvite(invite.token)}
+                              className="px-3 py-1.5 border border-slate-200 bg-white text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all"
+                            >
+                              Từ chối
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* OTHER NOTIFICATIONS */}
                   {NOTIFICATIONS.map((n) => (
                     <div key={n.id} className={cn("px-4 py-3 flex gap-3 border-b border-[#F5F5F5] transition-colors cursor-pointer", n.unread ? "bg-[#F0F7FF] hover:bg-[#E1F0FF]" : "bg-white hover:bg-[#FAFAFA]")}>
                       <div className="relative shrink-0">

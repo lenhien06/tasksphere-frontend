@@ -187,11 +187,29 @@ apiNext.interceptors.response.use(
     }
 );
 
+/** Lỗi chuẩn Member/Invite: `{ error, message, meta? }` — không dùng envelope success */
+export function getStructuredErrorCode(error: any): string | undefined {
+    const d = error?.response?.data;
+    if (d && typeof d === "object" && typeof (d as { error?: unknown }).error === "string") {
+        return (d as { error: string }).error;
+    }
+    return undefined;
+}
+
 export const getBeErrorMessage = (error: any) => {
-    return error?.response?.data?.message
-        || error?.response?.data?.meta?.message
-        || error?.message
-        || "An error occurred. Please try again.";
+    const d = error?.response?.data;
+    if (d && typeof d === "object") {
+        if (typeof (d as { error?: unknown }).error === "string" && "message" in d) {
+            const msg = (d as { message?: unknown }).message;
+            if (typeof msg === "string" && msg.trim()) return msg;
+        }
+        if (typeof (d as { message?: unknown }).message === "string" && (d as { message: string }).message.trim()) {
+            return (d as { message: string }).message;
+        }
+        const metaMsg = (d as { meta?: { message?: string } }).meta?.message;
+        if (typeof metaMsg === "string" && metaMsg.trim()) return metaMsg;
+    }
+    return error?.message || "An error occurred. Please try again.";
 };
 
 export const getBeFieldErrors = (error: any) => {
