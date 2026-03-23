@@ -108,19 +108,23 @@ export default function Header({ onMenuToggle, currentUser }: { onMenuToggle?: (
   const [isInvitesLoading, setIsInvitesLoading] = useState(false);
 
   useEffect(() => {
+    if (!accessToken) return;
+    const controller = new AbortController();
     const fetchInvites = async () => {
-      if (!accessToken) return;
       setIsInvitesLoading(true);
       try {
-        const res = await ProjectMemberService.getMyInvites();
+        const res = await ProjectMemberService.getMyInvites(controller.signal);
         setMyInvites(res || []);
-      } catch (error) {
-        console.error("Error fetching invites:", error);
+      } catch (error: any) {
+        if (error?.code !== "ERR_CANCELED" && error?.name !== "AbortError") {
+          console.error("Error fetching invites:", error);
+        }
       } finally {
         setIsInvitesLoading(false);
       }
     };
     fetchInvites();
+    return () => controller.abort();
   }, [accessToken]);
 
   const handleAcceptInvite = async (token: string) => {

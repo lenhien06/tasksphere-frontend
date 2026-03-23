@@ -4,33 +4,25 @@ import React from "react"
 import { useParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { ProjectService } from "@/app/services/ProjectService"
+import WebhookManager from "@/components/settings/WebhookManager"
 import { toLegacyMyRoleLower } from "@/lib/projectRole"
-import SprintManagement from "@/components/projects/SprintManagement"
-import { Loader2 } from "lucide-react"
 
-export default function SprintsPage() {
+export default function WebhooksSettingsPage() {
   const params = useParams()
   const projectId = params.id as string
 
-  const { data: projectData, isLoading } = useQuery({
+  const { data: projectData } = useQuery({
     queryKey: ["project-detail", projectId],
     queryFn:  () => ProjectService.getById(projectId),
     enabled:  !!projectId,
   })
 
-  if (isLoading) {
-    return (
-      <div className="flex h-[calc(100vh-200px)] items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-      </div>
-    )
-  }
-
   const myRole = toLegacyMyRoleLower(projectData?.data?.myRole, projectData?.data?.isOwner)
 
   return (
-    <div className="flex flex-col h-full bg-white sm:bg-transparent">
-      <SprintManagement projectId={projectId} myRole={myRole} />
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">🔗 Webhooks</h1>
+      <WebhookManager projectId={projectId} myRole={myRole} />
     </div>
   )
 }

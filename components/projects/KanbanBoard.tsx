@@ -20,6 +20,7 @@ import { useKanbanColumns, DEFAULT_COLUMNS } from "@/hooks/useKanbanColumns";
 import { useProjectWebSocket } from "@/hooks/useProjectWebSocket";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { handleKanbanError } from "@/lib/errorHandler";
+import { toKanbanUserRole, toTaskPanelRole } from "@/lib/projectRole";
 
 import KanbanBoardUI, {
   type Column,
@@ -220,14 +221,14 @@ export default function KanbanBoard({
     const params: Record<string, unknown> = { page: 0, size: 200 };
     if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
     if (filters.unassigned) params.assigneeId = "unassigned";
-    else if (filters.onlyMe && currentUserId) params.assigneeId = currentUserId;
+    else if (filters.onlyMe) params.assigneeId = "me";
     if (filters.priorities.length > 0) {
       params.priority = filters.priorities.map((p) => p.toUpperCase()).join(",");
     }
     if (filters.sprint) params.sprintId = filters.sprint;
     if (filters.smartFilter === "in_progress") params.status = "IN_PROGRESS";
     if (filters.smartFilter === "overdue") params.overdue = true;
-    if (filters.smartFilter === "my_tasks" && currentUserId) params.assigneeId = currentUserId;
+    if (filters.smartFilter === "my_tasks") params.assigneeId = "me";
     return params;
   }, [debouncedSearch, filters, currentUserId]);
 
@@ -287,6 +288,7 @@ export default function KanbanBoard({
       subTaskDoneCount: t.subtaskDone,
       position: t.taskPosition,
       isOverdue: t.overdue,
+      isRecurring: t.recurring,
     }));
   }, [tasksData]);
 
@@ -406,6 +408,17 @@ export default function KanbanBoard({
   useProjectWebSocket(projectId);
 
   const createTask = useCreateTask(projectId);
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: (taskId: string) => TaskService.deleteTask(projectId, taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+      toast.success("Đã xóa task");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message ?? "Không thể xóa task");
+    },
+  });
   const moveTaskMutation = useMutation({
     mutationFn: async (payload: MoveTaskPayload) => {
       const isColumnChange = payload.sourceColumnId !== payload.targetColumnId;
@@ -415,7 +428,6 @@ export default function KanbanBoard({
       if (isColumnChange) {
         await TaskService.updateStatus(projectId, payload.taskId, {
           status: targetColumn.status as any,
-          statusColumnId: payload.targetColumnId,
         });
       }
 
@@ -428,7 +440,7 @@ export default function KanbanBoard({
     onSuccess: (data) => {
       const task = tasks.find((t) => t.id === data.payload.taskId);
       if (task) {
-        toast.success(`${task.title} chuyển sang cột ${data.targetColumnName} thành công`);
+        toast.success(`Đã chuyển sang ${data.targetColumnName}`);
       }
     },
     onMutate: async (payload) => {
@@ -466,6 +478,10 @@ export default function KanbanBoard({
     },
   });
 
+  const effectiveKanbanRole = projectData?.data
+    ? toKanbanUserRole(projectData.data.myRole, projectData.data.isOwner)
+    : currentUserRole;
+
   if (columnsLoading || tasksLoading) {
     return (
       <div className="h-[60vh] grid place-items-center rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -482,12 +498,13 @@ export default function KanbanBoard({
     );
   }
 
-  const roleForPanel: "PM" | "MEMBER" | "VIEWER" =
-    currentUserRole === "PROJECT_MANAGER" || currentUserRole === "SYSTEM_ADMIN"
+  const roleForPanel: "PM" | "MEMBER" | "VIEWER" = projectData?.data
+    ? toTaskPanelRole(projectData.data.myRole, projectData.data.isOwner)
+    : effectiveKanbanRole === "PROJECT_MANAGER" || effectiveKanbanRole === "SYSTEM_ADMIN"
       ? "PM"
-      : currentUserRole === "MEMBER"
-      ? "MEMBER"
-      : "VIEWER";
+      : effectiveKanbanRole === "MEMBER"
+        ? "MEMBER"
+        : "VIEWER";
 
   return (
     <div className="h-full">
@@ -496,8 +513,11 @@ export default function KanbanBoard({
           projectId={projectId}
           columns={columns}
           tasks={tasks}
-          userRole={currentUserRole === "SYSTEM_ADMIN" ? "PROJECT_MANAGER" : currentUserRole}
+          userRole={
+            effectiveKanbanRole === "SYSTEM_ADMIN" ? "PROJECT_MANAGER" : effectiveKanbanRole
+          }
           currentUserId={currentUserId}
+          onDeleteTask={deleteTaskMutation.mutate}
           onStatusChange={handleStatusChange}
           onCreateTask={(columnId) => {
             setCreateDefaults({ columnId });
@@ -559,7 +579,7 @@ export default function KanbanBoard({
             defaultTitle={createDefaults.title}
             parentTask={createDefaults.parentTask}
             projectMembers={members}
-            columns={columns.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
+            columns={columns.map((c) => ({ id: c.id, name: c.name, color: c.colorHex }))}
             projectKey={projectData?.data?.projectKey}
             onConfirm={(payload: CreateTaskPayload) => {
               createTask.mutate(

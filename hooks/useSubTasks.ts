@@ -37,8 +37,8 @@ export function useAddSubTask(projectId: string, parentTaskId: string) {
 export function useUpdateSubTaskStatus(projectId: string, parentTaskId: string) {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: ({ taskId, status, columnId }: { taskId: string; status: TaskStatus; columnId: string }) =>
-            TaskService.updateStatus(projectId, taskId, { status, statusColumnId: columnId }),
+        mutationFn: ({ taskId, status }: { taskId: string; status: TaskStatus; columnId: string }) =>
+            TaskService.updateStatus(projectId, taskId, { status }),
         onMutate: async ({ taskId, status }) => {
             await qc.cancelQueries({ queryKey: ["subtasks", parentTaskId] })
             const prev = qc.getQueryData<SubTaskResponse[]>(["subtasks", parentTaskId])

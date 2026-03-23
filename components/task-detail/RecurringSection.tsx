@@ -40,6 +40,7 @@ const FREQ_LABELS: Record<RecurrenceFrequency, string> = {
     DAILY: "Daily",
     WEEKLY: "Weekly",
     MONTHLY: "Monthly",
+    YEARLY: "Yearly",
     CUSTOM: "Custom",
 }
 
@@ -63,6 +64,7 @@ export default function RecurringSection({ taskId, projectId, isRecurring, canEd
     const [selectedDays, setSelectedDays] = useState<number[]>([])
     const [endDate, setEndDate] = useState("")
     const [maxOcc, setMaxOcc] = useState("")
+    const [firstRunAt, setFirstRunAt] = useState("")
 
     const { data: recurrence } = useQuery({
         queryKey: ["recurrence", taskId],
@@ -95,9 +97,15 @@ export default function RecurringSection({ taskId, projectId, isRecurring, canEd
             setOpen(false)
         },
         onError: (err: any) => {
-            const msg = err?.response?.data?.message
-                ?? err?.response?.data?.meta?.message
-                ?? err?.response?.data?.detail
+            const data = err?.response?.data
+            // Handle structured RECURRING_NO_END_CONDITION error (spec 11)
+            if (data?.error === "RECURRING_NO_END_CONDITION") {
+                toast.error(data.message ?? "Cần ít nhất một trong hai: ngày kết thúc hoặc số lần tối đa.")
+                return
+            }
+            const msg = data?.message
+                ?? data?.meta?.message
+                ?? data?.detail
                 ?? err?.message
                 ?? "Unable to save settings"
             toast.error(msg)
@@ -136,6 +144,11 @@ export default function RecurringSection({ taskId, projectId, isRecurring, canEd
             toast.error("Select at least 1 day of the week")
             return
         }
+        // Spec 11: endDate và maxOccurrences không được cùng trống (RECURRING_NO_END_CONDITION)
+        if (!endDate && !maxOcc) {
+            toast.error("Cần ít nhất một trong hai: ngày kết thúc hoặc số lần tối đa để giới hạn lịch lặp.")
+            return
+        }
 
         const base = {
             frequency,
@@ -148,7 +161,9 @@ export default function RecurringSection({ taskId, projectId, isRecurring, canEd
         if (recurrence) {
             setRec.mutate(base as SetRecurrenceRequest)
         } else {
-            setRec.mutate({ ...base, firstRunAt: new Date().toISOString() })
+            // firstRunAt required for new recurrence — default to now if not chosen
+            const runAt = firstRunAt ? new Date(firstRunAt).toISOString() : new Date().toISOString()
+            setRec.mutate({ ...base, firstRunAt: runAt })
         }
     }
 
@@ -236,9 +251,25 @@ export default function RecurringSection({ taskId, projectId, isRecurring, canEd
                                     </div>
                                 )}
 
+                                {/* First run (create only) */}
+                                {!recurrence && (
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                            First run <span className="text-[10px] normal-case text-destructive">(bắt buộc)</span>
+                                        </Label>
+                                        <Input
+                                            type="datetime-local"
+                                            value={firstRunAt}
+                                            onChange={e => setFirstRunAt(e.target.value)}
+                                            min={new Date().toISOString().slice(0, 16)}
+                                            className="h-8 text-sm"
+                                        />
+                                    </div>
+                                )}
+
                                 {/* End date */}
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">End date (optional)</Label>
+                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">End date <span className="text-[10px] normal-case">(bắt buộc nếu không có max occurrences)</span></Label>
                                     <Input
                                         type="date"
                                         value={endDate}
@@ -250,7 +281,7 @@ export default function RecurringSection({ taskId, projectId, isRecurring, canEd
 
                                 {/* Max occurrences */}
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Max occurrences (optional)</Label>
+                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Max occurrences <span className="text-[10px] normal-case">(bắt buộc nếu không có end date)</span></Label>
                                     <Input
                                         type="number"
                                         value={maxOcc}

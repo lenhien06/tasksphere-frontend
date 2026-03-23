@@ -7,8 +7,11 @@ import {
     Search, Lock, Users, Globe, Check, Mail, Crown, Shield, Eye, Settings, Bell,
     AlertTriangle, MessageCircle, Plus, CheckCircle2, BarChart2,
     ShieldOff, ArrowLeft, X, Calendar, Clock, Trash2, Loader2, ChevronDown, ChevronRight, Archive, RefreshCw, Filter,
-    Layout, Kanban, ListTodo, MoreHorizontal
+    Layout, Kanban, ListTodo, MoreHorizontal, Tag, Rocket, Webhook, GitBranch
 } from "lucide-react";
+import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
+import VersionManagement from "@/components/projects/VersionManagement";
+import WebhookManager from "@/components/settings/WebhookManager";
 import { cn } from "@/lib/utils";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -41,6 +44,7 @@ import KanbanBoard from "@/components/projects/KanbanBoard";
 import BacklogPage from "@/components/projects/BacklogPage";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import ForbiddenPage from "@/components/common/ForbiddenPage";
+import { canActAsProjectManager, toKanbanUserRole, toLegacyMyRoleLower } from "@/lib/projectRole";
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -62,7 +66,9 @@ interface Project {
     deadline?: string;
     progress: number;
     memberCount: number;
-    myRole?: string; // This could be uppercase or lowercase depending on API
+    myRole?: string;
+    /** Theo API project — dùng cùng myRole để quyền, không suy từ members */
+    isOwner?: boolean;
     stats: {
         totalTasks: number;
         doneTasks: number;
@@ -93,6 +99,7 @@ function mapToUIProject(be: any): Project {
         progress: be.progress || 0,
         memberCount: Math.max(be.memberCount || 0, 1),
         myRole: be.myRole,
+        isOwner: Boolean(be.isOwner),
         stats: {
             totalTasks: be.taskStats?.total || 0,
             doneTasks: be.taskStats?.done || 0,
@@ -106,16 +113,20 @@ function mapToUIProject(be: any): Project {
 }
 
 function RoleBadge({ role }: { role: string }) {
-    const map: Record<string, { label: string; cls: string }> = {
-        project_manager: { label: "Project Manager", cls: "bg-blue-100 text-blue-600 border-blue-200" },
-        pm: { label: "Project Manager", cls: "bg-blue-100 text-blue-600 border-blue-200" },
-        member: { label: "Member", cls: "bg-emerald-100 text-emerald-600 border-emerald-200" },
-        viewer: { label: "Viewer", cls: "bg-slate-100 text-slate-600 border-slate-200" },
-        owner: { label: "Owner", cls: "bg-amber-100 text-amber-600 border-amber-200" },
-        system_admin: { label: "Admin", cls: "bg-red-100 text-red-600 border-red-200" },
+    const map: Record<string, { label: string }> = {
+        project_manager: { label: "Project Manager" },
+        pm: { label: "Project Manager" },
+        member: { label: "Member" },
+        viewer: { label: "Viewer" },
+        owner: { label: "Owner" },
+        system_admin: { label: "Admin" },
     };
     const cfg = map[String(role || "").toLowerCase()] || map["viewer"];
-    return <span className={cn("inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold border", cfg.cls)}>{cfg.label}</span>;
+    return (
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-tight">
+            {cfg.label}
+        </span>
+    );
 }
 
 function StatusBadge({ status, daysLeft }: { status: string; daysLeft?: number | null }) {
@@ -168,8 +179,7 @@ function StatusBadge({ status, daysLeft }: { status: string; daysLeft?: number |
 
 function ProjectHeader({ project, activeTab, onTabChange }: { project: Project; activeTab: Tab; onTabChange: (t: Tab) => void }) {
     const { t } = useTranslation()
-    const userRole = project.myRole?.toLowerCase() || "";
-    const canManage = ["system_admin", "project_manager", "admin", "pm"].includes(userRole);
+    const canManage = canActAsProjectManager(project.myRole, project.isOwner);
     const { data: members } = useQuery({ queryKey: ["project-members", project.id], queryFn: () => ProjectMemberService.getMembers(project.id), enabled: !!project.id });
 
     const statusMap: Record<Project["status"], { label: string; cls: string; dot: string }> = {
@@ -434,8 +444,7 @@ function TabMembers({ project }: { project: Project }) {
     const queryClient = useQueryClient();
     
     const currentUserId = useAuthStore((state: any) => state.userDetail?.id || state.userDetail?.userId);
-    const userRole = project.myRole?.toLowerCase() || "";
-    const canManageMembers = ["system_admin", "project_manager", "pm", "admin"].includes(userRole);
+    const canManageMembers = canActAsProjectManager(project.myRole, project.isOwner);
 
     const { data: members, isLoading: isMembersLoading } = useQuery({ 
         queryKey: ["project-members", project.id], 
@@ -452,7 +461,7 @@ function TabMembers({ project }: { project: Project }) {
     const removeMutation = useMutation({ 
         mutationFn: (userId: string) => ProjectMemberService.removeMember(project.id, userId), 
         onSuccess: () => { 
-            toast.success("Member removed."); 
+            toast.success("Đã xóa thành viên khỏi dự án"); 
             queryClient.invalidateQueries({ queryKey: ["project-members", project.id] }); 
         },
         onError: (error: any) => {
@@ -468,7 +477,7 @@ function TabMembers({ project }: { project: Project }) {
     const revokeMutation = useMutation({
         mutationFn: (inviteId: string) => ProjectMemberService.revokeInvite(project.id, inviteId),
         onSuccess: () => {
-            toast.success("Invitation revoked.");
+            toast.success("Đã thu hồi lời mời");
             queryClient.invalidateQueries({ queryKey: ["project-invites", project.id, inviteStatusFilter] });
         }
     });
@@ -476,7 +485,7 @@ function TabMembers({ project }: { project: Project }) {
     const leaveMutation = useMutation({
         mutationFn: () => ProjectMemberService.leaveProject(project.id),
         onSuccess: () => {
-            toast.success(`Bạn đã rời khỏi dự án ${project.name}`);
+            toast.success("Đã rời dự án");
             queryClient.invalidateQueries({ queryKey: ["project-detail", project.id] });
             router.push('/projects');
         },
@@ -805,19 +814,79 @@ function MemberStatCard({ title, value, icon, color }: { title: string; value: n
     );
 }
 
-function TabSettings({ project, onBack }: { project: Project; onBack?: () => void }) {
+type SettingSection = "general" | "custom-fields" | "versions" | "webhooks"
+
+function TabSettings({ project }: { project: Project; onBack?: () => void }) {
     const { t } = useTranslation()
-    const [name, setName] = useState(project.name);
-    const [description, setDescription] = useState(project.description);
-    const queryClient = useQueryClient();
-    const updateMutation = useMutation({ mutationFn: (data: any) => ProjectService.update(project.id, data), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["project-detail", project.id] }); toast.success("Updated successfully"); }, });
+    const [section, setSection] = useState<SettingSection>("general")
+    const [name, setName] = useState(project.name)
+    const [description, setDescription] = useState(project.description)
+    const queryClient = useQueryClient()
+    const updateMutation = useMutation({
+        mutationFn: (data: any) => ProjectService.update(project.id, data),
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["project-detail", project.id] }); toast.success("Đã lưu thay đổi") },
+    })
+
+    const roleLower = toLegacyMyRoleLower(project.myRole, project.isOwner)
+
+    const menuItems: { id: SettingSection; label: string; icon: React.ElementType }[] = [
+        { id: "general",       label: t("common.general", { defaultValue: "General" }),           icon: Settings  },
+        { id: "custom-fields", label: t("common.customFields", { defaultValue: "Custom Fields" }), icon: Tag      },
+        { id: "versions",      label: t("common.versions", { defaultValue: "Versions" }),          icon: Rocket   },
+        { id: "webhooks",      label: t("common.webhooks", { defaultValue: "Webhooks" }),          icon: Webhook  },
+    ]
+
     return (
-        <div className="max-w-2xl space-y-6"><div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm"><h3 className="text-lg font-black text-slate-900 mb-6 uppercase tracking-wider">{t('project.configuration')}</h3><div className="space-y-5">
-            <div><FieldLabel required>{t('project.name')}</FieldLabel><InputStyled value={name} onChange={(e: any) => setName(e.target.value)} /></div>
-            <div><FieldLabel>{t('task.description')}</FieldLabel><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 outline-none transition-all text-sm font-medium" /></div>
-            <div className="pt-4"><PrimaryButton onClick={() => updateMutation.mutate({ name, description })} disabled={!name.trim()} loading={updateMutation.isPending}>{t('project.saveChanges')}</PrimaryButton></div>
-        </div></div></div>
-    );
+        <div className="flex gap-3 min-h-[600px]">
+            {/* Sidebar */}
+            <aside className="w-52 shrink-0">
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-2">
+                    <nav className="space-y-1">
+                        {menuItems.map(({ id, label, icon: Icon }) => (
+                            <button
+                                key={id}
+                                onClick={() => setSection(id)}
+                                className={cn(
+                                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                                    section === id
+                                        ? "bg-blue-50 text-blue-600 border border-blue-100 shadow-sm"
+                                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                                )}
+                            >
+                                <Icon size={16} className={section === id ? "text-blue-600" : "text-slate-400"} />
+                                {label}
+                            </button>
+                        ))}
+                    </nav>
+                </div>
+            </aside>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+                {section === "general" && (
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-3.5 border-b border-slate-100 bg-slate-100/80 flex items-center">
+                            <h2 className="text-xl font-bold text-slate-900">{t('project.configuration')}</h2>
+                        </div>
+                        <div className="p-6 space-y-5 max-w-2xl">
+                            <div><FieldLabel required>{t('project.name')}</FieldLabel><InputStyled value={name} onChange={(e: any) => setName(e.target.value)} /></div>
+                            <div><FieldLabel>{t('task.description')}</FieldLabel><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 outline-none transition-all text-sm font-medium" /></div>
+                            <div className="pt-2"><PrimaryButton onClick={() => updateMutation.mutate({ name, description })} disabled={!name.trim()} loading={updateMutation.isPending}>{t('project.saveChanges')}</PrimaryButton></div>
+                        </div>
+                    </div>
+                )}
+                {section === "custom-fields" && (
+                    <CustomFieldsManager projectId={project.id} myRole={project.myRole ?? ""} isOwner={project.isOwner} />
+                )}
+                {section === "versions" && (
+                    <VersionManagement projectId={project.id} myRole={roleLower} />
+                )}
+                {section === "webhooks" && (
+                    <WebhookManager projectId={project.id} myRole={roleLower} />
+                )}
+            </div>
+        </div>
+    )
 }
 
 export default function ProjectDetailPage({ projectId: propProjectId, onBack }: { projectId?: string; onBack?: () => void } = {}) {
@@ -840,10 +909,9 @@ export default function ProjectDetailPage({ projectId: propProjectId, onBack }: 
     if (!projectData?.data) return <div className="p-20 text-center font-bold">{t('project.notFound')}</div>;
     const project = mapToUIProject(projectData.data);
     
-    // Role standardizing
-    const roleUpper = (project.myRole || "VIEWER").toUpperCase() as any;
-    const roleLower = (project.myRole || "viewer").toLowerCase();
-    const canManage = ["system_admin", "project_manager", "admin", "pm"].includes(roleLower);
+    const roleUpper = toKanbanUserRole(project.myRole, project.isOwner);
+    const roleLower = toLegacyMyRoleLower(project.myRole, project.isOwner);
+    const canManage = canActAsProjectManager(project.myRole, project.isOwner);
 
     return (
         <div className="min-h-screen bg-slate-50/30">

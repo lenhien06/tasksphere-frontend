@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/app/services/auth.service";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -168,14 +169,16 @@ export default function Sidebar({
   onToggleCollapse = () => {},
 }: SidebarProps) {
   const { t } = useTranslation()
+  const { logout } = useAuthStore()
 
   const handleLogout = async () => {
     try {
-      await AuthService.logout();
+      await AuthService.logoutNext();
       toast.success(t('nav.logout'));
-    } catch (error) {
+    } catch {
       localStorage.clear();
     } finally {
+      logout();
       window.location.href = "/signin";
     }
   };

@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2, User, Mail, Lock, ShieldCheck, Sparkles, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { useTranslation } from "react-i18next";
+import Image from "next/image";
 
 import { RegisterSchema, type RegisterFormValues } from "@/app/types/auth.schema";
 import { AuthService } from "@/app/services/auth.service";
@@ -31,7 +31,6 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 function SignupFormInner() {
-    const { t } = useTranslation();
     const router = useRouter();
     const searchParams = useSearchParams();
     const inviteToken = searchParams.get("inviteToken");
@@ -70,7 +69,7 @@ function SignupFormInner() {
                     form.setValue("inviteToken", inviteToken);
                     toast.success(`👋 ${data.inviterName} invited you to join project ${data.projectName}`);
                 } catch (error: any) {
-                    toast.error(t('invite.invalidToken'));
+                    toast.error("Invalid or expired invite token");
                 } finally {
                     setIsVerifying(false);
                 }
@@ -97,21 +96,21 @@ function SignupFormInner() {
                     return prev - 1;
                 });
             }, 1000);
-            toast.success(t('auth.otpSent'));
+            toast.success("OTP code sent! Please check your email.");
         } catch (error: any) {
             const status = error?.response?.status;
             
             if (status === 409) {
                 form.setError("email", {
                     type: "server",
-                    message: t('auth.emailExists')
+                    message: "This email already exists in the system"
                 });
-                toast.error(t('auth.emailInUse'));
+                toast.error("Email is already in use");
                 return;
             }
 
             if (status === 429) {
-                toast.error(t('auth.otpWait'));
+                toast.error("Please wait 60 seconds before resending");
                 return;
             }
 
@@ -165,8 +164,8 @@ function SignupFormInner() {
         onError: (error: any) => {
             const status = error?.response?.status;
             if (status === 409) {
-                form.setError("email", { type: "server", message: t('auth.emailExists') });
-                toast.error(t('auth.emailInUse'));
+                form.setError("email", { type: "server", message: "This email already exists in the system" });
+                toast.error("Email is already in use");
             } else {
                 const fieldErrors = getBeFieldErrors(error);
                 if (fieldErrors) {
@@ -190,28 +189,36 @@ function SignupFormInner() {
         return (
             <div className="w-full max-w-[550px] p-20 flex flex-col items-center justify-center text-center">
                 <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-                <h3 className="text-xl font-bold text-gray-900">{t('invite.verifying')}</h3>
+                <h3 className="text-xl font-bold text-gray-900">Verifying invite...</h3>
             </div>
         );
     }
 
     return (
         <div className="w-full">
-            <div className="text-left mb-8">
+            {/* Logo */}
+            <Link href="/" className="hidden lg:flex items-center gap-2 mb-8">
+                <div className="relative w-7 h-7">
+                    <Image src="/images/logo.png" alt="TaskSphere" fill className="object-contain" priority />
+                </div>
+                <span className="text-gray-900 text-lg font-bold tracking-tight">TaskSphere</span>
+            </Link>
+
+            <div className="text-left mb-7">
                 {inviteData ? (
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-600 text-[10px] font-bold mb-3 uppercase tracking-wider">
                         <Sparkles className="w-3 h-3" />
-                        <span>{t('invite.title')}</span>
+                        <span>You&apos;re Invited</span>
                     </div>
                 ) : null}
 
-                <h2 className="text-[32px] font-bold text-gray-900 mb-2">
-                    {inviteData ? t('auth.joinNow') : t('auth.signupTitle')}
+                <h2 className="text-[28px] font-bold text-gray-900 mb-1.5 tracking-tight">
+                    {inviteData ? "Join Now" : "Create an account"}
                 </h2>
-                <p className="text-gray-500 text-sm">
+                <p className="text-gray-400 text-sm">
                     {inviteData
-                        ? <span><b>{inviteData.inviterName}</b> {t('auth.invitedToCollaborate')} <b>{inviteData.projectName}</b></span>
-                        : t('auth.signupSubtitle')
+                        ? <span><b className="text-gray-700">{inviteData.inviterName}</b> invited you to collaborate on <b className="text-gray-700">{inviteData.projectName}</b></span>
+                        : "Start your journey with TaskSphere"
                     }
                 </p>
             </div>
@@ -225,13 +232,13 @@ function SignupFormInner() {
                             name="fullName"
                             render={({ field }) => (
                                 <FormItem className="space-y-1.5">
-                                    <Label className="text-gray-700 text-sm font-semibold">{t('auth.fullName')}</Label>
+                                    <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wide">Full Name</Label>
                                     <FormControl>
                                         <div className="relative">
-                                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                             <Input
-                                                placeholder={t('auth.fullNamePlaceholder')} 
-                                                className="h-11 pl-10 rounded-2xl border-gray-300 bg-white text-gray-900 focus-visible:ring-blue-500 focus-visible:border-blue-500 transition-all text-sm" 
+                                                placeholder="Enter full name"
+                                                className="h-11 pl-10 rounded-xl border-gray-200 bg-white text-gray-900 shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-400 transition-all text-sm placeholder:text-gray-300" 
                                                 disabled={isLoading} 
                                                 {...field} 
                                             />
@@ -247,15 +254,15 @@ function SignupFormInner() {
                             name="email"
                             render={({ field }) => (
                                 <FormItem className="space-y-1.5">
-                                    <Label className="text-gray-700 text-sm font-semibold">{t('auth.emailAddress')}</Label>
+                                    <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wide">Email Address</Label>
                                     <FormControl>
                                         <div className="relative">
-                                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                            <Input 
-                                                placeholder="email@example.com" 
+                                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            <Input
+                                                placeholder="email@example.com"
                                                 className={cn(
-                                                    "h-11 pl-10 rounded-2xl border-gray-300 bg-white text-gray-900 focus-visible:ring-blue-500 focus-visible:border-blue-500 transition-all text-sm",
-                                                    inviteData && "opacity-60 cursor-not-allowed bg-gray-50"
+                                                    "h-11 pl-10 rounded-xl border-gray-200 bg-white text-gray-900 shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-400 transition-all text-sm placeholder:text-gray-300",
+                                                    inviteData && "opacity-60 cursor-not-allowed"
                                                 )}
                                                 disabled={isLoading || !!inviteData} 
                                                 {...field} 
@@ -279,19 +286,19 @@ function SignupFormInner() {
                             name="password"
                             render={({ field }) => (
                                 <FormItem className="space-y-1.5">
-                                    <Label className="text-gray-700 text-sm font-semibold">{t('auth.password')}</Label>
+                                    <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wide">Password</Label>
                                     <FormControl>
                                         <div className="relative">
-                                            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                             <Input
                                                 type={showPassword ? "text" : "password"}
-                                                placeholder="••••••••" 
-                                                className="h-11 pl-10 pr-9 rounded-2xl border-gray-300 bg-white text-gray-900 focus-visible:ring-blue-500 focus-visible:border-blue-500 transition-all text-sm" 
-                                                disabled={isLoading} 
-                                                {...field} 
+                                                placeholder="••••••••"
+                                                className="h-11 pl-10 pr-9 rounded-xl border-gray-200 bg-white text-gray-900 shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-400 transition-all text-sm placeholder:text-gray-300"
+                                                disabled={isLoading}
+                                                {...field}
                                             />
                                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-                                                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                             </button>
                                         </div>
                                     </FormControl>
@@ -305,19 +312,19 @@ function SignupFormInner() {
                             name="confirmPassword"
                             render={({ field }) => (
                                 <FormItem className="space-y-1.5">
-                                    <Label className="text-gray-700 text-sm font-semibold">{t('auth.confirmPassword')}</Label>
+                                    <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wide">Confirm Password</Label>
                                     <FormControl>
                                         <div className="relative">
-                                            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                            <Input 
-                                                type={showConfirmPassword ? "text" : "password"} 
-                                                placeholder="••••••••" 
-                                                className="h-11 pl-10 pr-9 rounded-2xl border-gray-300 bg-white text-gray-900 focus-visible:ring-blue-500 focus-visible:border-blue-500 transition-all text-sm" 
-                                                disabled={isLoading} 
-                                                {...field} 
+                                            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            <Input
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                placeholder="••••••••"
+                                                className="h-11 pl-10 pr-9 rounded-xl border-gray-200 bg-white text-gray-900 shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-400 transition-all text-sm placeholder:text-gray-300"
+                                                disabled={isLoading}
+                                                {...field}
                                             />
                                             <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-                                                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                             </button>
                                         </div>
                                     </FormControl>
@@ -333,12 +340,12 @@ function SignupFormInner() {
                             name="otp"
                             render={({ field }) => (
                                 <FormItem className="space-y-1.5">
-                                    <Label className="text-gray-700 text-sm font-semibold">{t('auth.otpCode')}</Label>
+                                    <Label className="text-gray-600 text-xs font-semibold uppercase tracking-wide">OTP Verification Code</Label>
                                     <FormControl>
                                         <div className="flex gap-3">
                                             <Input
-                                                placeholder={t('auth.otpPlaceholder')}
-                                                className="h-11 border-gray-300 bg-white text-gray-900 text-center tracking-widest rounded-2xl focus-visible:ring-blue-500 focus-visible:border-blue-500 transition-all text-sm"
+                                                placeholder="Enter 6 digits"
+                                                className="h-11 border-gray-200 bg-white text-gray-900 text-center tracking-widest rounded-xl shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-400 transition-all text-sm placeholder:text-gray-300"
                                                 maxLength={6}
                                                 disabled={isLoading}
                                                 {...field}
@@ -348,9 +355,9 @@ function SignupFormInner() {
                                                 onClick={handleSendOTP}
                                                 disabled={isLoading || countdown > 0}
                                                 variant="outline"
-                                                className="h-11 px-4 text-xs font-bold rounded-2xl border-blue-600 text-blue-600 hover:bg-blue-50 transition-all whitespace-nowrap"
+                                                className="h-11 px-4 text-xs font-bold rounded-xl border-blue-500 text-blue-600 hover:bg-blue-50 transition-all whitespace-nowrap"
                                             >
-                                                {isSendingOtp ? <Loader2 className="w-4 h-4 animate-spin" /> : countdown > 0 ? `${t('auth.resendOtp')} (${countdown}s)` : t('auth.getOtp')}
+                                                {isSendingOtp ? <Loader2 className="w-4 h-4 animate-spin" /> : countdown > 0 ? `Resend (${countdown}s)` : "Get OTP"}
                                             </Button>
                                         </div>
                                     </FormControl>
@@ -376,7 +383,7 @@ function SignupFormInner() {
                                         />
                                     </FormControl>
                                     <label htmlFor="terms" className="text-xs text-gray-500 font-medium cursor-pointer hover:text-gray-700 transition-colors">
-                                        {t('auth.agreeTerms')} <span className="text-blue-600 hover:underline">{t('auth.terms')}</span> & <span className="text-blue-600 hover:underline">{t('auth.privacy')}</span>
+                                        I agree with the <span className="text-blue-600 hover:underline">Terms</span> &amp; <span className="text-blue-600 hover:underline">Privacy Policy</span>
                                     </label>
                                 </div>
                                 <FormMessage className="text-xs text-red-500" />
@@ -387,19 +394,19 @@ function SignupFormInner() {
                     <Button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full h-11 text-base font-semibold rounded-2xl bg-blue-600 hover:bg-blue-700 text-white transition-all mt-2"
+                        className="w-full h-11 text-sm font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all border-0 mt-1"
                     >
-                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : (inviteData ? t('auth.completeAndJoin') : t('auth.signupTitle'))}
+                        {isLoading
+                            ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Creating account...</>
+                            : (inviteData ? "Complete & Join" : "Create account")}
                     </Button>
 
-                    <div className="text-center pt-2">
-                        <span className="text-sm text-gray-500 font-medium">
-                            {t('auth.hasAccount')}{" "}
-                            <Link href="/signin" className="text-blue-600 hover:underline font-bold">
-                                {t('auth.login')}
-                            </Link>
-                        </span>
-                    </div>
+                    <p className="text-center text-sm text-gray-400 pt-1">
+                        Already have an account?{" "}
+                        <Link href="/signin" className="text-blue-600 hover:text-blue-700 font-semibold transition-colors">
+                            Sign in
+                        </Link>
+                    </p>
                 </form>
             </Form>
         </div>
@@ -408,12 +415,7 @@ function SignupFormInner() {
 
 export default function SignupForm() {
     return (
-        <Suspense fallback={
-            <div className="w-full max-w-[550px] bg-[#0c1a35]/90 backdrop-blur-3xl border border-[#00e5ff]/50 rounded-[32px] p-20 flex flex-col items-center justify-center text-center">
-                <Loader2 className="h-12 w-12 animate-spin text-[#00e5ff] mb-4" />
-                <h3 className="text-xl font-bold text-white">Loading...</h3>
-            </div>
-        }>
+        <Suspense fallback={<div className="text-gray-400 text-sm">Loading...</div>}>
             <SignupFormInner />
         </Suspense>
     );

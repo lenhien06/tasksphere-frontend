@@ -1,78 +1,27 @@
 "use client"
 
-import React, { useState } from "react"
+import React from "react"
 import { useParams } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
-import { ProjectService } from "@/app/services/ProjectService"
-import VersionManagement from "@/components/projects/VersionManagement"
-import CustomFieldsManager from "@/components/settings/CustomFieldsManager"
-import WebhookManager from "@/components/settings/WebhookManager"
-import { cn } from "@/lib/utils"
 
-type Tab = "info" | "workflow" | "versions" | "custom-fields" | "webhooks"
-
-export default function ProjectSettingsPage() {
-  const params    = useParams()
-  const projectId = params.id as string
-  const [tab, setTab] = useState<Tab>("versions")
-
-  const { data: projectData } = useQuery({
-    queryKey: ["project-detail", projectId],
-    queryFn:  () => ProjectService.getById(projectId),
-    enabled:  !!projectId,
-  })
-
-  const myRole = projectData?.data?.myRole || "VIEWER"
-
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "info",          label: "📋 Info" },
-    { id: "workflow",      label: "🔄 Workflow" },
-    { id: "versions",      label: "🚀 Versions" },
-    { id: "custom-fields", label: "🏷 Custom Fields" },
-    { id: "webhooks",      label: "🔗 Webhooks" },
-  ]
-
+export default function GeneralSettingsPage() {
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
-      <h1 className="text-xl font-bold text-gray-900">Project Settings</h1>
-
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
-              tab === t.id
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-800",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">General Settings</h1>
+        <p className="text-gray-500 mt-1">Configure basic project information and visibility.</p>
       </div>
-
-      {tab === "info" && (
-        <div className="text-gray-500 text-sm py-8 text-center">
-          Project Info (coming soon)
+      
+      <div className="p-20 border-2 border-dashed border-gray-100 rounded-3xl flex flex-col items-center justify-center text-center">
+        <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 mb-4">
+          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
         </div>
-      )}
-      {tab === "workflow" && (
-        <div className="text-gray-500 text-sm py-8 text-center">
-          Workflow Configuration (coming soon)
-        </div>
-      )}
-      {tab === "versions" && (
-        <VersionManagement projectId={projectId} myRole={myRole} />
-      )}
-      {tab === "custom-fields" && (
-        <CustomFieldsManager projectId={projectId} myRole={myRole} />
-      )}
-      {tab === "webhooks" && (
-        <WebhookManager projectId={projectId} myRole={myRole} />
-      )}
+        <h3 className="text-lg font-bold text-gray-900">Coming Soon</h3>
+        <p className="text-gray-500 max-w-xs mt-2">
+          The General Settings page is currently under development. Please check back later!
+        </p>
+      </div>
     </div>
   )
 }

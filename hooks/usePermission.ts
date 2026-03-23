@@ -1,24 +1,30 @@
 import { useQuery } from "@tanstack/react-query";
-import { ProjectMemberService } from "@/app/services/project-member.service";
-import { useCurrentUser } from "./useCurrentUser";
+import { ProjectService } from "@/app/services/ProjectService";
+import { normalizeProjectMyRole } from "@/lib/projectRole";
 
+/**
+ * Quyền trong project — đọc từ GET project (`myRole`, `isOwner`), không suy từ `members[]`.
+ */
 export function usePermission(projectId: string) {
-    const { data: currentUser } = useCurrentUser();
-    
-    const { data: members = [], isLoading } = useQuery({
-        queryKey: ["project-members", projectId],
-        queryFn: () => ProjectMemberService.getMembers(projectId),
+    const { data: projectRes, isLoading } = useQuery({
+        queryKey: ["project-detail", projectId],
+        queryFn: () => ProjectService.getById(projectId),
         enabled: !!projectId,
     });
 
-    const currentMember = members.find(m => String(m.user.id) === String(currentUser?.id));
-    const role = currentMember?.projectRole?.toLowerCase();
+    const p = projectRes?.data;
+    const isOwner = p?.isOwner === true;
+    const normalized = normalizeProjectMyRole(p?.myRole);
+    /** Owner luôn có quyền PM dù BE chưa gửi myRole */
+    const roleKey = normalized || (isOwner ? "project_manager" : ("" as const));
+    const isPM = roleKey === "project_manager" || roleKey === "system_admin";
 
     return {
-        role,
-        isPM: role === "project_manager" || role === "pm",
-        isMember: role === "member",
-        isViewer: role === "viewer",
+        role: roleKey || undefined,
+        isPM,
+        isMember: roleKey === "member",
+        isViewer: roleKey === "viewer" && !isPM,
+        isOwner,
         isLoading,
     };
 }

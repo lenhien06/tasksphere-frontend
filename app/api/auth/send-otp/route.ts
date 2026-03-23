@@ -1,4 +1,4 @@
-import { AuthService } from '@/app/services/auth.service'
+import { serverAxios } from '@/lib/serverAxios'
 import { AxiosError } from 'axios'
 import { NextResponse } from 'next/server'
 
@@ -11,12 +11,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const res = await AuthService.sendOtp(email)
-    return NextResponse.json(res, { status: 200 })
+    const res = await serverAxios.post(`/auth/send-otp?email=${encodeURIComponent(email)}`)
+    return NextResponse.json(res.data, { status: 200 })
   } catch (e) {
     if (e instanceof AxiosError) {
       return NextResponse.json(
-        { message: e.response?.data?.message || e.message }, 
+        { message: e.response?.data?.message || e.message },
         { status: e.response?.status || 500 }
       )
     }

@@ -247,7 +247,7 @@ const ReleaseConfirmModal = ({
         mutationFn: () => TaskService.updateVersion(version!.id, { status: "RELEASED" }),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["versions", projectId] })
-            toast.success(`🚀 ${version!.name} has been released!`)
+            toast.success("Đã phát hành version")
             onClose()
         },
         onError: () => toast.error("Unable to release version"),
@@ -295,7 +295,7 @@ const DeleteConfirmModal = ({
         mutationFn: () => TaskService.deleteVersion(version!.id),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["versions", projectId] })
-            toast.success(`${version!.name} deleted`)
+            toast.success("Đã xóa version")
             onClose()
         },
         onError: () => toast.error("Unable to delete version"),
@@ -330,7 +330,11 @@ interface VersionManagementProps {
 
 export default function VersionManagement({ projectId, myRole }: VersionManagementProps) {
     const { t } = useTranslation()
-    const isPM = myRole === "PM"
+    const isPM =
+        myRole === "project_manager" ||
+        myRole === "system_admin" ||
+        myRole === "PM" ||
+        myRole === "PROJECT_MANAGER"
     const [showCreate, setShowCreate]     = useState(false)
     const [editVersion, setEditVersion]   = useState<ProjectVersion | null>(null)
     const [releaseVer, setReleaseVer]     = useState<ProjectVersion | null>(null)
@@ -353,20 +357,26 @@ export default function VersionManagement({ projectId, myRole }: VersionManageme
     }
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold text-gray-900">{t('version.management')}</h2>
+        <>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-3.5 border-b border-slate-100 bg-slate-100/80 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-slate-900">{t('version.management')}</h2>
+                    <span className="bg-white text-slate-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-slate-200 shadow-sm">
+                        {versions.length}
+                    </span>
+                </div>
                 {isPM && (
-                    <Button
-                        size="sm"
-                        className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+                    <button
                         onClick={() => setShowCreate(true)}
+                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
                     >
-                        <Plus className="w-4 h-4" /> {t('version.create')}
-                    </Button>
+                        <Plus className="w-4 h-4" strokeWidth={3} /> {t('version.create')}
+                    </button>
                 )}
             </div>
 
+            <div className="p-6">
             {versions.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 text-sm">
                     {t('version.noVersions')}
@@ -385,6 +395,9 @@ export default function VersionManagement({ projectId, myRole }: VersionManageme
                     ))}
                 </div>
             )}
+            </div>
+
+        </div>
 
             <CreateEditModal
                 open={showCreate || !!editVersion}
@@ -404,6 +417,6 @@ export default function VersionManagement({ projectId, myRole }: VersionManageme
                 version={deleteVer}
                 projectId={projectId}
             />
-        </div>
+        </>
     )
 }

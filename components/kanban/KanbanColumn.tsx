@@ -26,6 +26,7 @@ interface KanbanColumnProps {
   tasks: KanbanTaskCard[];
   userRole: "PROJECT_MANAGER" | "MEMBER" | "VIEWER";
   projectId: string;
+  currentUserId?: string;
   activeTaskId?: string | null;
   isInvalidTarget?: boolean;
   filterActive?: boolean;
@@ -33,6 +34,7 @@ interface KanbanColumnProps {
   onAddTask: (columnId: string) => void;
   onTaskClick: (taskId: string) => void;
   onClearFilters: () => void;
+  onDeleteTask?: (taskId: string) => void;
 }
 
 export default function KanbanColumn({
@@ -40,6 +42,7 @@ export default function KanbanColumn({
   tasks,
   userRole,
   projectId,
+  currentUserId,
   activeTaskId,
   isInvalidTarget,
   filterActive,
@@ -47,6 +50,7 @@ export default function KanbanColumn({
   onAddTask,
   onTaskClick,
   onClearFilters,
+  onDeleteTask,
 }: KanbanColumnProps) {
   const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ 
@@ -57,6 +61,7 @@ export default function KanbanColumn({
   const taskIds = useMemo(() => tasks.map((t) => t.id), [tasks]);
   const canAdd = userRole !== "VIEWER";
   const isPM = userRole === "PROJECT_MANAGER";
+  const isViewer = userRole === "VIEWER";
 
   return (
     <motion.section
@@ -101,6 +106,11 @@ export default function KanbanColumn({
                   : undefined
               }
               onClick={onTaskClick}
+              isViewer={isViewer}
+              canEdit={isPM || (userRole === "MEMBER" && !!currentUserId && task.assignee?.id === currentUserId)}
+              canDelete={isPM}
+              projectId={projectId}
+              onDeleteTask={onDeleteTask}
             />
           ))}
         </SortableContext>

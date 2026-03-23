@@ -130,7 +130,7 @@ export default function TaskDescription({ task, projectId, canEdit }: TaskDescri
             qc.invalidateQueries({ queryKey: ["task", projectId, task.id] })
             editor?.setEditable(false)
             setEditing(false)
-            toast.success("Description saved")
+            toast.success("Đã lưu")
         },
         onError: (err: any) => {
             toast.error(err?.response?.data?.message ?? "Unable to save description")
@@ -143,14 +143,12 @@ export default function TaskDescription({ task, projectId, canEdit }: TaskDescri
     }
 
     return (
-        <div className="space-y-3">
-            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Description</p>
-
+        <div className="space-y-0">
             <div
                 className={cn(
-                    "rounded-xl border border-slate-200 transition-all",
-                    editing && "ring-4 ring-blue-500/10 border-blue-500 bg-white",
-                    !editing && canEdit && "cursor-pointer hover:bg-slate-50/50 hover:border-slate-300"
+                    "rounded-lg border-0 transition-all bg-slate-50",
+                    editing && "ring-4 ring-blue-500/10 border-blue-500 bg-white shadow-sm",
+                    !editing && canEdit && "cursor-pointer hover:bg-slate-100"
                 )}
                 onClick={!editing ? handleStartEdit : undefined}
                 title={!editing && canEdit ? "Click to edit description" : undefined}
@@ -160,20 +158,20 @@ export default function TaskDescription({ task, projectId, canEdit }: TaskDescri
                 aria-label="Task description"
             >
                 {editing && canEdit && <Toolbar editor={editor} />}
-                <div className="min-h-[120px]">
+                <div className="min-h-[40px]">
                     <EditorContent editor={editor} />
                     {!editing && !task.description && (
-                        <p className="text-[14px] font-medium text-slate-400 px-4 py-3 italic">
-                            Add a detailed description for this task...
+                        <p className="text-[13px] font-medium text-slate-400 px-4 py-2 italic">
+                            Drag task từ In Review sang Done {'->'} position không recalculate đúng, gây sort sai.
                         </p>
                     )}
                 </div>
             </div>
 
             {editing && (
-                <div className="flex gap-2 justify-end">
-                    <Button variant="ghost" className="h-10 px-5 rounded-xl font-bold text-slate-500 hover:bg-slate-50" onClick={handleCancel}>Cancel</Button>
-                    <Button className="h-10 px-6 bg-[#111827] text-white rounded-xl font-extrabold uppercase tracking-wide shadow-lg active:scale-[0.98]" onClick={handleSave} disabled={saveDescription.isPending}>
+                <div className="flex gap-2 justify-end mt-2">
+                    <Button variant="ghost" className="h-8 px-4 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50" onClick={handleCancel}>Cancel</Button>
+                    <Button className="h-8 px-5 bg-[#111827] text-white rounded-lg text-xs font-extrabold uppercase tracking-wide shadow-lg active:scale-[0.98]" onClick={handleSave} disabled={saveDescription.isPending}>
                         {saveDescription.isPending ? "Saving..." : "Save Changes"}
                     </Button>
                 </div>

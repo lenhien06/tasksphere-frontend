@@ -1,8 +1,0 @@
-            } else if (statusCode === 409) {
-                toast.error('Lời mời này đã được chấp nhận trước đó.');
-                setStatus("error");
-                setMessage("Lời mời này đã được chấp nhận trước đó.");
-            } else {
-                setStatus("error");
-                setMessage(error.response?.data?.meta?.message || t('invite.acceptError'));
-            }

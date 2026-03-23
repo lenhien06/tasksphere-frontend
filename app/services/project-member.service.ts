@@ -122,8 +122,8 @@ export class ProjectMemberService {
     }
 
     /** B4 GET /v1/users/me/invites */
-    static async getMyInvites(): Promise<ProjectInviteResponse[]> {
-        const response = await apiJava.get<ApiResponse<ProjectInviteResponse[]>>('/v1/users/me/invites');
+    static async getMyInvites(signal?: AbortSignal): Promise<ProjectInviteResponse[]> {
+        const response = await apiJava.get<ApiResponse<ProjectInviteResponse[]>>('/v1/users/me/invites', { signal });
         return response.data?.data ?? [];
     }
 

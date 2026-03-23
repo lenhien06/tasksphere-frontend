@@ -52,6 +52,7 @@ import { ProjectMemberService } from "@/app/services/project-member.service";
 import { ProjectRequest } from "@/app/types/project..schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { canActAsProjectManager, normalizeProjectMyRole } from "@/lib/projectRole";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & MOCK DATA (Fallback/Types)
@@ -352,7 +353,7 @@ export default function ProjectsPage() {
         mutationFn: ({ id, data }: { id: string; data: any }) => ProjectService.update(id, data),
         onSuccess: (res) => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
-            toast.success(`Project "${res.data.name}" updated successfully`);
+            toast.success("Đã lưu thay đổi");
             closeModal();
         },
         onError: (error: any) => {
@@ -360,15 +361,27 @@ export default function ProjectsPage() {
         }
     });
 
-    const deleteMutation = useMutation({
-        mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) => ProjectService.deleteWithConfirmation(id, confirmName),
-        onSuccess: (res) => {
+    const archiveMutation = useMutation({
+        mutationFn: (id: string) => ProjectService.delete(id),
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
-            toast.success(res?.message || "Project deleted successfully!");
+            toast.success("Đã lưu trữ dự án");
             closeModal();
         },
         onError: (error: any) => {
-            const errorMsg = error.response?.data?.message || "Failed to delete project.";
+            toast.error(error.response?.data?.message || "Không thể lưu trữ dự án");
+        }
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) => ProjectService.deleteWithConfirmation(id, confirmName),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            toast.success("Đã xóa dự án");
+            closeModal();
+        },
+        onError: (error: any) => {
+            const errorMsg = error.response?.data?.message || "Không thể xóa dự án";
             setDeleteError(errorMsg);
             toast.error(errorMsg);
         }
@@ -423,7 +436,7 @@ export default function ProjectsPage() {
 
     function handleArchive() {
         if (!activeProject) return;
-        deleteMutation.mutate({ id: activeProject.id, confirmName: activeProject.name });
+        archiveMutation.mutate(activeProject.id);
     }
 
     function handleDelete(confirmName: string) {
@@ -440,14 +453,22 @@ export default function ProjectsPage() {
     const currentUserId = String((currentUser as any)?.id ?? (currentUser as any)?.userId ?? "");
     const isAdmin = String((currentUser as any)?.systemRole || "").toUpperCase() === "ADMIN";
     const canEditProject = (p: Project) => {
-        const role = String(p.myRole || "").toUpperCase();
         const ownerFallback = !!currentUserId && !!p.ownerId && String(p.ownerId) === currentUserId;
-        return role === "PROJECT_MANAGER" || role === "SYSTEM_ADMIN" || p.isOwner === true || ownerFallback || isAdmin;
+        return (
+            canActAsProjectManager(p.myRole, p.isOwner) ||
+            ownerFallback ||
+            isAdmin
+        );
     };
     const canArchiveProject = (p: Project) => {
-        const role = String(p.myRole || "").toUpperCase();
         const ownerFallback = !!currentUserId && !!p.ownerId && String(p.ownerId) === currentUserId;
-        return p.isOwner === true || ownerFallback || role === "SYSTEM_ADMIN" || isAdmin;
+        const n = normalizeProjectMyRole(p.myRole);
+        return (
+            p.isOwner === true ||
+            ownerFallback ||
+            n === "system_admin" ||
+            isAdmin
+        );
     };
 
     useEffect(() => {
@@ -743,8 +764,16 @@ export default function ProjectsPage() {
                                         </div>
                                         <ProjectMembers projectId={p.id} count={p.memberCount} />
                                     </div>
-                                    <div className="flex justify-start">
+                                    <div className="flex items-center justify-between">
                                         <StatusBadge status={p.status} />
+                                        {p.status === "Archived" && (p.isOwner || isAdmin) && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); openModal(p, "restore"); }}
+                                                className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded-lg transition-all"
+                                            >
+                                                <RotateCcw size={12} /> {t('common.restore', { defaultValue: 'Khôi phục' })}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -810,6 +839,16 @@ export default function ProjectsPage() {
                                         </td>
                                         <td className="px-4 py-4 text-right pr-6" onClick={(e) => e.stopPropagation()}>
                                             {currentUser ? (
+                                                <div className="flex items-center justify-end gap-1">
+                                                {p.status === "Archived" && (p.isOwner || isAdmin) && (
+                                                    <button
+                                                        onClick={() => openModal(p, "restore")}
+                                                        title={t('common.restore', { defaultValue: 'Khôi phục dự án' })}
+                                                        className="h-8 w-8 flex items-center justify-center rounded-lg text-blue-500 hover:bg-blue-50 hover:text-blue-700 transition-all"
+                                                    >
+                                                        <RotateCcw size={15} />
+                                                    </button>
+                                                )}
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <button className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all">
@@ -856,6 +895,7 @@ export default function ProjectsPage() {
                                                         )}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
+                                                </div>
                                             ) : (
                                                 <span className="text-[10px] text-gray-300">—</span>
                                             )}

@@ -461,25 +461,27 @@ export default function WebhookManager({ projectId, myRole }: Props) {
     const atLimit = count >= 5
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between mb-1">
-                <div>
-                    <h2 className="text-xl font-semibold text-gray-900">{t('webhook.title')}</h2>
-                    <p className="text-sm text-gray-500 mt-0.5">{t('webhook.desc')}</p>
+            <div className="px-6 py-3.5 border-b border-slate-100 bg-slate-100/80 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-slate-900">{t('webhook.title')}</h2>
+                    <span className="bg-white text-slate-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-slate-200 shadow-sm">
+                        {count} / 5
+                    </span>
                 </div>
                 <button
                     onClick={() => setShowModal(true)}
                     disabled={atLimit}
                     title={atLimit ? t('webhook.maxWebhooks') : undefined}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white text-sm rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <Plus size={16} /> {t('webhook.add')}
+                    <Plus size={16} strokeWidth={3} /> {t('webhook.add')}
                 </button>
             </div>
-            <p className="text-xs text-gray-400 mb-5">{t('webhook.usage', { count, max: 5 })}</p>
 
             {/* List */}
+            <div className="p-6">
             {isLoading ? (
                 <div className="space-y-3">
                     {[1, 2].map(i => <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />)}
@@ -495,6 +497,7 @@ export default function WebhookManager({ projectId, myRole }: Props) {
                     ))}
                 </div>
             )}
+            </div>
 
             {showModal && (
                 <WebhookModal

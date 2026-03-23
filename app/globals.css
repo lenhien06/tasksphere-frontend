@@ -156,27 +156,189 @@
     background-clip: content-box;
   }
 
-  /* @mention highlight */
-  .mention {
-    color: #2563eb;
-    background-color: #eff6ff;
+  /* ── Mention highlight (editor node + rendered HTML) ── */
+  .mention,
+  [data-mention-id] {
+    color: hsl(var(--primary));
+    background-color: hsl(var(--primary) / 0.08);
     border-radius: 4px;
-    padding: 0 4px;
+    padding: 1px 4px;
     font-weight: 500;
+    font-size: 0.875em;
+    cursor: pointer;
   }
-  .dark .mention {
-    color: #93c5fd;
-    background-color: #1e3a5f;
+  [data-mention-id]:hover {
+    background-color: hsl(var(--primary) / 0.16);
   }
 
-  /* Links inside rendered comment HTML */
+  /* ── Comment item — flat layout ── */
+  .comment-item {
+    padding: 10px 8px;
+    border-radius: 8px;
+    transition: background 150ms;
+  }
+  .comment-item:hover {
+    background: hsl(var(--muted) / 0.5);
+  }
+
+  /* ── Reply thread line ── */
+  .comment-replies {
+    margin-left: 20px;
+    padding-left: 16px;
+    border-left: 2px solid hsl(var(--border));
+    margin-top: 2px;
+    margin-bottom: 4px;
+  }
+
+  /* ── Comment entrance animation ── */
+  @keyframes commentIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .comment-new {
+    animation: commentIn 200ms ease forwards;
+  }
+
+  /* ── Comment content: links, mentions, code ── */
   .comment-content a {
-    color: #2563eb;
+    color: hsl(var(--primary));
     text-decoration: underline;
   }
+  .comment-content pre {
+    background: hsl(var(--muted));
+    border: 1px solid hsl(var(--border));
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.8em;
+    overflow-x: auto;
+  }
+  .comment-content code:not(pre code) {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 0.85em;
+  }
+  .comment-content blockquote {
+    border-left: 3px solid hsl(var(--border));
+    padding-left: 12px;
+    color: hsl(var(--muted-foreground));
+    margin: 4px 0;
+  }
+  .comment-content img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 6px 0;
+  }
 
-  /* Facebook style mention */
-  .fb-mention {
-    @apply font-semibold text-blue-600 cursor-pointer hover:underline bg-blue-50/50 px-0.5 rounded;
+  /* ── Editor wrapper ── */
+  .editor-wrapper {
+    border: 1.5px solid hsl(var(--border));
+    border-radius: 12px;
+    overflow: hidden;
+    background: hsl(var(--background));
+    transition: border-color 200ms, box-shadow 200ms;
+  }
+  .editor-wrapper:focus-within {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
+  }
+
+  /* ── Toolbar ── */
+  .editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 10px;
+    border-bottom: 1px solid hsl(var(--border));
+    background: hsl(var(--muted) / 0.3);
+  }
+  .toolbar-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: hsl(var(--muted-foreground));
+    transition: background 150ms, color 150ms;
+    cursor: pointer;
+  }
+  .toolbar-btn:hover {
+    background: hsl(var(--muted));
+    color: hsl(var(--foreground));
+  }
+  .toolbar-btn.active {
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+  }
+  .toolbar-divider {
+    width: 1px;
+    height: 16px;
+    background: hsl(var(--border));
+    margin: 0 4px;
+    flex-shrink: 0;
+  }
+
+  /* ── Editor content area ── */
+  .editor-content {
+    min-height: 44px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px 14px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    outline: none;
+    transition: min-height 200ms ease;
+  }
+  .editor-wrapper:focus-within .editor-content {
+    min-height: 100px;
+  }
+
+  /* ── Editor footer ── */
+  .editor-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-top: 1px solid hsl(var(--border));
+    background: hsl(var(--muted) / 0.2);
+  }
+  .editor-hint {
+    font-size: 11px;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* ── TipTap ProseMirror base ── */
+  .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+    height: 0;
+  }
+  .ProseMirror img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 4px 0;
+  }
+  .ProseMirror pre {
+    background: hsl(var(--muted));
+    border: 1px solid hsl(var(--border));
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.8em;
+    overflow-x: auto;
+  }
+  .ProseMirror blockquote {
+    border-left: 3px solid hsl(var(--border));
+    padding-left: 12px;
+    color: hsl(var(--muted-foreground));
+    margin: 4px 0;
+  }
+  .ProseMirror code:not(pre code) {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 0.85em;
   }
 }

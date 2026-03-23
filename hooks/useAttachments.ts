@@ -29,30 +29,49 @@ export function useAttachments(projectId: string, taskId: string) {
 
 export function useUploadAttachment(projectId: string, taskId: string) {
     const qc = useQueryClient()
+
+    const refreshAttachments = () => {
+        qc.invalidateQueries({ queryKey: ["attachments", taskId] })
+        qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+    }
+
+    const pollJob = async (jobId: string, attempt = 0): Promise<void> => {
+        if (attempt > 30) {
+            toast.error("Upload timed out — please try again")
+            return
+        }
+        try {
+            const job = await TaskDetailService.pollAttachmentJob(jobId)
+            if (job.status === "COMPLETED") {
+                refreshAttachments()
+                toast.success("File uploaded successfully")
+            } else if (job.status === "FAILED") {
+                toast.error(`File "${job.fileName ?? ""}" bị từ chối — không an toàn (virus scan failed)`)
+            } else {
+                setTimeout(() => pollJob(jobId, attempt + 1), 2000)
+            }
+        } catch {
+            setTimeout(() => pollJob(jobId, attempt + 1), 2000)
+        }
+    }
+
     return useMutation({
         mutationFn: (file: File) => TaskDetailService.uploadAttachment(projectId, taskId, file),
-        onSuccess: (newAttachment) => {
-            qc.setQueryData(["attachments", taskId], (old: AttachmentResponse[] | undefined) =>
-                old
-                    ? [newAttachment, ...old.filter(a => a.id !== newAttachment.id)]
-                    : [newAttachment]
-            )
-            qc.setQueryData(["task", projectId, taskId], (old: any) =>
-                old?.task
-                    ? {
-                          ...old,
-                          task: {
-                              ...old.task,
-                              attachmentCount: Number(old.task.attachmentCount ?? 0) + 1,
-                          },
-                      }
-                    : old
-            )
-            toast.success("File uploaded successfully")
-        },
-        onSettled: () => {
-            qc.invalidateQueries({ queryKey: ["attachments", taskId] })
-            qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+        onSuccess: (result: any) => {
+            if (result?.jobId) {
+                // 202 async path — virus scan in progress
+                toast.info("File đang được kiểm tra virus, vui lòng đợi...")
+                pollJob(result.jobId)
+            } else if (result?.id) {
+                // Synchronous 201 path (legacy)
+                qc.setQueryData(["attachments", taskId], (old: AttachmentResponse[] | undefined) =>
+                    old ? [result, ...old.filter((a: AttachmentResponse) => a.id !== result.id)] : [result]
+                )
+                qc.setQueryData(["task", projectId, taskId], (old: any) =>
+                    old?.task ? { ...old, task: { ...old.task, attachmentCount: Number(old.task.attachmentCount ?? 0) + 1 } } : old
+                )
+                toast.success("File uploaded successfully")
+            }
         },
         onError: (err: any) => {
             const status = err?.response?.status

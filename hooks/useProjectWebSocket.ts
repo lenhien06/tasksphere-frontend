@@ -120,6 +120,18 @@ export function useProjectWebSocket(projectId: string, onEvent?: (event: Project
                 case "project.updated":
                     qc.invalidateQueries({ queryKey: ["project-detail", projectId] })
                     break
+                case "attachment.uploaded":
+                    // Refresh the attachment list for the affected task
+                    if (event.payload?.taskId) {
+                        qc.invalidateQueries({ queryKey: ["attachments", event.payload.taskId] })
+                        qc.invalidateQueries({ queryKey: ["task", projectId, event.payload.taskId] })
+                    }
+                    break
+                case "attachment.scan_failed":
+                    toast.error(
+                        `File "${event.payload?.fileName ?? "unknown"}" bị từ chối — không an toàn (virus scan failed)`
+                    )
+                    break
             }
         }
 

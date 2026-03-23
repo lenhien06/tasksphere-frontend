@@ -7,9 +7,16 @@ import { toast } from "sonner"
 import {
     Search, Plus, Zap, Layers, ChevronDown, ChevronLeft, ChevronRight,
     X, AlertTriangle, User, CheckCircle, MoreHorizontal, Filter, Loader2,
-    MessageSquare, Paperclip
+    MessageSquare, Paperclip, Pencil, Trash2, Link2
 } from "lucide-react"
 import Link from "next/link"
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+    DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog"
 
 import { TaskService } from "@/app/services/TaskService"
 import { ProjectMemberService } from "@/app/services/project-member.service"
@@ -31,6 +38,7 @@ import type {
 import type { ProjectMember } from "@/app/types/member.schema"
 
 import { useProjectWebSocket } from "@/hooks/useProjectWebSocket"
+import { useAuthStore } from "@/stores/useAuthStore"
 
 // ── Helpers & Constants ───────────────────────────────────────
 
@@ -152,19 +160,39 @@ function BacklogTaskRow({
     onSelect,
     onClick,
     isPM,
+    isMember,
+    isViewer,
+    currentUserId,
+    projectId,
     sprints,
-    onAssignToSprint
+    onAssignToSprint,
+    onDeleteTask,
 }: {
     task: TaskResponse
     isSelected: boolean
     onSelect: (id: string) => void
     onClick: () => void
     isPM: boolean
+    isMember: boolean
+    isViewer: boolean
+    currentUserId: string
+    projectId: string
     sprints: SprintDetail[]
     onAssignToSprint: (taskId: string, sprintId: string) => void
+    onDeleteTask: (taskId: string) => void
 }) {
     const { t } = useTranslation()
     const [showSprintMenu, setShowSprintMenu] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+    const canEdit = isPM || (isMember && !!currentUserId && task.assignee?.id === currentUserId)
+    const canDelete = isPM
+
+    const handleCopyLink = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        const url = `${window.location.origin}/projects/${projectId}/tasks/${task.id}`
+        navigator.clipboard.writeText(url).then(() => toast.success("Đã sao chép link"))
+    }
 
     return (
         <div
@@ -277,10 +305,11 @@ function BacklogTaskRow({
                 )}
             </div>
 
-            {/* Actions (hover) — PM only */}
-            <div className="w-20 flex justify-end">
+            {/* Actions (hover) */}
+            <div className="w-28 flex justify-end items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                {/* Sprint assign — PM only */}
                 {isPM && (
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                         {task.type !== "EPIC" ? (
                             <div className="relative">
                                 <button
@@ -305,13 +334,73 @@ function BacklogTaskRow({
                                 )}
                             </div>
                         ) : (
-                            <span className="text-[10px] text-gray-300 px-2" title="Epic cannot be assigned to sprint">
-                                Epic
-                            </span>
+                            <span className="text-[10px] text-gray-300 px-2" title="Epic cannot be assigned to sprint">Epic</span>
                         )}
                     </div>
                 )}
+
+                {/* 3-dot menu — hidden from Viewer */}
+                {!isViewer && (
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button className="h-7 w-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                                    <MoreHorizontal size={15} />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44 p-1.5 rounded-xl shadow-xl">
+                                {canEdit && (
+                                    <DropdownMenuItem className="rounded-lg text-sm cursor-pointer" onClick={onClick}>
+                                        <Pencil size={14} className="mr-2" /> Chỉnh sửa
+                                    </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem className="rounded-lg text-sm cursor-pointer" onClick={handleCopyLink}>
+                                    <Link2 size={14} className="mr-2" /> Sao chép link
+                                </DropdownMenuItem>
+                                {canDelete && (
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            className="rounded-lg text-sm text-rose-600 focus:text-rose-600 focus:bg-rose-50 cursor-pointer"
+                                            onClick={() => setShowDeleteConfirm(true)}
+                                        >
+                                            <Trash2 size={14} className="mr-2" /> Xóa task
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                )}
             </div>
+
+            {/* Delete confirm dialog */}
+            <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogContent className="max-w-sm p-6 rounded-2xl bg-white">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg font-bold">Xóa task {task.taskCode}?</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-gray-500 mt-1">
+                        {(task.subtaskCount ?? 0) > 0
+                            ? `Task có ${task.subtaskCount} sub-task sẽ bị xóa theo.`
+                            : "Thao tác không thể hoàn tác."}
+                    </p>
+                    <DialogFooter className="mt-5 flex gap-3 sm:justify-end">
+                        <button
+                            onClick={() => setShowDeleteConfirm(false)}
+                            className="flex-1 px-4 py-2 text-sm font-bold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            onClick={() => { onDeleteTask(task.id); setShowDeleteConfirm(false); }}
+                            className="flex-1 px-4 py-2 text-sm font-bold text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors"
+                        >
+                            Xóa
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
@@ -449,9 +538,12 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     // Real-time updates
     useProjectWebSocket(projectId)
 
+    const currentUserId = String(useAuthStore((s: any) => s.userDetail?.id ?? s.userDetail?.userId ?? ""))
+
     // Permissions
     const isPM = myRole === "project_manager" || myRole === "system_admin"
     const isMember = myRole === "member" || isPM
+    const isViewer = !isMember
 
     // Filter states
     const [search, setSearch] = useState("")
@@ -575,6 +667,17 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
             toast.error(msg ?? t('backlog.batchAssignError'))
         }
     }
+
+    const deleteTaskMutation = useMutation({
+        mutationFn: (taskId: string) => TaskService.deleteTask(projectId, taskId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["backlog", projectId] })
+            toast.success("Đã xóa task")
+        },
+        onError: (err: any) => {
+            toast.error(err?.response?.data?.message ?? "Không thể xóa task")
+        },
+    })
 
     const handleCreateTask = async (payload: any) => {
         try {
@@ -768,8 +871,13 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                     onSelect={handleSelect}
                                     onClick={() => setSelectedTaskId(task.id)}
                                     isPM={isPM}
+                                    isMember={isMember}
+                                    isViewer={isViewer}
+                                    currentUserId={currentUserId}
+                                    projectId={projectId}
                                     sprints={activeSprints}
                                     onAssignToSprint={handleAssignToSprint}
+                                    onDeleteTask={deleteTaskMutation.mutate}
                                 />
                             ))
                         )}

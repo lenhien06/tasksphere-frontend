@@ -5,6 +5,7 @@ import { useParams } from "next/navigation"
 import SprintBacklogSplitView from "@/components/projects/SprintBacklogSplitView"
 import { useQuery } from "@tanstack/react-query"
 import { ProjectService } from "@/app/services/ProjectService"
+import { toLegacyMyRoleLower } from "@/lib/projectRole"
 
 export default function SprintPage() {
   const params = useParams()
@@ -16,7 +17,7 @@ export default function SprintPage() {
     enabled: !!projectId,
   })
 
-  const myRole = projectData?.data?.myRole || "VIEWER"
+  const myRole = toLegacyMyRoleLower(projectData?.data?.myRole, projectData?.data?.isOwner)
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

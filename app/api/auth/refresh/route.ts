@@ -1,7 +1,15 @@
-import { AuthService } from '@/app/services/auth.service'
-import { jwtDecode, JwtPayload } from 'jwt-decode'
+import { serverAxios } from '@/lib/serverAxios'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+
+const decodeJwt = (token: string): { exp?: number } => {
+  try {
+    const payload = token.split('.')[1]
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+  } catch {
+    return {}
+  }
+}
 
 const REFRESH_TIMEOUT_MS = 10_000
 
@@ -20,20 +28,25 @@ export async function POST(_request: Request) {
   }
 
   try {
-    const res = await AuthService.refresh(refreshToken.value as string, REFRESH_TIMEOUT_MS)
+    const res = await serverAxios.post(
+      '/auth/refresh',
+      { refreshToken: refreshToken.value },
+      { timeout: REFRESH_TIMEOUT_MS }
+    )
 
-    if (!res.data) {
-      throw new Error(res.message || 'Token refresh failed')
+    const apiResponse = res.data
+    if (!apiResponse?.data) {
+      throw new Error(apiResponse?.message || 'Token refresh failed')
     }
 
-    const authData = res.data;
-    const accessToken = jwtDecode<JwtPayload>(authData.accessToken)
+    const authData = apiResponse.data
+    const accessToken = decodeJwt(authData.accessToken)
     const expiresDateAccessToken =
       typeof accessToken.exp === 'number'
         ? new Date(accessToken.exp * 1000)
         : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
-    const response = NextResponse.json(res, { status: 200 })
+    const response = NextResponse.json(apiResponse, { status: 200 })
 
     response.cookies.set({
       name: 'accessToken',
@@ -46,7 +59,7 @@ export async function POST(_request: Request) {
     })
 
     if (authData.refreshToken) {
-      const refreshTokenDecoded = jwtDecode<JwtPayload>(authData.refreshToken)
+      const refreshTokenDecoded = decodeJwt(authData.refreshToken)
       const expiresDateRefreshToken =
         typeof refreshTokenDecoded.exp === 'number'
           ? new Date(refreshTokenDecoded.exp * 1000)
@@ -66,29 +79,33 @@ export async function POST(_request: Request) {
     return response
   } catch (error: any) {
     console.error('❌ Error in BFF refresh route:', error?.response?.data || error?.message || error)
-    // ECONNREFUSED / network error / timeout → 503 (backend down), not 401 (auth error)
+
     const isNetworkError = error?.code === 'ECONNREFUSED' || error?.cause?.code === 'ECONNREFUSED'
     const isTimeout = error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')
     const status = (isNetworkError || isTimeout) ? 503 : (error?.response?.status || 401)
-    const detail = (isNetworkError || isTimeout)
-      ? 'Backend unavailable. Please try again later.'
-      : (error?.response?.data?.meta?.message || error?.response?.data?.detail || 'Error refreshing token')
 
-    const response = NextResponse.json(
-      {
-        detail,
-        status
-      },
-      { status }
-    )
-
-    // FIX: Bug3 - Chỉ xóa cookie khi là lỗi auth thực sự (401), KHÔNG xóa khi 409
-    // (409 = tab khác vừa refresh xong, cookie đã được cập nhật bởi tab đó)
-    if (status === 401) {
-      response.cookies.delete('accessToken')
-      response.cookies.delete('refreshToken')
+    // 409 = tab khác vừa rotate token trước — cookie đã được tab đó cập nhật.
+    // KHÔNG xóa cookie, KHÔNG logout — trả 409 để client dùng me-token lấy token mới.
+    if (status === 409) {
+      return NextResponse.json(
+        { detail: 'Token already rotated by another tab', status: 409 },
+        { status: 409 }
+      )
     }
 
-    return response
+    // 503 = backend không khả dụng — KHÔNG logout, chỉ báo lỗi tạm thời.
+    if (isNetworkError || isTimeout) {
+      return NextResponse.json(
+        { detail: 'Backend unavailable. Please try again later.', status: 503 },
+        { status: 503 }
+      )
+    }
+
+    // 401 = token thực sự hết hạn hoặc bị revoke — xóa cookie và logout.
+    const detail = error?.response?.data?.meta?.message || error?.response?.data?.detail || 'Session expired'
+    const res = NextResponse.json({ detail, status: 401 }, { status: 401 })
+    res.cookies.delete('accessToken')
+    res.cookies.delete('refreshToken')
+    return res
   }
 }

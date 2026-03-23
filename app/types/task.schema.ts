@@ -35,6 +35,8 @@ export interface TaskResponse {
     columnId: string                // BE: columnId (not statusColumn.id)
     columnName: string              // BE: columnName
     taskPosition: number            // BE: taskPosition (not position)
+    sprintId: string | null         // spec 1.2
+    sprintName: string | null       // spec 1.2
     storyPoints: number | null
     dueDate: string | null          // ISO 8601
     overdue: boolean                // BE: overdue (not isOverdue)
@@ -47,6 +49,7 @@ export interface TaskResponse {
     createdAt: string
     updatedAt: string
     parentRecurringTaskId?: string | null  // recurring instance
+    recurring?: boolean                    // BE field name — true when task has active recurrence
 }
 
 // ── TaskDetailResponse — Task Detail Panel (full) ─────────────
@@ -62,6 +65,8 @@ export interface TaskDetailResponse extends TaskResponse {
     version: number                 // ETag optimistic locking
     versionInfo?: { id: string; name: string; status: string } | null   // Project version assignment
     customFieldValues?: CustomFieldValue[]
+    canEdit?: boolean               // BE-computed — true if current user may edit
+    canDelete?: boolean             // BE-computed — true if current user may delete
 }
 
 export interface SubTaskSummary {
@@ -115,19 +120,21 @@ export interface CreateTaskRequest {
 }
 
 export interface UpdateTaskRequest {
-    title: string                       // required
-    description?: string
+    title?: string
+    description?: string | null
+    type?: TaskType
     priority?: TaskPriority
     assigneeId?: string | null          // null = unassign
     dueDate?: string | null
-    storyPoints?: number | null
+    storyPoints?: number | null         // 1–100; null = keep
     estimatedHours?: number | null
+    sprintId?: string | null            // null = backlog
+    statusColumnId?: string | null      // triggers BR-14 same as PATCH status
 }
 
 export interface UpdateTaskStatusRequest {
     status: TaskStatus
-    statusColumnId: string              // required by BE
-    comment?: string                    // optional activity log
+    comment?: string                    // optional activity log (spec 1.6 — no statusColumnId in DTO)
 }
 
 export interface UpdateTaskPositionRequest {
@@ -136,16 +143,20 @@ export interface UpdateTaskPositionRequest {
 }
 
 export interface TaskFilterParams {
+    q?: string                          // search title or taskCode
     status?: TaskStatus
     assigneeId?: string                 // UUID or "me"
-    sprintId?: string                   // UUID or "backlog"
+    sprintId?: string                   // UUID (not "backlog" — use /backlog endpoint)
     priority?: TaskPriority
     type?: TaskType
-    q?: string                          // search title
-    sort?: string                       // "due_date,asc"
+    overdue?: boolean                   // dueDate < today, not DONE/CANCELLED
+    dueSoon?: boolean                   // dueDate within 7 days, not DONE/CANCELLED
+    limit?: number                      // max 100
+    sortBy?: "dueDate" | "priority" | "createdAt"
+    order?: "asc" | "desc"
+    sort?: string                       // legacy "due_date,asc" format
     page?: number
     size?: number
-    overdue?: boolean
 }
 
 // ── ColumnResponse — from GET /projects/{id}/columns ─────────
@@ -160,9 +171,10 @@ export interface ColumnResponse {
 }
 
 // ── Status transition validation ──────────────────────────────
+// BR-14: strict workflow — IN_PROGRESS → IN_REVIEW only (not directly to DONE)
 export const VALID_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
     TODO:        ["IN_PROGRESS"],
-    IN_PROGRESS: ["IN_REVIEW", "DONE"],
+    IN_PROGRESS: ["IN_REVIEW"],
     IN_REVIEW:   ["DONE", "IN_PROGRESS"],
     DONE:        [],
     CANCELLED:   [],
@@ -269,18 +281,22 @@ export interface CreateSavedFilterRequest {
 
 // ── Task Dependencies ──────────────────────────────────────────
 export interface DependencyItem {
-    depId: string
+    depId:    string
+    linkType: string          // BLOCKS | BLOCKED_BY | RELATES_TO | DUPLICATES | IS_DUPLICATED_BY
     task: {
         id:         string
         taskCode:   string
         title:      string
         taskStatus: TaskStatus
+        priority:   TaskPriority
+        type:       TaskType
     }
 }
 
 export interface TaskDependenciesResponse {
-    blockedBy:           DependencyItem[]
-    blocking:            DependencyItem[]
+    blockedBy:           DependencyItem[]   // tasks blocking this task
+    blocking:            DependencyItem[]   // tasks this task is blocking
+    others:              DependencyItem[]   // RELATES_TO, DUPLICATES, …
     canTransitionToDone: boolean
 }
 
@@ -454,7 +470,7 @@ export interface CalendarResponse {
 
 // ── Phase 6 — Custom Fields ────────────────────────────────────
 
-export type CustomFieldType = "TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "SELECT"
+export type CustomFieldType = "TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "SELECT" | "MULTI_SELECT" | "URL"
 
 export interface CustomFieldDefinition {
     id:        string
@@ -492,12 +508,12 @@ export interface UpdateCustomFieldRequest {
 }
 
 export interface SaveCustomFieldValuesRequest {
-    values: { fieldDefinitionId: string; value: string | null }[]
+    values: { fieldId: string; value: string | null }[]   // spec: fieldId (not fieldDefinitionId)
 }
 
 // ── Phase 6 — Recurring Task ───────────────────────────────────
 
-export type RecurrenceFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "CUSTOM"
+export type RecurrenceFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "CUSTOM"
 export type RecurrenceStatus    = "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED"
 
 export interface TaskRecurrence {

@@ -56,10 +56,15 @@ export const TaskDetailService = {
     uploadAttachment: (projectId: string, taskId: string, file: File) => {
         const form = new FormData()
         form.append("file", file)
+        // BE returns 202 Accepted with { jobId } for async virus scan
         return apiJava.post(`/v1/projects/${projectId}/tasks/${taskId}/attachments`, form, {
             headers: { "Content-Type": "multipart/form-data" },
-        }).then(r => r.data.data as AttachmentResponse)
+        }).then(r => r.data.data as { jobId: string } | AttachmentResponse)
     },
+
+    pollAttachmentJob: (jobId: string) =>
+        apiJava.get(`/v1/attachments/jobs/${jobId}`)
+            .then(r => r.data.data as { jobId: string; status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"; fileName?: string }),
 
     getPreviewUrl: (attachmentId: string) =>
         apiJava.get(`/v1/attachments/${attachmentId}/preview-url`)

@@ -112,6 +112,8 @@ export default function SubTaskSection({ task, projectId, canEdit }: SubTaskSect
     const done = subTasks.filter(s => s.taskStatus === "DONE" || s.taskStatus === "CANCELLED").length
     const percent = total > 0 ? Math.round((done / total) * 100) : 0
     const atDepthLimit = ((task as any).depth ?? 0) >= 3
+    const isEpic = task.type === "EPIC"
+    const canAddSubTask = canEdit && !atDepthLimit && !isEpic
 
     const handleAddSubTask = () => {
         if (!newTitle.trim()) return
@@ -155,7 +157,7 @@ export default function SubTaskSection({ task, projectId, canEdit }: SubTaskSect
                 {total > 0 && (
                     <Progress value={percent} className="flex-1 h-1" />
                 )}
-                {canEdit && (
+                {canEdit && !isEpic && (
                     <Button
                         size="sm"
                         variant="ghost"

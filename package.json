@@ -12,7 +12,9 @@
     "start": "next start",
     "lint": "next lint",
     "prettier": "prettier --check .",
-    "prettier:fix": "prettier --write ."
+    "prettier:fix": "prettier --write .",
+    "docker:dev": "docker compose --env-file .env.development up --build",
+    "docker:prod": "docker compose -f docker-compose.prod.yml --env-file .env.production up --build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

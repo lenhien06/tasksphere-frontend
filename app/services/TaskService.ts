@@ -178,26 +178,26 @@ export const TaskService = {
 
     // ── DEPENDENCIES ──────────────────────────────────────────
 
-    // GET /tasks/{tId}/dependencies
+    // GET /tasks/{tId}/links (preferred over /dependencies per spec 3.2)
     getDependencies: async (taskId: string): Promise<TaskDependenciesResponse> => {
         const res = await apiJava.get<ApiResponse<TaskDependenciesResponse>>(
-            `/v1/tasks/${taskId}/dependencies`
+            `/v1/tasks/${taskId}/links`
         );
         return res.data.data;
     },
 
-    // POST /tasks/{tId}/dependencies
-    addDependency: async (taskId: string, dependsOnTaskId: string, type: string): Promise<DependencyItem> => {
+    // POST /tasks/{tId}/links (preferred) — targetTaskId + linkType per spec 3.1
+    addDependency: async (taskId: string, targetTaskId: string, linkType: string): Promise<DependencyItem> => {
         const res = await apiJava.post<ApiResponse<DependencyItem>>(
-            `/v1/tasks/${taskId}/dependencies`,
-            { dependsOnTaskId, type }
+            `/v1/tasks/${taskId}/links`,
+            { targetTaskId, linkType }
         );
         return res.data.data;
     },
 
-    // DELETE /tasks/{tId}/dependencies/{depId}
+    // DELETE /tasks/{tId}/links/{linkId} (spec 3.3)
     deleteDependency: async (taskId: string, depId: string): Promise<void> => {
-        await apiJava.delete(`/v1/tasks/${taskId}/dependencies/${depId}`);
+        await apiJava.delete(`/v1/tasks/${taskId}/links/${depId}`);
     },
 
     // ── CALENDAR ──────────────────────────────────────────────
@@ -394,9 +394,18 @@ export const TaskService = {
         return res.data.data;
     },
 
+    // GET /tasks/{taskId}/custom-fields/values (spec 10)
+    getCustomFieldValues: async (taskId: string): Promise<CustomFieldValue[]> => {
+        const res = await apiJava.get<ApiResponse<CustomFieldValue[]>>(
+            `/v1/tasks/${taskId}/custom-fields/values`
+        );
+        return res.data.data;
+    },
+
+    // POST /tasks/{taskId}/custom-fields/values (spec 10 — POST not PUT, /custom-fields/values not /custom-field-values)
     saveCustomFieldValues: async (taskId: string, data: SaveCustomFieldValuesRequest): Promise<CustomFieldValue[]> => {
-        const res = await apiJava.put<ApiResponse<CustomFieldValue[]>>(
-            `/v1/tasks/${taskId}/custom-field-values`, data
+        const res = await apiJava.post<ApiResponse<CustomFieldValue[]>>(
+            `/v1/tasks/${taskId}/custom-fields/values`, data
         );
         return res.data.data;
     },

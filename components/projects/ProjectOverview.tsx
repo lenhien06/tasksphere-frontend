@@ -20,20 +20,13 @@ import { AnimatePresence } from "framer-motion";
 
 import ProjectOverviewPage, { type ProjectOverviewPageProps } from "@/components/project-overview/ProjectOverviewPage";
 import { FullCreateTask, type CreateTaskPayload } from "./TaskFormModals";
+import { toKanbanUserRole } from "@/lib/projectRole";
 
 interface ProjectOverviewProps {
   projectId: string;
 }
 
 type UiRole = "PROJECT_MANAGER" | "MEMBER" | "VIEWER";
-type ApiRole = "PROJECT_MANAGER" | "MEMBER" | "VIEWER" | "SYSTEM_ADMIN" | string | undefined;
-
-function normalizeRole(role: ApiRole): UiRole {
-  const r = (role ?? "").toUpperCase();
-  if (r === "PROJECT_MANAGER" || r === "SYSTEM_ADMIN" || r === "PM" || r === "ADMIN") return "PROJECT_MANAGER";
-  if (r === "MEMBER") return "MEMBER";
-  return "VIEWER";
-}
 
 function normalizeStatus(
   status: string
@@ -82,7 +75,13 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     );
   }
 
-  const userRole = normalizeRole(projectData.data.myRole as ApiRole);
+  const kr = toKanbanUserRole(projectData.data.myRole, projectData.data.isOwner);
+  const userRole: UiRole =
+    kr === "SYSTEM_ADMIN" || kr === "PROJECT_MANAGER"
+      ? "PROJECT_MANAGER"
+      : kr === "MEMBER"
+        ? "MEMBER"
+        : "VIEWER";
   const distribution = overviewData.statusDistribution;
   const mappedDistribution: ProjectOverviewPageProps["overview"]["statusDistribution"] = distribution.map((item) => ({
     status: normalizeStatus(item.status),

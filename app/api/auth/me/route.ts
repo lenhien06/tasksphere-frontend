@@ -1,8 +1,7 @@
-import { AuthService } from '@/app/services/auth.service'
+import { serverAxios } from '@/lib/serverAxios'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { AxiosError } from 'axios'
-import { apiJava } from '@/lib/axios'
 
 export async function GET() {
   const cookieStore = await cookies()
@@ -13,13 +12,9 @@ export async function GET() {
   }
 
   try {
-    // Call Java Backend, passing the accessToken from Cookie
-    const res = await apiJava.get('/auth/me', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
+    const res = await serverAxios.get('/auth/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
     })
-    
     return NextResponse.json(res.data)
   } catch (e) {
     if (e instanceof AxiosError) {

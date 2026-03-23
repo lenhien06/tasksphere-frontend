@@ -9,6 +9,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ProjectService } from "@/app/services/ProjectService"
 import { ProjectMemberService } from "@/app/services/project-member.service"
 import { useQuery } from "@tanstack/react-query"
+import { toKanbanUserRole, toTaskPanelRole } from "@/lib/projectRole"
 
 export default function ProjectBoardPage() {
   const params = useParams()
@@ -35,7 +36,8 @@ export default function ProjectBoardPage() {
     enabled: !!projectId,
   })
 
-  const myRole = projectData?.data?.myRole || "VIEWER"
+  const kanbanRole = toKanbanUserRole(projectData?.data?.myRole, projectData?.data?.isOwner)
+  const panelRole = toTaskPanelRole(projectData?.data?.myRole, projectData?.data?.isOwner)
 
   const projectMembers: Member[] = React.useMemo(() => {
     const list = (membersData as any)?.data || membersData || []
@@ -90,7 +92,7 @@ export default function ProjectBoardPage() {
         onTaskClick={handleTaskClick}
         onViewChange={handleViewChange}
         currentView="board"
-        currentUserRole={myRole as any}
+        currentUserRole={kanbanRole}
       />
 
       <TaskDetailPanel
@@ -98,7 +100,7 @@ export default function ProjectBoardPage() {
         projectId={projectId}
         projectMembers={projectMembers}
         currentUser={mappedCurrentUser}
-        currentUserRole={myRole as "PM" | "MEMBER" | "VIEWER"}
+        currentUserRole={panelRole}
         onClose={closePanel}
         onTaskUpdated={() => {}}
       />

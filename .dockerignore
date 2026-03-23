@@ -1,0 +1,22 @@
+# Git & tooling
+.git
+.gitignore
+.cursor
+.claude
+.idea
+
+# Dependencies & build output (rebuilt in image)
+node_modules
+dist
+.next
+out
+
+# Local env — never bake secrets into image; use build args / CI secrets
+.env
+.env.*
+!.env.example
+
+# Logs & misc
+npm-debug.log*
+*.md
+!README.md

@@ -3,6 +3,7 @@
 import React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { ProjectService } from "@/app/services/ProjectService"
+import { toTaskPanelRole } from "@/lib/projectRole"
 import TaskDetailPageContent from "@/components/task-detail/TaskDetailPageContent"
 
 // ── Exported types (kept for backward compatibility with imported files) ──
@@ -42,7 +43,7 @@ export default function TaskDetailPanel({
 
     const myRole: "PM" | "MEMBER" | "VIEWER" =
         roleProp ??
-        ((projectData?.data?.myRole as "PM" | "MEMBER" | "VIEWER") ?? "VIEWER")
+        toTaskPanelRole(projectData?.data?.myRole, projectData?.data?.isOwner)
 
     if (!taskId) return null
 
@@ -55,7 +56,7 @@ export default function TaskDetailPanel({
             />
 
             {/* Panel */}
-            <div className="fixed right-0 top-0 h-screen w-full md:w-[720px] bg-white border-l border-slate-200 shadow-[0_0_50px_rgba(0,0,0,0.15)] z-50 flex flex-col overflow-hidden animate-slide-in-right">
+            <div className="fixed right-0 top-[56px] h-[calc(100vh-56px)] w-full md:w-[720px] bg-white border-l border-slate-200 shadow-[0_0_50px_rgba(0,0,0,0.15)] z-50 flex flex-col overflow-hidden animate-slide-in-right">
                 <TaskDetailPageContent
                     projectId={projectId}
                     taskId={taskId}

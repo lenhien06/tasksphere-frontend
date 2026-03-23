@@ -258,14 +258,13 @@ export default function DependencySection({ taskId, projectId, canEdit }: Depend
             {!isLoading && (
                 <div className="divide-y divide-border/40 pl-1">
                     {ALL_LINK_GROUPS.map((group) => {
-                        const rows = 
+                        // BE response structure: blockedBy[], blocking[], others[]
+                        // others[] contains mixed linkTypes (RELATES_TO, DUPLICATES, IS_DUPLICATED_BY)
+                        const rows =
                             group === "BLOCKS" ? (data?.blocking ?? []) :
                             group === "BLOCKED_BY" ? (data?.blockedBy ?? []) :
-                            group === "RELATES_TO" ? (data?.relatesTo ?? []) :
-                            group === "DUPLICATES" ? (data?.duplicates ?? []) :
-                            group === "IS_DUPLICATED_BY" ? (data?.isDuplicatedBy ?? []) :
-                            []
-                        
+                            (data?.others ?? []).filter(d => d.linkType === group)
+
                         if (rows.length === 0) {
                             const displayLabel = LINK_TYPE_OPTIONS.find(opt => opt.value === group)?.label ?? group
                             return (
@@ -286,6 +285,12 @@ export default function DependencySection({ taskId, projectId, canEdit }: Depend
                         ))
                     })}
                 </div>
+            )}
+
+            {data?.canTransitionToDone === false && (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-1">
+                    ⚠️ Task đang bị block bởi task chưa hoàn thành — không thể chuyển sang DONE.
+                </p>
             )}
 
             <AddDepDialog

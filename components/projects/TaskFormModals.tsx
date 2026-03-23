@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { UserCircle, Calendar, Clock, Zap, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -191,6 +191,7 @@ export function QuickCreateTask({ columnId, columnName, onConfirm, onCancel, onO
             assigneeId: null,
             dueDate: null,
             storyPoints: null,
+            estimatedHours: null,
             parentTaskId: null,
             sprintId: null,
         })
@@ -258,13 +259,21 @@ export function FullCreateTask({
     const [createAnother, setCreateAnother] = useState(false)
     const [isSubmitting, setIsSubmitting]   = useState(false)
 
-    // FIX 3 — Story Points with custom input (range 1-127)
+    // FIX 3 — Story Points with custom input (range 1-100)
     const [storyPoints, setStoryPoints] = useState<number | null>(null)
     const [customSP, setCustomSP]       = useState("")
     const [isCustomSP, setIsCustomSP]   = useState(false)
 
     // NEW field: estimatedHours
     const [estimatedHours, setEstimatedHours] = useState<string>("")
+
+    // FIX-7 — 400 inline field errors
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+    // EPIC cannot be assigned to a sprint — clear sprintId when type changes to EPIC
+    useEffect(() => {
+        if (type === "EPIC") setSprintId(null)
+    }, [type])
 
     const selectedMember = useMemo(
         () => projectMembers.find(m => m.id === assigneeId),
@@ -288,6 +297,7 @@ export function FullCreateTask({
 
     const handleSubmit = async () => {
         if (!title.trim() || isSubmitting) return
+        setFieldErrors({})
 
         if (title.length > 255) {
             toast.error(t('task.titleMaxLength'))
@@ -298,7 +308,7 @@ export function FullCreateTask({
             return
         }
         // Updated range for Story Points (1-127)
-        if (storyPoints !== null && (storyPoints < 1 || storyPoints > 127)) {
+        if (storyPoints !== null && (storyPoints < 1 || storyPoints > 100)) {
             toast.error(t('task.storyPointsRange'))
             return
         }
@@ -355,7 +365,21 @@ export function FullCreateTask({
             } else if (status === 422) {
                 toast.error(message ?? "Business rule violation")
             } else if (status === 400) {
-                toast.error(`Invalid data: ${message ?? ""}`)
+                // Parse "field: message, field2: message2" format into inline errors
+                const raw = err?.response?.data?.meta?.message ?? message ?? ""
+                const parsed: Record<string, string> = {}
+                raw.split(", ").forEach((part: string) => {
+                    const colonIdx = part.indexOf(": ")
+                    if (colonIdx !== -1) {
+                        const field = part.substring(0, colonIdx).trim()
+                        const msg = part.substring(colonIdx + 2).trim()
+                        if (field) parsed[field] = msg
+                    }
+                })
+                if (Object.keys(parsed).length > 0) {
+                    setFieldErrors(parsed)
+                }
+                toast.error(raw || "Dữ liệu không hợp lệ")
             }
         }
     }
@@ -396,6 +420,9 @@ export function FullCreateTask({
                         <div className={cn("text-right text-[10px] mt-0.5", titleCounterClass)}>
                             {title.length}/255
                         </div>
+                        {fieldErrors.title && (
+                            <p className="text-[11px] text-red-500 mt-1">{fieldErrors.title}</p>
+                        )}
                     </div>
 
                     {/* Description */}
@@ -508,15 +535,27 @@ export function FullCreateTask({
                                 />
                                 <Calendar size={16} className="absolute left-3 top-3 text-gray-400" />
                             </div>
+                            {fieldErrors.dueDate && (
+                                <p className="text-[11px] text-red-500 mt-1">{fieldErrors.dueDate}</p>
+                            )}
                         </div>
                     </div>
 
                     {/* Sprint (FIX 5) + Story Points (FIX 3) */}
                     <div className="flex gap-6">
+                        {type !== "EPIC" ? (
                         <div className="flex-1">
                             <label className="text-sm font-semibold text-gray-800 mb-2 block">{t('task.sprint')}</label>
                             <SprintSelector sprints={sprints} isLoading={sprintsLoading} value={sprintId} onChange={setSprintId} />
                         </div>
+                        ) : (
+                        <div className="flex-1">
+                            <label className="text-sm font-semibold text-gray-800 mb-2 block">{t('task.sprint')}</label>
+                            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                                EPIC không thể gán vào Sprint.
+                            </p>
+                        </div>
+                        )}
 
                         {/* FIX 3 — Story Points with custom input */}
                         <div className="flex-1">
@@ -550,10 +589,10 @@ export function FullCreateTask({
                                             const val = e.target.value
                                             setCustomSP(val)
                                             const num = parseInt(val)
-                                            setStoryPoints(!isNaN(num) && num >= 1 && num <= 127 ? num : null)
+                                            setStoryPoints(!isNaN(num) && num >= 1 && num <= 100 ? num : null)
                                         }}
                                         onBlur={() => { if (!customSP) { setIsCustomSP(false) } }}
-                                        placeholder="1–127"
+                                        placeholder="1–100"
                                         className="w-20 h-9 border-2 border-blue-400 rounded-xl text-sm text-center outline-none font-medium"
 
                                     />

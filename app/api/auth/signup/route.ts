@@ -1,26 +1,44 @@
-import { AuthService } from '@/app/services/auth.service'
+import { serverAxios } from '@/lib/serverAxios'
 import { RegisterFormValues } from '@/app/types/auth.schema'
 import { AxiosError } from 'axios'
-import { jwtDecode, JwtPayload } from 'jwt-decode'
 import { NextResponse } from 'next/server'
+
+const decodeJwt = (token: string): { exp?: number } => {
+  try {
+    const payload = token.split('.')[1]
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+  } catch {
+    return {}
+  }
+}
 
 export async function POST(request: Request) {
   const req = (await request.json()) as RegisterFormValues
   try {
-    const res = await AuthService.register(req)
-    const authData = res.data
+    const res = await serverAxios.post('/auth/signup', {
+      fullName: req.fullName,
+      email: req.email,
+      password: req.password,
+      confirmPassword: req.confirmPassword,
+      otp: req.otp,
+      acceptTerms: req.acceptTerms,
+      inviteToken: req.inviteToken,
+    })
+
+    const apiResponse = res.data
+    const authData = apiResponse?.data
 
     if (!authData || !authData.accessToken || !authData.refreshToken) {
-        return NextResponse.json(res, { status: 200 })
+      return NextResponse.json(apiResponse, { status: 200 })
     }
 
-    const accessToken = jwtDecode<JwtPayload>(authData.accessToken)
+    const accessToken = decodeJwt(authData.accessToken)
     const expiresDateAccessToken =
       typeof accessToken.exp === 'number'
         ? new Date(accessToken.exp * 1000)
         : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
-    const response = NextResponse.json(res, { status: 200 })
+    const response = NextResponse.json(apiResponse, { status: 200 })
 
     response.cookies.set({
       name: 'accessToken',
@@ -32,7 +50,7 @@ export async function POST(request: Request) {
       secure: process.env.NODE_ENV === 'production'
     })
 
-    const refreshToken = jwtDecode<JwtPayload>(authData.refreshToken)
+    const refreshToken = decodeJwt(authData.refreshToken)
     const expiresDateRefreshToken =
       typeof refreshToken.exp === 'number'
         ? new Date(refreshToken.exp * 1000)

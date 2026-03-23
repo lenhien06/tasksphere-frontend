@@ -62,6 +62,7 @@ export interface KanbanBoardProps {
   onSaveCurrentFilter?: (name: string, scope: "PERSONAL" | "PROJECT") => Promise<void> | void;
   onDeleteSavedFilter?: (filterId: string) => Promise<void> | void;
   isFetching?: boolean;
+  onDeleteTask?: (taskId: string) => void;
 }
 
 const defaultFilters: ToolbarFilterState = {
@@ -99,6 +100,7 @@ export default function KanbanBoard({
   onSaveCurrentFilter,
   onDeleteSavedFilter,
   isFetching = false,
+  onDeleteTask,
 }: KanbanBoardProps) {
   const { t } = useTranslation();
   const [localTasks, setLocalTasks] = useState(initialTasks);
@@ -313,6 +315,8 @@ export default function KanbanBoard({
                       column={column}
                       tasks={allTasks}
                       userRole={userRole}
+                      currentUserId={currentUserId}
+                      onDeleteTask={onDeleteTask}
                       projectId={projectId}
                       activeTaskId={activeTask?.id}
                       isInvalidTarget={isInvalidTarget}

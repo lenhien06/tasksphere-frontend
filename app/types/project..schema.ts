@@ -26,7 +26,8 @@ export const ProjectSchema = z.object({
     done: z.number().default(0),
     overdue: z.number().default(0),
   }),
-  myRole: z.enum(["project_manager", "member", "viewer", "system_admin"]),
+  /** BE có thể trả PROJECT_MANAGER (uppercase) hoặc snake_case */
+  myRole: z.string().optional(),
   createdAt: z.string(), // ISO Instant
   updatedAt: z.string().optional(),
 });

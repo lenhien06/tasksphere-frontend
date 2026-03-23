@@ -232,9 +232,14 @@ export default function HomeDashboard() {
   const createMutation = useMutation({
     mutationFn: ProjectService.create,
     onSuccess: (res) => {
-        queryClient.invalidateQueries({ queryKey: ["projects"] });
-        setShowCreate(false);
-        toast.success(`Project "${res.data.name}" created successfully!`);
+      const pid = res.data?.id;
+      if (pid) {
+        queryClient.setQueryData(["project-detail", pid], res);
+        queryClient.setQueryData(["project-mini", pid], res);
+      }
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setShowCreate(false);
+      toast.success(`Project "${res.data.name}" created successfully!`);
     },
     onError: (error: any) => {
         toast.error(error.response?.data?.message || "Unable to create project.");
