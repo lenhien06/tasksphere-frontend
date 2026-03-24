@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force light mode at the browser level — affects native scrollbars & form controls */
+html {
+  color-scheme: light !important;
+}
+
 @layer base {
   :root {
     color-scheme: light;
@@ -285,6 +290,17 @@
   input::placeholder, textarea::placeholder {
     color: #9e9e9e !important;
     opacity: 1;
+  }
+  /* ── Webkit autofill — prevent browser from injecting dark background ── */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:hover,
+  textarea:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+    -webkit-text-fill-color: #1a1a1a !important;
+    transition: background-color 9999s ease-in-out 0s;
   }
 
   /* ── TipTap ProseMirror base ── */
