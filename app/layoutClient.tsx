@@ -27,14 +27,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
 
   // Theme enforcement per route:
-  //   /            → dark (landing page always dark)
-  //   /signin etc  → light (auth forms always light)
-  //   app pages    → light
+  //   /           → allow user to toggle dark/light (ThemeToggle on landing)
+  //   all others  → force light, remove dark class
   useEffect(() => {
     const html = document.documentElement
     if (pathname === '/') {
-      html.classList.add('dark')
-      html.style.colorScheme = 'dark'
+      // Landing page: let ThemeToggle / stored preference control .dark class
+      html.style.colorScheme = ''
     } else {
       html.classList.remove('dark')
       html.style.colorScheme = 'light'
