@@ -10,6 +10,13 @@ const ALLOWED_EXTENSIONS = [
     ".png", ".jpg", ".jpeg", ".gif", ".zip", ".txt", ".csv", ".md",
 ]
 
+// Optimistic attachment shown immediately in UI while virus scan runs in background
+export type PendingAttachment = AttachmentResponse & { scanning: true; localUrl?: string }
+
+export function isPending(a: AttachmentResponse): a is PendingAttachment {
+    return (a as any).scanning === true
+}
+
 export function validateFile(file: File): string | null {
     const MAX_MB = 25
     if (file.size > MAX_MB * 1024 * 1024) return `File too large (max ${MAX_MB}MB)`
@@ -30,57 +37,99 @@ export function useAttachments(projectId: string, taskId: string) {
 export function useUploadAttachment(projectId: string, taskId: string) {
     const qc = useQueryClient()
 
+    const removePending = (tempId: string) => {
+        qc.setQueryData(["attachments", taskId], (old: AttachmentResponse[] | undefined) =>
+            old?.filter(a => a.id !== tempId) ?? []
+        )
+    }
+
     const refreshAttachments = () => {
         qc.invalidateQueries({ queryKey: ["attachments", taskId] })
         qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
         qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
     }
 
-    const pollJob = async (jobId: string, attempt = 0): Promise<void> => {
-        if (attempt > 30) {
+    // Silent polling — no toast while scanning, file already visible as pending
+    const pollJob = async (jobId: string, tempId: string, attempt = 0): Promise<void> => {
+        if (attempt > 40) {
+            removePending(tempId)
             toast.error("Upload timed out — please try again")
             return
         }
         try {
             const job = await TaskDetailService.pollAttachmentJob(jobId)
-            if (job.status === "COMPLETED") {
+            if (job.status === "COMPLETED" || job.status === "DONE" as any) {
+                removePending(tempId)
                 refreshAttachments()
-                toast.success("File uploaded successfully")
+                // No toast needed — file was already visible, just quietly finalize
             } else if (job.status === "FAILED") {
-                toast.error(`File "${job.fileName ?? ""}" bị từ chối — không an toàn (virus scan failed)`)
+                removePending(tempId)
+                toast.error(`"${job.fileName ?? "File"}" bị từ chối — phát hiện mã độc`)
             } else {
-                setTimeout(() => pollJob(jobId, attempt + 1), 2000)
+                setTimeout(() => pollJob(jobId, tempId, attempt + 1), 1500)
             }
         } catch {
-            setTimeout(() => pollJob(jobId, attempt + 1), 2000)
+            setTimeout(() => pollJob(jobId, tempId, attempt + 1), 2000)
         }
     }
 
     return useMutation({
         mutationFn: (file: File) => TaskDetailService.uploadAttachment(projectId, taskId, file),
-        onSuccess: (result: any) => {
+
+        // Optimistic: add placeholder immediately before request completes
+        onMutate: async (file: File) => {
+            const tempId = `pending-${Date.now()}-${Math.random()}`
+            const localUrl = URL.createObjectURL(file)
+
+            const optimistic: PendingAttachment = {
+                id: tempId,
+                fileName: file.name,
+                fileSize: file.size,
+                mimeType: file.type || "application/octet-stream",
+                downloadUrl: localUrl,
+                previewUrl: file.type.startsWith("image/") ? localUrl : null,
+                previewable: file.type.startsWith("image/"),
+                uploadedBy: { id: "", fullName: "Bạn", avatarUrl: null },
+                uploadedAt: new Date().toISOString(),
+                scanning: true,
+                localUrl,
+            } as PendingAttachment
+
+            qc.setQueryData(["attachments", taskId], (old: AttachmentResponse[] | undefined) =>
+                [optimistic, ...(old ?? [])]
+            )
+            return { tempId, localUrl }
+        },
+
+        onSuccess: (result: any, _file, context) => {
+            const tempId = context?.tempId ?? ""
+
             if (result?.jobId) {
-                // 202 async path — virus scan in progress
-                toast.info("File đang được kiểm tra virus, vui lòng đợi...")
-                pollJob(result.jobId)
+                // 202 async — virus scan running in background, file already visible as pending
+                pollJob(result.jobId, tempId)
             } else if (result?.id) {
-                // Synchronous 201 path (legacy)
+                // 201 sync path — replace optimistic with real data
+                removePending(tempId)
                 qc.setQueryData(["attachments", taskId], (old: AttachmentResponse[] | undefined) =>
-                    old ? [result, ...old.filter((a: AttachmentResponse) => a.id !== result.id)] : [result]
+                    old ? [result, ...old.filter((a) => a.id !== result.id)] : [result]
                 )
                 qc.setQueryData(["task", projectId, taskId], (old: any) =>
                     old?.task ? { ...old, task: { ...old.task, attachmentCount: Number(old.task.attachmentCount ?? 0) + 1 } } : old
                 )
                 qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
-                toast.success("File uploaded successfully")
             }
         },
-        onError: (err: any) => {
+
+        onError: (err: any, _file, context) => {
+            // Remove optimistic placeholder on error
+            if (context?.tempId) removePending(context.tempId)
+            if (context?.localUrl) URL.revokeObjectURL(context.localUrl)
+
             const status = err?.response?.status
-            if (status === 413) toast.error("File too large (max 25MB)")
-            else if (status === 415) toast.error("File format not supported")
-            else if (status === 422) toast.error("Malware detected, file rejected")
-            else toast.error(err?.response?.data?.message ?? "Unable to upload file")
+            if (status === 413) toast.error("File quá lớn (tối đa 25MB)")
+            else if (status === 415) toast.error("Định dạng file không hỗ trợ")
+            else if (status === 422) toast.error("Phát hiện mã độc, file bị từ chối")
+            else toast.error(err?.response?.data?.message ?? "Không thể upload file")
         },
     })
 }
@@ -95,17 +144,11 @@ export function useDeleteAttachment(projectId: string, taskId: string) {
             )
             qc.setQueryData(["task", projectId, taskId], (old: any) =>
                 old?.task
-                    ? {
-                          ...old,
-                          task: {
-                              ...old.task,
-                              attachmentCount: Math.max(0, Number(old.task.attachmentCount ?? 0) - 1),
-                          },
-                      }
+                    ? { ...old, task: { ...old.task, attachmentCount: Math.max(0, Number(old.task.attachmentCount ?? 0) - 1) } }
                     : old
             )
             qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
-            toast.success("Attachment deleted")
+            toast.success("Đã xóa file")
         },
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ["attachments", taskId] })
@@ -113,7 +156,7 @@ export function useDeleteAttachment(projectId: string, taskId: string) {
             qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
         },
         onError: (err: any) => {
-            toast.error(err?.response?.data?.message ?? "Unable to delete file")
+            toast.error(err?.response?.data?.message ?? "Không thể xóa file")
         },
     })
 }
@@ -123,6 +166,6 @@ export function usePreviewUrl(attachmentId: string | null) {
         queryKey: ["attachment-preview", attachmentId],
         queryFn: () => TaskDetailService.getPreviewUrl(attachmentId!),
         enabled: !!attachmentId,
-        staleTime: 10 * 60_000, // 10 min
+        staleTime: 10 * 60_000,
     })
 }

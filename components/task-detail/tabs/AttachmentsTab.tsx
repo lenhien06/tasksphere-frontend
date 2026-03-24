@@ -10,6 +10,7 @@ import {
     useUploadAttachment,
     useDeleteAttachment,
     validateFile,
+    isPending,
 } from "@/hooks/useAttachments"
 import {
     formatFileSize,
@@ -172,26 +173,34 @@ interface FileButtonProps {
 
 function FileButton({ attachment, currentUserId, projectId, taskId, onPreview }: FileButtonProps) {
     const deleteAttachment = useDeleteAttachment(projectId, taskId)
+    const scanning = isPending(attachment)
     const isOwn = attachment.uploadedBy.id === currentUserId
     const [thumbError, setThumbError] = useState(false)
 
     const isImage = isImageMime(attachment.mimeType)
     const showThumb = isImage && !thumbError
     const thumbSrc = attachment.previewUrl ?? attachment.downloadUrl
-    const canClick = attachment.previewable
+    const canClick = attachment.previewable && !scanning
 
     return (
-        <div className="group flex items-center gap-2 p-1.5 pr-3 bg-white hover:bg-slate-50 border border-slate-100 rounded-full transition-all hover:shadow-sm hover:border-slate-200">
+        <div className={cn(
+            "group flex items-center gap-2 p-1.5 pr-3 border rounded-full transition-all",
+            scanning
+                ? "bg-slate-50 border-slate-200 opacity-80"
+                : "bg-white hover:bg-slate-50 border-slate-100 hover:shadow-sm hover:border-slate-200"
+        )}>
             {/* File Thumbnail or Icon — click to preview */}
             <div
                 className={cn(
-                    "h-8 w-8 rounded-full bg-slate-100 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm",
+                    "h-8 w-8 rounded-full bg-slate-100 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm relative",
                     canClick && "cursor-pointer hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 transition-all"
                 )}
                 onClick={canClick ? () => onPreview(attachment) : undefined}
                 title={canClick ? "Click to preview" : undefined}
             >
-                {showThumb ? (
+                {scanning ? (
+                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                ) : showThumb ? (
                     <img
                         src={thumbSrc}
                         alt={attachment.fileName}
@@ -219,12 +228,17 @@ function FileButton({ attachment, currentUserId, projectId, taskId, onPreview }:
                 )}>
                     {attachment.fileName}
                 </span>
-                <span className="text-[10px] font-medium text-slate-400 shrink-0">
-                    {formatFileSize(attachment.fileSize)}
-                </span>
+                {scanning ? (
+                    <span className="text-[10px] font-medium text-blue-500 shrink-0">Đang xử lý...</span>
+                ) : (
+                    <span className="text-[10px] font-medium text-slate-400 shrink-0">
+                        {formatFileSize(attachment.fileSize)}
+                    </span>
+                )}
             </div>
 
-            {/* Actions */}
+            {/* Actions — hidden while scanning */}
+            {!scanning && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                 <a href={attachment.downloadUrl} download target="_blank" rel="noopener noreferrer">
                     <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-slate-500 hover:text-emerald-600 hover:bg-emerald-50" title="Download">
@@ -242,6 +256,7 @@ function FileButton({ attachment, currentUserId, projectId, taskId, onPreview }:
                     </Button>
                 )}
             </div>
+            )}
         </div>
     )
 }
