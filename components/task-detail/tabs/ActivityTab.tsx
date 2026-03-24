@@ -16,24 +16,51 @@ interface ActivityTabProps {
   taskId: string
 }
 
-function stringify(v: unknown): string {
-  if (v == null) return "—"
-  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v)
-  if (typeof v === "object") {
-    const obj = v as Record<string, unknown>
-    return (
-      (obj.status as string) ||
-      (obj.name as string) ||
-      (obj.title as string) ||
-      (obj.assigneeName as string) ||
-      (obj.filename as string) ||
-      JSON.stringify(v)
-    )
-  }
-  return String(v)
+// ── Chip styles ───────────────────────────────────────────────────────────────
+
+const chipOld: React.CSSProperties = {
+  backgroundColor: "#FCEBEB",
+  color: "#A32D2D",
+  padding: "1px 8px",
+  borderRadius: 99,
+  fontSize: 11,
+  fontWeight: 600,
+  display: "inline-block",
+  whiteSpace: "nowrap",
 }
 
-function safeParseJson(value: string | null): Record<string, unknown> | null {
+const chipNew: React.CSSProperties = {
+  backgroundColor: "#EAF3DE",
+  color: "#27500A",
+  padding: "1px 8px",
+  borderRadius: 99,
+  fontSize: 11,
+  fontWeight: 600,
+  display: "inline-block",
+  whiteSpace: "nowrap",
+}
+
+const chipNeutral: React.CSSProperties = {
+  backgroundColor: "#F1EFE8",
+  color: "#5F5E5A",
+  border: "0.5px solid #D3D1C7",
+  padding: "1px 8px",
+  borderRadius: 99,
+  fontSize: 11,
+  fontWeight: 500,
+  display: "inline-block",
+  whiteSpace: "nowrap",
+}
+
+const arrowStyle: React.CSSProperties = {
+  color: "#888780",
+  margin: "0 4px",
+  fontSize: 11,
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function safeParseJson(value: string | null | undefined): Record<string, unknown> | null {
   if (!value) return null
   try {
     const parsed = JSON.parse(value)
@@ -43,8 +70,13 @@ function safeParseJson(value: string | null): Record<string, unknown> | null {
   }
 }
 
+function safeStr(v: unknown, fallback = "—"): string {
+  if (v == null || v === "") return fallback
+  return String(v)
+}
+
 function toDisplayDateTimeUtc7(iso: string): string {
-  const formatter = new Intl.DateTimeFormat("vi-VN", {
+  return new Intl.DateTimeFormat("vi-VN", {
     timeZone: "Asia/Ho_Chi_Minh",
     day: "2-digit",
     month: "2-digit",
@@ -52,8 +84,7 @@ function toDisplayDateTimeUtc7(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  })
-  return `${formatter.format(new Date(iso))} UTC+7`
+  }).format(new Date(iso)) + " UTC+7"
 }
 
 function actorInitials(name: string): string {
@@ -63,65 +94,135 @@ function actorInitials(name: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
 }
 
-function changedFields(oldValue: Record<string, unknown> | null, newValue: Record<string, unknown> | null): string[] {
-  const oldObj = oldValue ?? {}
-  const newObj = newValue ?? {}
-  const keys = Array.from(new Set([...Object.keys(oldObj), ...Object.keys(newObj)]))
-  return keys.filter((k) => JSON.stringify(oldObj[k]) !== JSON.stringify(newObj[k]))
+function changedFields(
+  oldValue: Record<string, unknown> | null,
+  newValue: Record<string, unknown> | null
+): string[] {
+  const o = oldValue ?? {}
+  const n = newValue ?? {}
+  return Array.from(new Set([...Object.keys(o), ...Object.keys(n)])).filter(
+    (k) => JSON.stringify(o[k]) !== JSON.stringify(n[k])
+  )
 }
 
-function renderMessage(item: TaskActivityItem) {
-  const oldObj = safeParseJson(item.oldValue) ?? {}
-  const newObj = safeParseJson(item.newValue) ?? {}
+// ── renderMessage — short verb line ──────────────────────────────────────────
 
+function renderMessage(item: TaskActivityItem): React.ReactNode {
   switch (item.action) {
-    case "TASK_CREATED":
-      return <>da tao task nay</>
-    case "STATUS_CHANGED":
-      return (
-        <>
-          da doi trang thai tu <b>{stringify(oldObj.status)}</b> {"->"} <b>{stringify(newObj.status)}</b>
-        </>
-      )
-    case "ASSIGNEE_CHANGED": {
-      const oldName = stringify(oldObj.assigneeName)
-      const newName = stringify(newObj.assigneeName)
-      if (oldName === "—") return <>da gan cho <b>{newName}</b></>
-      return <>da doi assignee tu <b>{oldName}</b> {"->"} <b>{newName}</b></>
-    }
-    case "PRIORITY_CHANGED":
-      return (
-        <>
-          da doi do uu tien tu <b>{stringify(oldObj.priority)}</b> {"->"} <b>{stringify(newObj.priority)}</b>
-        </>
-      )
+    case "TASK_CREATED":    return <>đã tạo task này</>
+    case "COMMENT_ADDED":   return <>đã thêm bình luận</>
+    case "COMMENT_DELETED": return <>đã xóa bình luận</>
+    case "POSITION_CHANGED":return <>đã di chuyển task trên board</>
+    case "STATUS_CHANGED":  return <>đã đổi trạng thái</>
+    case "ASSIGNEE_CHANGED":return <>đã đổi người thực hiện</>
+    case "PRIORITY_CHANGED":return <>đã đổi độ ưu tiên</>
+    case "SPRINT_CHANGED":  return <>đã đổi sprint</>
+    case "ATTACHMENT_UPLOADED": return <>đã đính kèm file</>
+    case "ATTACHMENT_DELETED":  return <>đã xóa file</>
+    case "SUBTASK_CREATED": return <>đã thêm sub-task</>
+    case "SUBTASK_DELETED": return <>đã xóa sub-task</>
     case "UPDATED": {
       const fields = changedFields(safeParseJson(item.oldValue), safeParseJson(item.newValue))
-      return <>da cap nhat <b>{fields.length > 0 ? fields.join(", ") : item.entityLabel || "thong tin"}</b></>
+      return <>đã cập nhật <b>{fields.length > 0 ? fields.join(", ") : "thông tin"}</b></>
     }
-    case "COMMENT_ADDED":
-      return <>da them binh luan</>
-    case "COMMENT_DELETED":
-      return <>da xoa binh luan</>
-    case "ATTACHMENT_UPLOADED":
-      return <>da dinh kem <b>{stringify(newObj.filename || newObj.fileName)}</b></>
-    case "ATTACHMENT_DELETED":
-      return <>da xoa tep <b>{stringify(oldObj.filename || oldObj.fileName)}</b></>
-    case "SUBTASK_CREATED":
-      return <>da them sub-task <b>{stringify(newObj.title)}</b></>
-    case "SUBTASK_DELETED":
-      return <>da xoa sub-task <b>{stringify(oldObj.title)}</b></>
-    case "SPRINT_CHANGED": {
-      const sprint = stringify(newObj.sprint)
-      if (sprint.toLowerCase() === "backlog") return <>da bo khoi sprint</>
-      return <>da chuyen sang sprint <b>{sprint}</b></>
-    }
-    case "POSITION_CHANGED":
-      return <>da di chuyen task tren board</>
     default:
-      return <>da thuc hien hanh dong <b>{item.action}</b></>
+      return <>đã thực hiện <b>{item.action}</b></>
   }
 }
+
+// ── renderChips — old → new chips row ────────────────────────────────────────
+
+function renderChips(item: TaskActivityItem): React.ReactNode | null {
+  const old = safeParseJson(item.oldValue)
+  const nw  = safeParseJson(item.newValue)
+
+  switch (item.action) {
+    case "STATUS_CHANGED": {
+      const o = safeStr(old?.status)
+      const n = safeStr(nw?.status)
+      if (o === "—" && n === "—") return null
+      return (
+        <span>
+          <span style={chipOld}>{o}</span>
+          <span style={arrowStyle}>→</span>
+          <span style={chipNew}>{n}</span>
+        </span>
+      )
+    }
+
+    case "ASSIGNEE_CHANGED": {
+      const o = safeStr(old?.assigneeName, "Chưa gán")
+      const n = safeStr(nw?.assigneeName)
+      if (n === "—") return null
+      return (
+        <span>
+          <span style={chipOld}>{o}</span>
+          <span style={arrowStyle}>→</span>
+          <span style={chipNew}>{n}</span>
+        </span>
+      )
+    }
+
+    case "PRIORITY_CHANGED": {
+      const o = safeStr(old?.priority)
+      const n = safeStr(nw?.priority)
+      if (o === "—" && n === "—") return null
+      return (
+        <span>
+          <span style={chipOld}>{o}</span>
+          <span style={arrowStyle}>→</span>
+          <span style={chipNew}>{n}</span>
+        </span>
+      )
+    }
+
+    case "SPRINT_CHANGED": {
+      const o = safeStr(old?.sprintName ?? old?.sprint, "Backlog")
+      const n = safeStr(nw?.sprintName  ?? nw?.sprint,  "Backlog")
+      return (
+        <span>
+          <span style={chipOld}>{o}</span>
+          <span style={arrowStyle}>→</span>
+          <span style={chipNew}>{n}</span>
+        </span>
+      )
+    }
+
+    case "ATTACHMENT_UPLOADED": {
+      const name = safeStr(nw?.filename ?? nw?.fileName ?? nw?.title)
+      if (name === "—") return null
+      return <span style={chipNeutral}>{name}</span>
+    }
+
+    case "ATTACHMENT_DELETED": {
+      const name = safeStr(old?.filename ?? old?.fileName ?? old?.title)
+      if (name === "—") return null
+      return <span style={chipOld}>{name}</span>
+    }
+
+    case "SUBTASK_CREATED": {
+      const title = safeStr(nw?.title)
+      if (title === "—") return null
+      return <span style={chipNeutral}>{title}</span>
+    }
+
+    case "SUBTASK_DELETED": {
+      const title = safeStr(old?.title)
+      if (title === "—") return null
+      return <span style={chipOld}>{title}</span>
+    }
+
+    // No chips for these
+    case "TASK_CREATED":
+    case "COMMENT_ADDED":
+    case "COMMENT_DELETED":
+    case "POSITION_CHANGED":
+    default:
+      return null
+  }
+}
+
+// ── Skeleton ─────────────────────────────────────────────────────────────────
 
 function ActivityItemSkeleton() {
   return (
@@ -134,6 +235,8 @@ function ActivityItemSkeleton() {
     </div>
   )
 }
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function ActivityTab({ projectId, taskId }: ActivityTabProps) {
   const {
@@ -151,17 +254,14 @@ export default function ActivityTab({ projectId, taskId }: ActivityTabProps) {
     () =>
       (data?.pages ?? [])
         .flatMap((p) => p.content ?? [])
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ),
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [data]
   )
   const total = data?.pages?.[0]?.totalElements ?? 0
 
   React.useEffect(() => {
     if (isError) {
-      toast.error((error as any)?.response?.data?.message ?? "Khong the tai hoat dong")
+      toast.error((error as any)?.response?.data?.message ?? "Không thể tải hoạt động")
     }
   }, [isError, error])
 
@@ -179,10 +279,10 @@ export default function ActivityTab({ projectId, taskId }: ActivityTabProps) {
     return (
       <div className="rounded-xl border border-slate-200 p-5 text-center">
         <AlertCircle className="mx-auto mb-2 text-rose-500" size={22} />
-        <p className="text-sm text-slate-600 mb-3">Khong the tai nhat ky hoat dong</p>
+        <p className="text-sm text-slate-600 mb-3">Không thể tải nhật ký hoạt động</p>
         <Button size="sm" variant="outline" onClick={() => refetch()}>
           <RefreshCcw size={14} className="mr-2" />
-          Thu lai
+          Thử lại
         </Button>
       </div>
     )
@@ -192,7 +292,7 @@ export default function ActivityTab({ projectId, taskId }: ActivityTabProps) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
         <History className="mx-auto mb-2 text-slate-400" size={22} />
-        <p className="text-sm text-slate-500">Chua co hoat dong nao</p>
+        <p className="text-sm text-slate-500">Chưa có hoạt động nào</p>
       </div>
     )
   }
@@ -200,36 +300,52 @@ export default function ActivityTab({ projectId, taskId }: ActivityTabProps) {
   return (
     <div className="space-y-1">
       <TooltipProvider>
-        {items.map((item, idx) => (
-          <div key={item.id} className="relative flex gap-3 py-3">
-            {idx < items.length - 1 && (
-              <span className="absolute left-4 top-11 h-[calc(100%-28px)] w-px bg-slate-200" />
-            )}
-            <div className="shrink-0">
-              <UserAvatar
-                src={item.actor?.avatarUrl ?? undefined}
-                name={item.actor?.fullName || actorInitials(item.actor?.fullName || "?")}
-                size={32}
-              />
+        {items.map((item, idx) => {
+          const chips = renderChips(item)
+          return (
+            <div key={item.id} className="relative flex gap-3 py-3">
+              {idx < items.length - 1 && (
+                <span className="absolute left-4 top-11 h-[calc(100%-28px)] w-px bg-slate-200" />
+              )}
+
+              <div className="shrink-0">
+                <UserAvatar
+                  src={item.actor?.avatarUrl ?? undefined}
+                  name={item.actor?.fullName || actorInitials(item.actor?.fullName || "?")}
+                  size={32}
+                />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                {/* Verb line */}
+                <p className="text-sm text-slate-800 break-words">
+                  <b>{item.actor?.fullName || "Unknown"}</b>{" "}
+                  {renderMessage(item)}
+                </p>
+
+                {/* Chips row */}
+                {chips && (
+                  <div className="mt-1 flex items-center flex-wrap gap-1">
+                    {chips}
+                  </div>
+                )}
+
+                {/* Timestamp */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className={cn("text-xs text-slate-500 cursor-default", chips ? "mt-1 block" : "")}>
+                      {formatDistanceToNow(new Date(item.createdAt), {
+                        addSuffix: true,
+                        locale: vi,
+                      })}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{toDisplayDateTimeUtc7(item.createdAt)}</TooltipContent>
+                </Tooltip>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-slate-800 break-words">
-                <b>{item.actor?.fullName || "Unknown"}</b> {renderMessage(item)}
-              </p>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className={cn("text-xs text-slate-500 cursor-default")}>
-                    {formatDistanceToNow(new Date(item.createdAt), {
-                      addSuffix: true,
-                      locale: vi,
-                    })}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>{toDisplayDateTimeUtc7(item.createdAt)}</TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </TooltipProvider>
 
       {hasNextPage && (
@@ -241,7 +357,7 @@ export default function ActivityTab({ projectId, taskId }: ActivityTabProps) {
             disabled={isFetchingNextPage}
             className="h-8 text-xs"
           >
-            {isFetchingNextPage ? "Dang tai..." : "Tai them"}
+            {isFetchingNextPage ? "Đang tải..." : "Tải thêm"}
           </Button>
         </div>
       )}
