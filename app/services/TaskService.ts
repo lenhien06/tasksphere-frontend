@@ -271,12 +271,16 @@ export const TaskService = {
         return res.data.data;
     },
 
-    batchAssignToSprint: async (projectId: string, taskIds: string[], sprintId: string | null): Promise<{ updatedCount: number; message: string }> => {
-        const res = await apiJava.patch<ApiResponse<{ updatedCount: number; message: string }>>(
-            `/v1/projects/${projectId}/tasks/batch-sprint`,
-            { taskIds, sprintId }
-        );
-        return res.data.data;
+    batchAssignToSprint: async (
+        projectId: string,
+        taskIds: string[],
+        sprintId: string | null,
+    ): Promise<{ updatedCount: number; failedIds: string[]; message: string }> => {
+        const res = await apiJava.patch<
+            ApiResponse<{ updatedCount: number; failedIds?: string[]; message: string }>
+        >(`/v1/projects/${projectId}/tasks/batch-sprint`, { taskIds, sprintId });
+        const d = res.data.data;
+        return { ...d, failedIds: d.failedIds ?? [] };
     },
 
     // ── REPORTS ───────────────────────────────────────────────

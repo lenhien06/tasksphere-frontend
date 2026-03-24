@@ -55,21 +55,26 @@ export function useTaskWebSocket(
             switch (event.type) {
                 case "task_updated":
                     qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+                    qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
                     break
                 case "comment_added":
                     qc.invalidateQueries({ queryKey: ["comments", taskId] })
                     qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+                    qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
                     break
                 case "attachment_added":
                     qc.invalidateQueries({ queryKey: ["attachments", taskId] })
                     qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+                    qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
                     break
                 case "subtask_created":
                     qc.invalidateQueries({ queryKey: ["subtasks", taskId] })
                     qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+                    qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
                     break
                 case "task_status_changed":
                     qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+                    qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
                     break
             }
         }

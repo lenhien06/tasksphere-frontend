@@ -8,10 +8,6 @@ import { toast } from "sonner";
 import { AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
-import { TaskDetailService } from "@/app/services/TaskDetailService";
-import { SubtaskBlockedDialog } from "@/components/kanban/SubtaskBlockedDialog";
-import type { SubTaskResponse } from "@/app/types/task.schema";
-
 import { TaskService } from "@/app/services/TaskService";
 import { ProjectService } from "@/app/services/ProjectService";
 import { ProjectMemberService } from "@/app/services/project-member.service";
@@ -42,13 +38,6 @@ export interface KanbanBoardProps {
   onTaskClick?: (task: TaskCardData) => void;
   onViewChange?: (view: "board" | "list" | "calendar") => void;
   currentView?: "board" | "list" | "calendar";
-}
-
-interface AuthStateLike {
-  userDetail?: {
-    id?: string;
-    userId?: string;
-  };
 }
 
 interface ProjectMemberLike {
@@ -181,7 +170,7 @@ export default function KanbanBoard({
   const queryClient = useQueryClient();
   const projectId = params.id as string;
 
-  const currentUserId = useAuthStore((s: AuthStateLike) => s.userDetail?.id ?? s.userDetail?.userId ?? "");
+  const currentUserId = useAuthStore((s) => String(s.user?.id ?? ""));
   const [internalView, setInternalView] = useState<"board" | "calendar">("board");
   const view = externalCurrentView === "calendar" ? "calendar" : externalCurrentView === "board" ? "board" : internalView;
   const setView = (next: "board" | "calendar") => {
@@ -259,12 +248,18 @@ export default function KanbanBoard({
         : raw
     ) as ProjectMemberLike[] | undefined;
     if (!Array.isArray(list)) return [];
-    return list.map((m) => ({
-            id: m.user?.id || m.id,
-            name: m.user?.fullName || m.fullName || "Unknown",
-            email: m.user?.email || m.email || "",
-      avatarUrl: m.user?.avatarUrl || m.avatarUrl || undefined,
-    }));
+    return list.flatMap((m) => {
+      const id = m.user?.id ?? m.id;
+      if (id == null || String(id).trim() === "") return [];
+      return [
+        {
+          id: String(id),
+          name: m.user?.fullName || m.fullName || "Unknown",
+          email: m.user?.email || m.email || "",
+          avatarUrl: m.user?.avatarUrl || m.avatarUrl || undefined,
+        },
+      ];
+    });
   }, [membersData]);
 
   const columns = useMemo(() => mapColumns(columnsData), [columnsData]);
@@ -363,43 +358,19 @@ export default function KanbanBoard({
     }
   };
 
-  const [blockedDialog, setBlockedDialog] = useState<{
-    open: boolean;
-    taskId: string;
-    taskTitle: string;
-    pendingSubtasks: SubTaskResponse[];
-  } | null>(null);
-
-  const fetchPendingSubtasks = async (taskId: string) => {
-    try {
-      const subtasks = await TaskDetailService.getSubtasks(taskId);
-      return subtasks.filter(
-        (s) => s.taskStatus !== "DONE" && s.taskStatus !== "CANCELLED"
-      );
-    } catch (error) {
-      console.error("Failed to fetch subtasks:", error);
-      return [];
-    }
-  };
-
   const handleStatusChange = async (payload: MoveTaskPayload) => {
     const targetColumn = columns.find((c) => c.id === payload.targetColumnId);
     const task = tasks.find((t) => t.id === payload.taskId);
-
-    if (targetColumn?.status === "DONE" && task) {
-      // FE pre-check based on existing counts
-      if ((task.subTaskCount ?? 0) > (task.subTaskDoneCount ?? 0)) {
-        const pendingSubtasks = await fetchPendingSubtasks(payload.taskId);
-        if (pendingSubtasks.length > 0) {
-          setBlockedDialog({
-            open: true,
-            taskId: payload.taskId,
-            taskTitle: task.title,
-            pendingSubtasks,
-          });
-          return;
-        }
-      }
+    if (
+      targetColumn?.status === "DONE" &&
+      task &&
+      (task.subTaskCount ?? 0) > (task.subTaskDoneCount ?? 0)
+    ) {
+      const remaining = (task.subTaskCount ?? 0) - (task.subTaskDoneCount ?? 0);
+      const confirmed = window.confirm(
+        `Còn ${remaining} sub-task chưa xong. Vẫn chuyển sang Done?`
+      );
+      if (!confirmed) return;
     }
 
     moveTaskMutation.mutate(payload);
@@ -439,6 +410,7 @@ export default function KanbanBoard({
     },
     onSuccess: (data) => {
       const task = tasks.find((t) => t.id === data.payload.taskId);
+      queryClient.invalidateQueries({ queryKey: ["activity", projectId, data.payload.taskId] });
       if (task) {
         toast.success(`Đã chuyển sang ${data.targetColumnName}`);
       }
@@ -454,21 +426,13 @@ export default function KanbanBoard({
     onError: async (error: any, payload, context) => {
       if (context?.snapshot) queryClient.setQueryData(context.key, context.snapshot);
       
-      // Handle 422 error from BE (defense in depth)
       if (error.response?.status === 422) {
-        const message = error.response.data?.meta?.message || "";
-        const task = tasks.find((t) => t.id === payload.taskId);
-        
-        if (message.toLowerCase().includes("sub-task") && task) {
-          const pendingSubtasks = await fetchPendingSubtasks(payload.taskId);
-          setBlockedDialog({
-            open: true,
-            taskId: payload.taskId,
-            taskTitle: task.title,
-            pendingSubtasks,
-          });
-          return;
-        }
+        toast.error(
+          error.response?.data?.meta?.message ??
+            error.response?.data?.message ??
+            "Không thể chuyển trạng thái"
+        );
+        return;
       }
       
       handleKanbanError(error);
@@ -545,21 +509,6 @@ export default function KanbanBoard({
           onTaskClick={(id) => setSelectedTaskId(id)}
           onViewChange={setView}
           currentView="calendar"
-        />
-      )}
-
-      {blockedDialog?.open && (
-        <SubtaskBlockedDialog
-          open={blockedDialog.open}
-          taskTitle={blockedDialog.taskTitle}
-          pendingSubtasks={blockedDialog.pendingSubtasks}
-          onClose={() => setBlockedDialog(null)}
-          onViewSubtasks={() => {
-            setSelectedTaskId(blockedDialog.taskId);
-            // We can't easily scroll inside the panel from here without refs, 
-            // but opening the panel is already helpful.
-            // The TaskDetailPageContent could potentially handle scrolling if it sees a hash or prop.
-          }}
         />
       )}
 

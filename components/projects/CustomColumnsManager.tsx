@@ -127,7 +127,7 @@ function SortableColumnRow({
     const [nameInput, setNameInput]       = useState(column.name)
     const [showColorPicker, setShowColorPicker] = useState(false)
 
-    const colColor = column.color
+    const colColor = column.colorHex ?? "#94A3B8"
 
     const commitRename = () => {
         const trimmed = nameInput.trim()

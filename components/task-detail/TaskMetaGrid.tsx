@@ -54,19 +54,8 @@ function FieldLabel({ icon: Icon, label }: { icon: any; label: string }) {
 
 const STATUS_ORDER: TaskStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"]
 
-function getAllowedNextStatuses(current: TaskStatus): TaskStatus[] {
-    switch (current) {
-        case "TODO":        return ["IN_PROGRESS"]
-        case "IN_PROGRESS": return ["IN_REVIEW", "DONE", "CANCELLED"]
-        case "IN_REVIEW":   return ["DONE", "IN_PROGRESS", "CANCELLED"]
-        default:            return []
-    }
-}
-
 function StatusField({ task, projectId, canEdit, etag }: { task: TaskDetailResponse; projectId: string; canEdit: boolean; etag?: string }) {
     const qc = useQueryClient()
-    const [blockedSubtasks, setBlockedSubtasks] = useState<string[]>([])
-    const [showBlockedModal, setShowBlockedModal] = useState(false)
 
     const updateStatus = useMutation({
         mutationFn: ({ status }: { status: TaskStatus }) =>
@@ -74,19 +63,18 @@ function StatusField({ task, projectId, canEdit, etag }: { task: TaskDetailRespo
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["task", projectId, task.id] })
             qc.invalidateQueries({ queryKey: ["tasks", projectId] })
+            qc.invalidateQueries({ queryKey: ["activity", projectId, task.id] })
             toast.success("Updated status")
         },
         onError: (err: any) => {
             if (err?.response?.status === 422) {
-                const blocked = err?.response?.data?.data?.blockedSubtasks
-                if (blocked?.length) { setBlockedSubtasks(blocked); setShowBlockedModal(true) }
+                toast.error(err?.response?.data?.meta?.message ?? err?.response?.data?.message ?? "Không thể chuyển trạng thái")
             } else {
                 toast.error(err?.response?.data?.message ?? "Error updating status")
             }
         },
     })
 
-    const allowed = getAllowedNextStatuses(task.taskStatus)
     const cfg = STATUS_CONFIG[task.taskStatus] ?? STATUS_CONFIG["TODO"]
     const statusClasses = {
         "TODO": "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200",
@@ -99,7 +87,7 @@ function StatusField({ task, projectId, canEdit, etag }: { task: TaskDetailRespo
 
     return (
         <>
-            {canEdit && allowed.length > 0 ? (
+            {canEdit ? (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button
@@ -115,13 +103,25 @@ function StatusField({ task, projectId, canEdit, etag }: { task: TaskDetailRespo
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-48 p-1.5 rounded-lg border-slate-200 shadow-xl">
-                        {allowed.map(s => {
+                        {STATUS_ORDER.map(s => {
                             const c = STATUS_CONFIG[s]
                             const sCls = statusClasses[s] || statusClasses["TODO"]
                             return (
                                 <DropdownMenuItem
                                     key={s}
-                                    onClick={() => updateStatus.mutate({ status: s })}
+                                    onClick={() => {
+                                        if (
+                                            s === "DONE" &&
+                                            (task.subtaskCount ?? 0) > (task.subtaskDone ?? 0)
+                                        ) {
+                                            const remaining = (task.subtaskCount ?? 0) - (task.subtaskDone ?? 0)
+                                            const confirmed = window.confirm(
+                                                `Còn ${remaining} sub-task chưa xong. Vẫn chuyển sang Done?`
+                                            )
+                                            if (!confirmed) return
+                                        }
+                                        updateStatus.mutate({ status: s })
+                                    }}
                                     className={cn("flex items-center gap-2.5 px-2.5 py-1.5 rounded-md mb-0.5 last:mb-0 cursor-pointer text-[11px] font-semibold transition-colors", sCls)}
                                 >
                                     <span className={cn("w-1.5 h-1.5 rounded-full", c.dot)} />
@@ -137,19 +137,6 @@ function StatusField({ task, projectId, canEdit, etag }: { task: TaskDetailRespo
                     {cfg.label}
                 </div>
             )}
-
-            <Dialog open={showBlockedModal} onOpenChange={setShowBlockedModal}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-orange-600">
-                            <AlertTriangle size={18} /> Incomplete Sub-tasks
-                        </DialogTitle>
-                        <DialogDescription>All sub-tasks must be completed before marking as DONE.</DialogDescription>
-                    </DialogHeader>
-                    <ul className="list-disc pl-5 space-y-1 text-sm">{blockedSubtasks.map((n, i) => <li key={i}>{n}</li>)}</ul>
-                    <div className="flex justify-end"><Button size="sm" onClick={() => setShowBlockedModal(false)}>Close</Button></div>
-                </DialogContent>
-            </Dialog>
         </>
     )
 }
@@ -197,12 +184,12 @@ function AssigneeField({ assignee, projectId, onSave, readOnly }: { assignee: Us
     const { data: members = [] } = useQuery({ queryKey: ["project-members", projectId], queryFn: () => ProjectMemberService.getMembers(projectId), staleTime: 60000 })
     const memberList = (members as any[]).map(m => ({ id: m.user?.id || m.id, fullName: m.user?.fullName || m.fullName || "Unknown", avatarUrl: m.user?.avatarUrl || m.avatarUrl || null }))
 
-    if (readOnly) return <span className="text-[13px] font-semibold text-slate-900">{assignee?.fullName || "Unassigned"}</span>
+    if (readOnly) return <span className="text-[14px] font-semibold text-slate-900">{assignee?.fullName || "Unassigned"}</span>
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1 hover:text-blue-600 transition-colors text-[13px] font-semibold text-slate-900 group">
+                <button className="flex items-center gap-1 hover:text-blue-600 transition-colors text-[14px] font-semibold text-slate-900 group">
                     <span className="truncate">{assignee?.fullName || "Unassigned"}</span>
                     <ChevronDown size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
@@ -226,11 +213,11 @@ function InlineNumberField({ value, onSave, readOnly }: { value: number | null; 
     useEffect(() => setRaw(value != null ? String(value) : ""), [value])
     const handleBlur = () => { setEditing(false); const n = raw === "" ? null : Number(raw); if (!isNaN(n as any) && n !== value) onSave(n) }
 
-    if (readOnly) return <span className="text-[13px] font-bold text-slate-900">{value ?? "—"}</span>
+    if (readOnly) return <span className="text-[14px] font-bold text-slate-900">{value ?? "—"}</span>
     return editing ? (
         <Input type="number" value={raw} onChange={e => setRaw(e.target.value)} onBlur={handleBlur} onKeyDown={e => { if (e.key === "Enter") handleBlur(); if (e.key === "Escape") setEditing(false) }} className="h-6 w-16 text-xs font-bold px-1.5 py-0.5 rounded border-slate-200" autoFocus />
     ) : (
-        <span className="cursor-pointer hover:bg-slate-50 px-1 rounded transition-colors text-[13px] font-bold text-slate-900" onClick={() => setEditing(true)}>{value ?? "—"}</span>
+        <span className="cursor-pointer hover:bg-slate-50 px-1 rounded transition-colors text-[14px] font-bold text-slate-900" onClick={() => setEditing(true)}>{value ?? "—"}</span>
     )
 }
 
@@ -242,7 +229,7 @@ function DateField({ value, isOverdue, onSave, readOnly }: { value: string | nul
 
     if (editing) return <Input type="date" value={raw} onChange={e => setRaw(e.target.value)} onBlur={handleBlur} onKeyDown={e => { if (e.key === "Enter") handleBlur(); if (e.key === "Escape") setEditing(false) }} className="h-6 w-32 text-xs font-semibold px-1.5 py-0.5 rounded border-slate-200" autoFocus />
     return (
-        <div className={cn("flex items-center gap-1.5 text-[13px] font-semibold transition-colors cursor-pointer group px-1 rounded", isOverdue ? "text-rose-600 hover:bg-rose-50" : "text-slate-700 hover:bg-slate-50")} onClick={() => !readOnly && setEditing(true)}>
+        <div className={cn("flex items-center gap-1.5 text-[14px] font-semibold transition-colors cursor-pointer group px-1 rounded", isOverdue ? "text-rose-600 hover:bg-rose-50" : "text-slate-700 hover:bg-slate-50")} onClick={() => !readOnly && setEditing(true)}>
             {formatDate(value)}
             {isOverdue && <span className="text-[9px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold border border-rose-200">Overdue</span>}
         </div>
@@ -312,7 +299,10 @@ export default function TaskMetaGrid({ task, projectId, canEdit, etag }: TaskMet
     const qc = useQueryClient()
     const updateTask = useMutation({
         mutationFn: (data: any) => TaskService.updateTask(projectId, task.id, { title: task.title, ...data }),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["task", projectId, task.id] }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["task", projectId, task.id] })
+            qc.invalidateQueries({ queryKey: ["activity", projectId, task.id] })
+        },
     })
 
     return (
@@ -329,14 +319,14 @@ export default function TaskMetaGrid({ task, projectId, canEdit, etag }: TaskMet
                     <UserAvatar src={task.reporter.avatarUrl ?? undefined} name={task.reporter.fullName} size={36} />
                     <div className="flex-1 min-w-0">
                         <FieldLabel icon={Users} label="Reporter" />
-                        <span className="text-[13px] font-semibold text-slate-900">{task.reporter.fullName}</span>
+                        <span className="text-[14px] font-semibold text-slate-900">{task.reporter.fullName}</span>
                     </div>
                 </div>
                 <div><FieldLabel icon={Calendar} label="Due Date" /><DateField value={task.dueDate} isOverdue={task.overdue} onSave={d => updateTask.mutate({ dueDate: d })} readOnly={!canEdit} /></div>
-                <div><FieldLabel icon={Target} label="Status" /><StatusField task={task} projectId={projectId} canEdit={canEdit} etag={etag} /></div>
+                <div><FieldLabel icon={Hash} label="Story Points" /><InlineNumberField value={task.storyPoints} onSave={v => updateTask.mutate({ storyPoints: v })} readOnly={!canEdit} /></div>
             </div>
             <div className="space-y-5">
-                <div><FieldLabel icon={Hash} label="Story Points" /><InlineNumberField value={task.storyPoints} onSave={v => updateTask.mutate({ storyPoints: v })} readOnly={!canEdit} /></div>
+                <div><FieldLabel icon={Target} label="Status" /><StatusField task={task} projectId={projectId} canEdit={canEdit} etag={etag} /></div>
                 <div><FieldLabel icon={Flag} label="Priority" /><PriorityField priority={task.priority} onSave={p => updateTask.mutate({ priority: p })} readOnly={!canEdit} /></div>
                 <WorklogWidget task={task} projectId={projectId} canEdit={canEdit} />
             </div>

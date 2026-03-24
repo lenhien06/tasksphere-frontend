@@ -73,6 +73,16 @@ export const TaskDetailService = {
     deleteAttachment: (attachmentId: string) =>
         apiJava.delete(`/v1/attachments/${attachmentId}`),
 
+    uploadCommentAttachment: (projectId: string, taskId: string, commentId: string, file: File) => {
+        const form = new FormData()
+        form.append("file", file)
+        return apiJava.post(
+            `/v1/projects/${projectId}/tasks/${taskId}/comments/${commentId}/attachments`,
+            form,
+            { headers: { "Content-Type": "multipart/form-data" } }
+        ).then(r => r.data.data as AttachmentResponse)
+    },
+
     // ════════════ WORKLOG ════════════
 
     getWorklogs: (taskId: string) =>
@@ -103,4 +113,44 @@ export const TaskDetailService = {
     promoteSubtask: (subtaskId: string) =>
         apiJava.post(`/v1/tasks/${subtaskId}/promote`)
             .then(r => r.data.data),
+
+    // ════════════ ACTIVITY LOG ════════════
+    getTaskActivity: (
+        projectId: string,
+        taskId: string,
+        params?: { page?: number; size?: number; sort?: string }
+    ) =>
+        apiJava
+            .get(`/v1/projects/${projectId}/tasks/${taskId}/activity`, {
+                params: {
+                    page: params?.page ?? 0,
+                    size: params?.size ?? 20,
+                    sort: params?.sort ?? "createdAt,desc",
+                },
+            })
+            .then(r => r.data.data as {
+                content: Array<{
+                    id: string
+                    action: string
+                    entityType: string
+                    entityId: string
+                    actor: {
+                        id: string
+                        fullName: string
+                        avatarUrl: string | null
+                    } | null
+                    entityLabel: string
+                    oldValue: string | null
+                    newValue: string | null
+                    ipAddress: string
+                    createdAt: string
+                }>
+                totalElements: number
+                totalPages: number
+                size: number
+                number: number
+                first: boolean
+                last: boolean
+                empty: boolean
+            }),
 }

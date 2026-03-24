@@ -104,7 +104,7 @@ export default function CustomFieldSection({
 
   // Rule 2: View mode → chỉ hiện field có giá trị; Edit mode → hiện tất cả visible field
   const fieldsToRender = visibleDefinitions.filter(def => {
-    if (isEditMode) return true
+    if (isEditMode || canEdit) return true
     const val = values.find(v => v.fieldDefinitionId === def.id)
     return val != null && val.value !== null && val.value !== ""
   })
@@ -112,12 +112,12 @@ export default function CustomFieldSection({
   if (visibleDefinitions.length === 0) return null
 
   // Nếu view mode và không có field nào có giá trị → ẩn toàn bộ section
-  if (!isEditMode && fieldsToRender.length === 0) return null
+  if (!isEditMode && !canEdit && fieldsToRender.length === 0) return null
 
   return (
     <div className={cn("rounded-xl border border-slate-200 p-4 bg-white shadow-sm space-y-4", className)}>
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight">Custom Fields</h3>
+        <h3 className="text-sm font-semibold text-slate-900">Additional Info</h3>
         <div className="flex items-center gap-2">
           {canManage && (
             <Link
@@ -220,52 +220,76 @@ export default function CustomFieldSection({
                 )}
 
                 {def.fieldType === "SELECT" && (
-                  <select
-                    disabled={!isEditMode || isSaving}
-                    value={currentValue}
-                    onChange={e => {
-                      const val = e.target.value
-                      setDrafts(p => ({ ...p, [def.id]: val }))
-                      handleSave(def.id, val)
-                    }}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed appearance-none"
-                  >
-                    <option value="">Chọn một...</option>
-                    {def.options?.map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
+                  (def.options?.length ?? 0) > 0 ? (
+                    <select
+                      disabled={!isEditMode || isSaving}
+                      value={currentValue}
+                      onChange={e => {
+                        const val = e.target.value
+                        setDrafts(p => ({ ...p, [def.id]: val }))
+                        handleSave(def.id, val)
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed appearance-none"
+                    >
+                      <option value="">Chọn một...</option>
+                      {def.options?.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 flex items-center justify-between gap-3">
+                      <span>Chưa có lựa chọn để chọn</span>
+                      <Link
+                        href={`/projects/${projectId}/settings/custom-fields`}
+                        className="text-xs font-semibold text-blue-600 hover:underline whitespace-nowrap"
+                      >
+                        Thêm trong cài đặt
+                      </Link>
+                    </div>
+                  )
                 )}
 
                 {def.fieldType === "MULTI_SELECT" && (
-                  <div className="flex flex-wrap gap-2">
-                    {def.options?.map(opt => {
-                      const currentArr = currentValue ? currentValue.split(',') : []
-                      const isSelected = currentArr.includes(opt)
-                      return (
-                        <button
-                          key={opt}
-                          disabled={!isEditMode || isSaving}
-                          onClick={() => {
-                            const nextArr = isSelected 
-                              ? currentArr.filter(a => a !== opt) 
-                              : [...currentArr, opt]
-                            const next = nextArr.length > 0 ? nextArr.join(',') : ""
-                            setDrafts(p => ({ ...p, [def.id]: next }))
-                            handleSave(def.id, next)
-                          }}
-                          className={cn(
-                            "px-2 py-0.5 rounded text-[11px] font-bold border transition-all",
-                            isSelected 
-                              ? "bg-indigo-50 border-indigo-200 text-indigo-700" 
-                              : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-                          )}
-                        >
-                          {opt}
-                        </button>
-                      )
-                    })}
-                  </div>
+                  (def.options?.length ?? 0) > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {def.options?.map(opt => {
+                        const currentArr = currentValue ? currentValue.split(',') : []
+                        const isSelected = currentArr.includes(opt)
+                        return (
+                          <button
+                            key={opt}
+                            disabled={!isEditMode || isSaving}
+                            onClick={() => {
+                              const nextArr = isSelected 
+                                ? currentArr.filter(a => a !== opt) 
+                                : [...currentArr, opt]
+                              const next = nextArr.length > 0 ? nextArr.join(',') : ""
+                              setDrafts(p => ({ ...p, [def.id]: next }))
+                              handleSave(def.id, next)
+                            }}
+                            className={cn(
+                              "px-2 py-0.5 rounded text-[11px] font-bold border transition-all",
+                              isSelected 
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-700" 
+                                : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                            )}
+                          >
+                            {opt}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 flex items-center justify-between gap-3">
+                      <span>Chưa có lựa chọn để chọn</span>
+                      <Link
+                        href={`/projects/${projectId}/settings/custom-fields`}
+                        className="text-xs font-semibold text-blue-600 hover:underline whitespace-nowrap"
+                      >
+                        Thêm trong cài đặt
+                      </Link>
+                    </div>
+                  )
                 )}
 
                 {def.fieldType === "URL" && (

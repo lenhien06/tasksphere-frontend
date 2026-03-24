@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { Bug, CheckSquare, BookOpen, Zap, Subtitles, MoreHorizontal, Trash2, X, Link2 } from "lucide-react"
+import { Bug, CheckSquare, BookOpen, Zap, Subtitles, MoreHorizontal, Trash2, X, Link2, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -21,10 +21,24 @@ import { TaskService } from "@/app/services/TaskService"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/stores/useAuthStore"
+import type { CustomFieldType } from "@/app/types/task.schema"
 
 import { SubtaskBlockedDialog } from "@/components/kanban/SubtaskBlockedDialog"
 import { TaskDetailService } from "@/app/services/TaskDetailService"
 import type { SubTaskResponse } from "@/app/types/task.schema"
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog"
 
 // ── Page skeleton ──────────────────────────────────────────
 
@@ -66,20 +80,149 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
     CANCELLED: [],
 }
 
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "@/components/ui/accordion"
-
 export default function TaskDetailPageContent({
     projectId,
     taskId,
     currentUserRole,
     onClose,
 }: TaskDetailPageContentProps) {
-    // ... (rest of logic remains same)
+    const router = useRouter()
+    const qc = useQueryClient()
+    const currentUserId = useAuthStore((s) => String(s.user?.id ?? ""))
+    const handleClose = onClose ?? (() => router.back())
+
+    const [blockedDialog, setBlockedDialog] = React.useState<{
+        open: boolean
+        taskTitle: string
+        pendingSubtasks: SubTaskResponse[]
+    } | null>(null)
+    const [editingTitle, setEditingTitle] = React.useState(false)
+    const [titleDraft, setTitleDraft] = React.useState("")
+    const [addFieldOpen, setAddFieldOpen] = React.useState(false)
+    const [newFieldName, setNewFieldName] = React.useState("")
+    const [newFieldType, setNewFieldType] = React.useState<CustomFieldType>("TEXT")
+    const [newFieldRequired, setNewFieldRequired] = React.useState(false)
+    const [newFieldOptionsText, setNewFieldOptionsText] = React.useState("")
+
+    const { data, isLoading, isError } = useQuery({
+        queryKey: ["task", projectId, taskId],
+        queryFn: () => TaskService.getTaskById(projectId, taskId),
+        staleTime: 15_000,
+        enabled: !!taskId && !!projectId,
+    })
+    const { data: customFieldDefs = [] } = useQuery({
+        queryKey: ["custom-fields", projectId],
+        queryFn: () => TaskService.getCustomFields(projectId),
+        enabled: !!projectId,
+        staleTime: 60_000,
+    })
+
+    useTaskWebSocket(projectId, taskId)
+
+    const deleteTask = useMutation({
+        mutationFn: () => TaskService.deleteTask(projectId, taskId),
+        onSuccess: () => {
+            toast.success("Task deleted")
+            handleClose()
+        },
+        onError: (err: any) => {
+            const status = err?.response?.status
+            if (status === 403) toast.error("Only PM/Admin can delete tasks")
+            else toast.error(err?.response?.data?.message ?? "Unable to delete task")
+        },
+    })
+
+    const updateTitle = useMutation({
+        mutationFn: (newTitle: string) => {
+            const t = data?.task
+            if (!t) throw new Error("Task not loaded")
+            return TaskService.updateTask(projectId, t.id, { title: newTitle })
+        },
+        onMutate: async (newTitle) => {
+            await qc.cancelQueries({ queryKey: ["task", projectId, taskId] })
+            const previous = qc.getQueryData<{ task: any; etag: string }>(["task", projectId, taskId])
+            qc.setQueryData(["task", projectId, taskId], (old: any) =>
+                old?.task ? { ...old, task: { ...old.task, title: newTitle } } : old
+            )
+            return { previous }
+        },
+        onSuccess: () => { toast.success("Title updated") },
+        onError: (err: any, _newTitle, ctx) => {
+            if (ctx?.previous) qc.setQueryData(["task", projectId, taskId], ctx.previous)
+            toast.error(err?.response?.data?.message ?? "Unable to update title")
+        },
+        onSettled: () => {
+            qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+            qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
+        },
+    })
+    const createCustomField = useMutation({
+        mutationFn: () => {
+            const name = newFieldName.trim()
+            if (!name) throw new Error("Tên trường là bắt buộc")
+            const payload: any = {
+                name,
+                fieldType: newFieldType,
+                required: newFieldRequired,
+            }
+            if (newFieldType === "SELECT" || newFieldType === "MULTI_SELECT") {
+                const options = newFieldOptionsText
+                    .split(",")
+                    .map((o) => o.trim())
+                    .filter(Boolean)
+                if (options.length < 2) throw new Error("Cần ít nhất 2 lựa chọn")
+                payload.options = options
+            }
+            return TaskService.createCustomField(projectId, payload)
+        },
+        onSuccess: () => {
+            toast.success("Đã thêm trường mới cho dự án")
+            qc.invalidateQueries({ queryKey: ["custom-fields", projectId] })
+            qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+            setAddFieldOpen(false)
+            setNewFieldName("")
+            setNewFieldType("TEXT")
+            setNewFieldRequired(false)
+            setNewFieldOptionsText("")
+        },
+        onError: (err: any) => {
+            toast.error(err?.message ?? err?.response?.data?.message ?? "Không thể thêm trường")
+        },
+    })
+
+    if (isLoading) return <PageSkeleton />
+
+    if (isError || !data) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full bg-white p-8 text-center">
+                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-6">
+                    <X size={40} />
+                </div>
+                <p className="text-slate-900 font-black text-xl mb-2">Task Not Found</p>
+                <p className="text-slate-500 font-medium mb-6">The task might have been deleted or you don&apos;t have permission.</p>
+                <Button variant="outline" className="h-11 px-6 rounded-xl font-bold" onClick={handleClose}>
+                    Go back
+                </Button>
+            </div>
+        )
+    }
+
+    const { task } = data
+    const normalizedRole = String(currentUserRole || "").toUpperCase()
+    const isAdminOrPM =
+        normalizedRole === "PM" ||
+        normalizedRole === "ADMIN" ||
+        normalizedRole === "PROJECT_MANAGER" ||
+        normalizedRole === "SYSTEM_ADMIN"
+    const isMember = normalizedRole === "MEMBER"
+    const isAssignee = !!task.assignee?.id && !!currentUserId && String(task.assignee.id) === currentUserId
+    const canEdit = isAdminOrPM || (isMember && isAssignee)
+    const canDelete = isAdminOrPM
+
+    const scrollToSubtasks = () => {
+        const el = document.getElementById("subtasks-section")
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
 
     const typeConfig: Record<string, { icon: any; color: string; bg: string }> = {
         BUG:      { icon: Bug,         color: "text-rose-600",   bg: "bg-rose-50" },
@@ -97,7 +240,7 @@ export default function TaskDetailPageContent({
             <div className={cn("px-8 py-6 flex-1", onClose ? "overflow-y-auto" : "")}>
                 
                 {/* Professional Jira-style Header */}
-                <div className="flex items-start justify-between gap-6 mb-8">
+                <div className="flex items-start justify-between gap-6 mb-4">
                     <div className="flex-1 min-w-0">
                         {/* Breadcrumb row: Key + Actions */}
                         <div className="flex items-center gap-2 mb-3 text-[13px] font-medium text-slate-500">
@@ -176,22 +319,26 @@ export default function TaskDetailPageContent({
                     </div>
                 </div>
 
-                {/* Rest of the content */}
-                <div className="mb-8">
+                {/* Details */}
+                <div className="mb-4">
                     <TaskMetaGrid task={task} projectId={projectId} canEdit={canEdit} etag={data.etag} />
                 </div>
 
                 {/* Description block */}
-                <div className="mb-6">
+                <div className="mb-4">
+                    <p className="text-sm font-semibold text-slate-900 mb-2">Description</p>
                     <TaskDescription task={task} projectId={projectId} canEdit={canEdit} />
                 </div>
 
                 {/* Accordion sections */}
                 <Accordion type="multiple" defaultValue={["subtasks", "dependencies"]} className="space-y-1">
                     <AccordionItem value="subtasks" className="border-0">
-                        <AccordionTrigger className="hover:no-underline py-2 text-sm font-bold text-slate-900 group">
-                            <span className="flex items-center gap-2">
-                                Sub-tasks ({task.subtaskDone}/{task.subtaskCount})
+                        <AccordionTrigger className="hover:no-underline py-2 group">
+                            <span className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                                Sub-tasks
+                                <span className="text-slate-400 font-semibold normal-case tracking-normal text-[11px]">
+                                    {task.subtaskDone}/{task.subtaskCount}
+                                </span>
                             </span>
                         </AccordionTrigger>
                         <AccordionContent className="pt-2">
@@ -200,8 +347,8 @@ export default function TaskDetailPageContent({
                     </AccordionItem>
 
                     <AccordionItem value="dependencies" className="border-0">
-                        <AccordionTrigger className="hover:no-underline py-2 text-sm font-bold text-slate-900 group">
-                            Dependencies
+                        <AccordionTrigger className="hover:no-underline py-2 group">
+                            <span className="text-sm font-semibold text-slate-900">Dependencies</span>
                         </AccordionTrigger>
                         <AccordionContent className="pt-2">
                             <DependencySection taskId={task.id} projectId={projectId} canEdit={canEdit} />
@@ -209,8 +356,8 @@ export default function TaskDetailPageContent({
                     </AccordionItem>
 
                     <AccordionItem value="recurrence" className="border-0">
-                        <AccordionTrigger className="hover:no-underline py-2 text-sm font-bold text-slate-900 group">
-                            Recurrence
+                        <AccordionTrigger className="hover:no-underline py-2 group">
+                            <span className="text-sm font-semibold text-slate-900">Recurrence</span>
                         </AccordionTrigger>
                         <AccordionContent className="pt-2">
                             <RecurringSection taskId={task.id} projectId={projectId} isRecurring={task.recurring ?? false} canEdit={canEdit} />
@@ -218,18 +365,47 @@ export default function TaskDetailPageContent({
                     </AccordionItem>
 
                     <AccordionItem value="custom-fields" className="border-0">
-                        <AccordionTrigger className="hover:no-underline py-2 text-sm font-bold text-slate-900 group">
-                            Custom Fields
-                        </AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <AccordionTrigger className="hover:no-underline py-2 group flex-1">
+                                <span className="text-sm font-semibold text-slate-900">Additional Info</span>
+                            </AccordionTrigger>
+                            {isAdminOrPM && (
+                                <button
+                                    type="button"
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                                    onClick={() => setAddFieldOpen(true)}
+                                    title="Thêm trường"
+                                >
+                                    <Pencil size={14} />
+                                </button>
+                            )}
+                        </div>
                         <AccordionContent className="pt-2">
-                            <CustomFieldSection
-                                projectId={projectId}
-                                taskId={taskId}
-                                definitions={customFieldDefs}
-                                values={task.customFieldValues || []}
-                                canEdit={canEdit}
-                                canManage={isAdminOrPM}
-                            />
+                            {customFieldDefs.length === 0 ? (
+                                <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                                    <p className="text-sm text-slate-700 mb-3">
+                                        Chưa có trường thông tin bổ sung cho project này.
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8"
+                                        onClick={() => router.push(`/projects/${projectId}/settings/custom-fields`)}
+                                    >
+                                        Mở trang cài đặt trường
+                                    </Button>
+                                </div>
+                            ) : (
+                                <CustomFieldSection
+                                    projectId={projectId}
+                                    taskId={taskId}
+                                    definitions={customFieldDefs}
+                                    values={task.customFieldValues || []}
+                                    canEdit={canEdit}
+                                    canManage={isAdminOrPM}
+                                />
+                            )}
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
@@ -249,6 +425,68 @@ export default function TaskDetailPageContent({
                     onViewSubtasks={scrollToSubtasks}
                 />
             )}
+
+            <Dialog open={addFieldOpen} onOpenChange={setAddFieldOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Thêm trường cho dự án</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="mb-1 block text-xs font-semibold text-slate-600">Tên trường</label>
+                            <input
+                                value={newFieldName}
+                                onChange={(e) => setNewFieldName(e.target.value)}
+                                placeholder="Ví dụ: Mức độ rủi ro"
+                                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-xs font-semibold text-slate-600">Loại trường</label>
+                            <select
+                                value={newFieldType}
+                                onChange={(e) => setNewFieldType(e.target.value as CustomFieldType)}
+                                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                            >
+                                <option value="TEXT">Text</option>
+                                <option value="NUMBER">Number</option>
+                                <option value="DATE">Date</option>
+                                <option value="BOOLEAN">Boolean</option>
+                                <option value="SELECT">Select</option>
+                                <option value="MULTI_SELECT">Multi Select</option>
+                                <option value="URL">URL</option>
+                            </select>
+                        </div>
+                        {(newFieldType === "SELECT" || newFieldType === "MULTI_SELECT") && (
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-600">Lựa chọn (ngăn cách bằng dấu phẩy)</label>
+                                <input
+                                    value={newFieldOptionsText}
+                                    onChange={(e) => setNewFieldOptionsText(e.target.value)}
+                                    placeholder="VD: Cao, Trung bình, Thấp"
+                                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                                />
+                            </div>
+                        )}
+                        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                            <input
+                                type="checkbox"
+                                checked={newFieldRequired}
+                                onChange={(e) => setNewFieldRequired(e.target.checked)}
+                            />
+                            Bắt buộc nhập
+                        </label>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setAddFieldOpen(false)}>
+                            Hủy
+                        </Button>
+                        <Button onClick={() => createCustomField.mutate()} disabled={createCustomField.isPending}>
+                            {createCustomField.isPending ? "Đang lưu..." : "Lưu"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

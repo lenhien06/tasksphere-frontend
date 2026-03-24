@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { apiJava } from "@/lib/axios"
 import type { CommentResponse } from "@/app/types/task.schema"
@@ -74,6 +74,7 @@ async function fetchCommentsPage(
 // ── Main hook ─────────────────────────────────────────────
 
 export function useCommentSection(projectId: string, taskId: string) {
+    const qc = useQueryClient()
     const [comments, setComments] = useState<CommentResponse[]>([])
     const [totalElements, setTotalElements] = useState(0)
     const [totalPages, setTotalPages] = useState(1)
@@ -126,6 +127,7 @@ export function useCommentSection(projectId: string, taskId: string) {
             } else {
                 setComments(prev => insertReply(prev, newComment.parentId!, newComment))
             }
+            qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
         },
         onError: (err: any) => {
             const status = err?.response?.status
@@ -142,6 +144,7 @@ export function useCommentSection(projectId: string, taskId: string) {
                 .then(r => (r.data?.data ?? r.data) as CommentResponse),
         onSuccess: updated => {
             setComments(prev => replaceComment(prev, updated))
+            qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
         },
         onError: (err: any) => {
             const status = err?.response?.status
@@ -161,6 +164,7 @@ export function useCommentSection(projectId: string, taskId: string) {
         onSuccess: commentId => {
             setComments(prev => removeComment(prev, commentId))
             setTotalElements(prev => Math.max(0, prev - 1))
+            qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
         },
         onError: (err: any) => {
             const status = err?.response?.status
@@ -179,6 +183,7 @@ export function useCommentSection(projectId: string, taskId: string) {
         hasMore: currentPage < totalPages - 1,
         loadMore,
         addComment: addCommentMutation.mutate,
+        addCommentAsync: addCommentMutation.mutateAsync,
         isAddingComment: addCommentMutation.isPending,
         updateComment: updateCommentMutation.mutate,
         isUpdatingComment: updateCommentMutation.isPending,

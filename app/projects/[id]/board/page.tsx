@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import KanbanBoard, { TaskCard } from "@/components/projects/KanbanBoard"
+import KanbanBoard from "@/components/projects/KanbanBoard"
+import type { TaskCardData } from "@/components/kanban/KanbanBoard"
 import TaskDetailPanel, { Member } from "@/components/projects/TaskDetailPanel"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
@@ -76,7 +77,7 @@ export default function ProjectBoardPage() {
     router.replace(qs ? `?${qs}` : ".", { scroll: false })
   }
 
-  const handleTaskClick = (task: TaskCard) => {
+  const handleTaskClick = (task: TaskCardData) => {
     openTask(task.id)
   }
 

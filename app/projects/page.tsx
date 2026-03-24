@@ -139,7 +139,7 @@ function mapToUIProject(be: any): Project {
         members: be.members?.map((m: any) => ({
             id: m.user.id,
             fullName: m.user.fullName,
-            avatarUrl: m.user.avatarUrl
+            avatarUrl: m.user.avatarUrl ?? undefined
         })) || [],
         owner: be.ownerName || "Unknown",
         ownerId: be.ownerId,
@@ -249,7 +249,7 @@ function ProjectMembers({ projectId, count }: { projectId: string; count: number
     const memberList = (members || []).map(m => ({
         id: m.user?.id || m.id,
         fullName: m.user?.fullName || "Unknown",
-        avatarUrl: m.user?.avatarUrl
+        avatarUrl: m.user?.avatarUrl ?? undefined
     }));
 
     return <MemberStack members={memberList} showCount={false} count={count} />;

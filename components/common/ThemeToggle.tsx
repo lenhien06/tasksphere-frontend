@@ -1,31 +1,39 @@
 'use client'
 
 import * as React from 'react'
-import { Moon, Sun } from 'lucide-react'
+import { Moon, Sun } from '@phosphor-icons/react'
 import { useTheme } from 'next-themes'
-import { useTranslation } from 'react-i18next'
-
-import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 export function ThemeToggle() {
-  const { setTheme } = useTheme()
-  const { t } = useTranslation()
+  const { theme, resolvedTheme, setTheme } = useTheme()
+  const activeTheme = theme === 'system' ? resolvedTheme : theme
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant='outline' size='icon'>
-          <Sun className='h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0' />
-          <Moon className='absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100' />
-          <span className='sr-only'>Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align='end'>
-        <DropdownMenuItem onClick={() => setTheme('light')}>{t('settings.theme_light')}</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('dark')}>{t('settings.theme_dark')}</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('system')}>{t('settings.theme_system')}</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className='hidden sm:flex items-center rounded-md border border-gray-300/80 bg-gray-100 p-0.5 dark:border-white/15 dark:bg-white/5'>
+      <button
+        type='button'
+        onClick={() => setTheme('light')}
+        aria-label='Switch to light theme'
+        className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors ${
+          activeTheme === 'light'
+            ? 'bg-white text-gray-900 shadow-sm dark:bg-white dark:text-black'
+            : 'text-gray-600 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-white/10'
+        }`}
+      >
+        <Sun className='h-4 w-4' />
+      </button>
+      <button
+        type='button'
+        onClick={() => setTheme('dark')}
+        aria-label='Switch to dark theme'
+        className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors ${
+          activeTheme === 'dark'
+            ? 'bg-[#0F172A] text-white shadow-sm dark:bg-white dark:text-black'
+            : 'text-gray-600 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-white/10'
+        }`}
+      >
+        <Moon className='h-4 w-4' />
+      </button>
+    </div>
   )
 }

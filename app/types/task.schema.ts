@@ -203,6 +203,7 @@ export interface CommentResponse {
     depth:          number        // 0 = root, 1 = reply, 2 = reply-to-reply
     isEdited:       boolean
     mentionedUsers: UserSummary[]
+    attachments:    AttachmentResponse[]
     replies:        CommentResponse[]   // direct children, returned by server
     canEdit:        boolean       // true if author + < 24h
     canDelete:      boolean       // true if author or PM

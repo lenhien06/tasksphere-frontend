@@ -33,6 +33,7 @@ export function useUploadAttachment(projectId: string, taskId: string) {
     const refreshAttachments = () => {
         qc.invalidateQueries({ queryKey: ["attachments", taskId] })
         qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+        qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
     }
 
     const pollJob = async (jobId: string, attempt = 0): Promise<void> => {
@@ -70,6 +71,7 @@ export function useUploadAttachment(projectId: string, taskId: string) {
                 qc.setQueryData(["task", projectId, taskId], (old: any) =>
                     old?.task ? { ...old, task: { ...old.task, attachmentCount: Number(old.task.attachmentCount ?? 0) + 1 } } : old
                 )
+                qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
                 toast.success("File uploaded successfully")
             }
         },
@@ -102,11 +104,13 @@ export function useDeleteAttachment(projectId: string, taskId: string) {
                       }
                     : old
             )
+            qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
             toast.success("Attachment deleted")
         },
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ["attachments", taskId] })
             qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+            qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
         },
         onError: (err: any) => {
             toast.error(err?.response?.data?.message ?? "Unable to delete file")

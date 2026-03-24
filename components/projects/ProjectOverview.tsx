@@ -44,7 +44,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   const { t } = useTranslation();
   const [showCreateTask, setShowCreateTask] = useState(false);
 
-  const currentUserId = useAuthStore((s: { userDetail?: { id?: string; userId?: string } }) => s.userDetail?.id ?? s.userDetail?.userId ?? "");
+  const currentUserId = useAuthStore((s) => String(s.user?.id ?? ""));
 
   const { data: projectData, isLoading: isProjectLoading } = useQuery({
     queryKey: ["project-detail", projectId],
@@ -93,7 +93,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     sprintId: item.sprintId,
     sprintName: item.sprintName,
     velocity: item.velocity,
-    status: idx === arr.length - 1 ? "active" : "completed" as const,
+    status: idx === arr.length - 1 ? ("active" as const) : ("completed" as const),
   }));
   const velocity =
     velocityFromApi.length > 0
@@ -207,7 +207,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     }));
   })();
 
-  const createColumns = (columnsData ?? []).map((c) => ({ id: c.id, name: c.name, color: c.color }));
+  const createColumns = (columnsData ?? []).map((c) => ({ id: c.id, name: c.name, color: c.colorHex ?? "#94A3B8" }));
 
   return (
     <>

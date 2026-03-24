@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, Suspense, lazy } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { MessageSquare, CheckSquare, Paperclip, Clock, SlidersHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { TaskDetailResponse } from "@/app/types/task.schema"
@@ -10,6 +10,7 @@ const CommentsTab   = lazy(() => import("@/components/task-detail/tabs/CommentsT
 const ChecklistTab  = lazy(() => import("@/components/task-detail/tabs/ChecklistTab"))
 const AttachmentsTab = lazy(() => import("@/components/task-detail/tabs/AttachmentsTab"))
 const WorklogTab    = lazy(() => import("@/components/task-detail/tabs/WorklogTab"))
+const ActivityTab   = lazy(() => import("@/components/task-detail/tabs/ActivityTab"))
 
 type TabKey = "comments" | "checklist" | "attachments" | "worklog" | "activity"
 
@@ -31,7 +32,6 @@ function TabSkeleton() {
 
 export default function TaskDetailTabs({ task, projectId, currentUserRole }: TaskDetailTabsProps) {
     const searchParams = useSearchParams()
-    const router = useRouter()
     const initialTab = (searchParams.get("tab") as TabKey | null) ?? "comments"
     const [active, setActive] = useState<TabKey>(initialTab)
     const [mounted, setMounted] = useState<Record<TabKey, boolean>>({
@@ -46,10 +46,12 @@ export default function TaskDetailTabs({ task, projectId, currentUserRole }: Tas
     const switchTab = (tab: TabKey) => {
         setActive(tab)
         setMounted(prev => ({ ...prev, [tab]: true }))
-        // Update URL without full navigation
-        const params = new URLSearchParams(searchParams.toString())
-        params.set("tab", tab)
-        router.replace(`?${params.toString()}`, { scroll: false })
+        // Update URL bar without triggering Next.js RSC navigation
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search)
+            params.set("tab", tab)
+            window.history.replaceState(null, "", `?${params.toString()}`)
+        }
     }
 
     const tabs: { key: TabKey; label: string; icon: React.ReactNode; badge?: number | string }[] = [
@@ -141,11 +143,10 @@ export default function TaskDetailTabs({ task, projectId, currentUserRole }: Tas
                             <WorklogTab projectId={projectId} taskId={task.id} currentUserRole={currentUserRole} />
                         )}
                     </div>
-                    <div className={active === "activity" ? "block" : "hidden"}>
-                        {mounted["activity"] && (
-                            <CommentsTab projectId={projectId} taskId={task.id} />
-                        )}
-                    </div>
+                    {/* Activity tab: always remount when active so it fetches fresh data */}
+                    {active === "activity" && (
+                        <ActivityTab projectId={projectId} taskId={task.id} />
+                    )}
                 </Suspense>
             </div>
         </div>

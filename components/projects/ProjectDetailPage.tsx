@@ -443,7 +443,7 @@ function TabMembers({ project }: { project: Project }) {
     const [changeRoleTarget, setChangeRoleTarget] = useState<{ id: string; userId: string; fullName: string; currentRole: string } | null>(null);
     const queryClient = useQueryClient();
     
-    const currentUserId = useAuthStore((state: any) => state.userDetail?.id || state.userDetail?.userId);
+    const currentUserId = useAuthStore((s) => String(s.user?.id ?? ""));
     const canManageMembers = canActAsProjectManager(project.myRole, project.isOwner);
 
     const { data: members, isLoading: isMembersLoading } = useQuery({ 

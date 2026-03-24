@@ -9,6 +9,7 @@ if (!i18n.isInitialized) {
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
+      lng: 'en',
       resources: {
         vi: { translation: vi },
         en: { translation: en },
@@ -17,7 +18,7 @@ if (!i18n.isInitialized) {
       supportedLngs: ['vi', 'en'],
       interpolation: { escapeValue: false },
       detection: {
-        order: ['localStorage', 'navigator'],
+        order: ['localStorage'],
         lookupLocalStorage: 'tasksphere_language',
         caches: ['localStorage'],
       },
