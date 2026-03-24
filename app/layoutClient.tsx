@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
+import { useTheme } from 'next-themes'
 import { Toaster } from '@/components/ui/sonner'
 import { ToastContainer } from 'react-toastify'
 
@@ -18,11 +19,24 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const isAuthPage = pathname === '/' || pathname?.startsWith('/signin') || pathname?.startsWith('/signup') || pathname?.startsWith('/forgot-password')
-  
+  const { setTheme } = useTheme()
+
   const { data: currentUser } = useCurrentUser({ enabled: !isAuthPage })
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(true)
   const [mounted, setMounted] = useState(false)
+
+  // Force light mode on app pages; restore freedom on landing/auth pages
+  useEffect(() => {
+    const html = document.documentElement
+    if (!isAuthPage) {
+      html.classList.remove('dark')
+      html.style.colorScheme = 'light'
+      setTheme('light')
+    } else {
+      html.style.colorScheme = ''
+    }
+  }, [isAuthPage, setTheme])
 
   // Only render after mounted on the client to avoid Hydration errors
   useEffect(() => {

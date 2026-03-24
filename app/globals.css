@@ -2,11 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Force light mode at the browser level — affects native scrollbars & form controls */
-html {
-  color-scheme: light !important;
-}
-
 @layer base {
   :root {
     color-scheme: light;
