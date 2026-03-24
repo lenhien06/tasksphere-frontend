@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -300,7 +301,17 @@
     color: hsl(var(--muted-foreground));
   }
 
+  /* ── Force light colors on form controls — prevent browser dark UA override ── */
+  input, textarea, select {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
   /* ── TipTap ProseMirror base ── */
+  .ProseMirror {
+    background-color: transparent;
+    color: hsl(var(--foreground));
+  }
   .ProseMirror p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
     float: left;

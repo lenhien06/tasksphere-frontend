@@ -119,7 +119,7 @@ export default function LayoutClient({ children }: Readonly<{ children: React.Re
   return (
     <I18nProvider>
     <QueryClientProvider client={queryClientRef.current}>
-      <ThemeProvider attribute='class' defaultTheme='light' enableSystem disableTransitionOnChange>
+      <ThemeProvider attribute='class' defaultTheme='light' enableSystem={false} disableTransitionOnChange>
         <ToastContainer
           position='top-right'
           autoClose={3000}
