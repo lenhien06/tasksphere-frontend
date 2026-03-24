@@ -409,9 +409,8 @@ export default function KanbanBoard({
       return { payload, isColumnChange, targetStatus: targetColumn.status, targetColumnName: targetColumn.name };
     },
     onSuccess: (data) => {
-      const task = tasks.find((t) => t.id === data.payload.taskId);
       queryClient.invalidateQueries({ queryKey: ["activity", projectId, data.payload.taskId] });
-      if (task) {
+      if (data.isColumnChange) {
         toast.success(`Đã chuyển sang ${data.targetColumnName}`);
       }
     },

@@ -14,7 +14,6 @@ import {
   defaultDropAnimationSideEffects,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { motion } from "framer-motion";
 import { Search, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import KanbanToolbar, { type ToolbarFilterState } from "./KanbanToolbar";
@@ -229,6 +228,15 @@ export default function KanbanBoard({
     const taskInTargetCol = finalTasks.filter(t => t.status === targetColumnId);
     const newPosition = taskInTargetCol.findIndex(t => t.id === active.id);
 
+    // Skip if nothing actually changed (same column, same position)
+    const originalColTasks = initialTasks.filter(t => t.status === source.status);
+    const originalIdx = originalColTasks.findIndex(t => t.id === source.id);
+    if (source.status === targetColumnId && newPosition === originalIdx) {
+        setLocalTasks(initialTasks);
+        setActiveTask(null);
+        return;
+    }
+
     // Validation
     if (source.status !== targetColumnId) {
         const sourceCol = sortedColumns.find(c => c.id === source.status);
@@ -298,19 +306,14 @@ export default function KanbanBoard({
             onDragEnd={handleDragEnd}
           >
             <div className="flex items-start gap-3 min-w-max pb-1">
-              {sortedColumns.map((column, index) => {
+              {sortedColumns.map((column) => {
                 const allTasks = groupedByColumn.get(column.id) ?? [];
                 const isInvalidTarget = activeTaskSourceCol 
                     ? column.id !== activeTaskSourceCol.id && !canTransitionTo(activeTaskSourceCol.status, column.status)
                     : false;
 
                 return (
-                  <motion.div
-                    key={column.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.06 }}
-                  >
+                  <div key={column.id}>
                     <KanbanColumn
                       column={column}
                       tasks={allTasks}
@@ -326,7 +329,7 @@ export default function KanbanBoard({
                       onTaskClick={onCardClick}
                       onClearFilters={() => onFilterChange(defaultFilters)}
                     />
-                  </motion.div>
+                  </div>
                 );
               })}
 

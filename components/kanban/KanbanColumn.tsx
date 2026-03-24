@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { motion } from "framer-motion";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -64,12 +63,12 @@ export default function KanbanColumn({
   const isViewer = userRole === "VIEWER";
 
   return (
-    <motion.section
+    <section
       ref={setNodeRef}
       className={cn(
         "w-[264px] shrink-0 rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col max-h-[calc(100vh-150px)]",
         isOver && "ring-2 ring-blue-200",
-        isInvalidTarget && "opacity-40 grayscale-[0.5] pointer-events-none bg-gray-100/50"
+        isInvalidTarget && "opacity-40 grayscale-[0.5] bg-gray-100/50"
       )}
       style={{ borderTop: `2px solid ${column.colorHex}` }}
     >
@@ -140,6 +139,6 @@ export default function KanbanColumn({
           </button>
         </footer>
       )}
-    </motion.section>
+    </section>
   );
 }

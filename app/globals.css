@@ -32,32 +32,7 @@
     --chart-5: 27 87% 67%;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-  }
+  /* dark mode disabled — project is light-only */
 }
 
 @layer base {
@@ -301,17 +276,27 @@
     color: hsl(var(--muted-foreground));
   }
 
-  /* ── Force light colors on form controls — prevent browser dark UA override ── */
-  input, textarea, select {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+  /* ── Force light on all form controls — no dark mode ── */
+  input, textarea, select, [contenteditable] {
+    background: #ffffff !important;
+    color: #1a1a1a !important;
+    color-scheme: light;
+  }
+  input::placeholder, textarea::placeholder {
+    color: #9e9e9e !important;
+    opacity: 1;
   }
 
   /* ── TipTap ProseMirror base ── */
   .ProseMirror {
-    background-color: transparent;
-    color: hsl(var(--foreground));
+    background-color: transparent !important;
+    color: #1a1a1a !important;
   }
+
+  /* ── Fixed chip colors (no CSS variables, immune to theme) ── */
+  .chip-old     { background: #FCEBEB !important; color: #A32D2D !important; }
+  .chip-new     { background: #EAF3DE !important; color: #27500A !important; }
+  .chip-neutral { background: #F1EFE8 !important; color: #5F5E5A !important; border: 0.5px solid #D3D1C7 !important; }
   .ProseMirror p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
     float: left;
