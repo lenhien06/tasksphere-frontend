@@ -121,7 +121,7 @@ export const TaskDetailService = {
         params?: { page?: number; size?: number; sort?: string }
     ) =>
         apiJava
-            .get(`/v1/projects/${projectId}/tasks/${taskId}/activity`, {
+            .get(`/v1/projects/${projectId}/activities/tasks/${taskId}/activity`, {
                 params: {
                     page: params?.page ?? 0,
                     size: params?.size ?? 20,
