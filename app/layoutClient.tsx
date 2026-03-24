@@ -26,17 +26,21 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(true)
   const [mounted, setMounted] = useState(false)
 
-  // Force light mode on app pages; restore freedom on landing/auth pages
+  // Theme enforcement per route:
+  //   /            → dark (landing page always dark)
+  //   /signin etc  → light (auth forms always light)
+  //   app pages    → light
   useEffect(() => {
     const html = document.documentElement
-    if (!isAuthPage) {
+    if (pathname === '/') {
+      html.classList.add('dark')
+      html.style.colorScheme = 'dark'
+    } else {
       html.classList.remove('dark')
       html.style.colorScheme = 'light'
       setTheme('light')
-    } else {
-      html.style.colorScheme = ''
     }
-  }, [isAuthPage, setTheme])
+  }, [pathname, setTheme])
 
   // Only render after mounted on the client to avoid Hydration errors
   useEffect(() => {
