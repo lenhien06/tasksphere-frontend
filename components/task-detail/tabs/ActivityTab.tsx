@@ -121,6 +121,7 @@ function renderMessage(item: TaskActivityItem): React.ReactNode {
     case "ATTACHMENT_DELETED":  return <>đã xóa file</>
     case "SUBTASK_CREATED": return <>đã thêm sub-task</>
     case "SUBTASK_DELETED": return <>đã xóa sub-task</>
+    case "SUBTASK_PROMOTED": return <>đã chuyển sub-task thành task độc lập</>
     case "UPDATED": {
       const fields = changedFields(safeParseJson(item.oldValue), safeParseJson(item.newValue))
       return <>đã cập nhật <b>{fields.length > 0 ? fields.join(", ") : "thông tin"}</b></>

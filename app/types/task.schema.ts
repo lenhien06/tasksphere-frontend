@@ -42,6 +42,7 @@ export interface TaskResponse {
     overdue: boolean                // BE: overdue (not isOverdue)
     subtaskCount: number
     subtaskDone: number             // BE: subtaskDone (not subtaskDoneCount)
+    subtaskProgress: number | null  // 0–100, null if no subtasks
     commentsCount: number           // BE: commentsCount (not commentCount)
     attachmentsCount: number        // BE: attachmentsCount (not attachmentCount)
     assignee: UserSummary | null
@@ -247,8 +248,9 @@ export interface SubTaskResponse {
     priority:     TaskPriority
     assignee:     UserSummary | null
     dueDate:      string | null
-    depth:        number
-    subtaskCount: number
+    depth:                 number
+    subtaskCount:          number
+    completedSubtaskCount: number
 }
 
 // ── Custom Columns ─────────────────────────────────────────────

@@ -1,242 +1,395 @@
 "use client"
 
 import React, { useState } from "react"
-import { Plus, ExternalLink, ArrowUpRight } from "lucide-react"
+import { Plus, ChevronRight, MoreHorizontal, ExternalLink, ArrowUpRight, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { UserAvatar } from "@/components/common/UserAvatar"
 import {
     useSubTasks,
     useAddSubTask,
     usePromoteSubTask,
     useUpdateSubTaskStatus,
+    useDeleteSubTask,
 } from "@/hooks/useSubTasks"
-import { STATUS_CONFIG, PRIORITY_CONFIG } from "@/components/task-detail/config"
-import type { TaskDetailResponse, SubTaskResponse, TaskStatus } from "@/app/types/task.schema"
+import { PRIORITY_CONFIG } from "@/components/task-detail/config"
+import type { TaskDetailResponse, SubTaskResponse } from "@/app/types/task.schema"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
 
 interface SubTaskSectionProps {
     task: TaskDetailResponse
     projectId: string
     canEdit: boolean
+    isPM?: boolean
 }
 
-function SubTaskRow({
-    sub,
-    projectId,
-    onPromote,
-    onToggleDone,
-    canEdit,
-}: {
+// ── Recursive subtask node ────────────────────────────────────
+
+interface SubTaskNodeProps {
     sub: SubTaskResponse
     projectId: string
-    onPromote: (id: string) => void
-    onToggleDone: (sub: SubTaskResponse, checked: boolean) => void
+    depth: number
     canEdit: boolean
-}) {
+    isPM: boolean
+    onPromote: (sub: SubTaskResponse) => void
+    onToggleDone: (sub: SubTaskResponse, checked: boolean) => void
+    onDelete: (sub: SubTaskResponse) => void
+    onAddChild: (parentId: string) => void
+    addingTo: string | null
+    onAddDone: () => void
+}
+
+function SubTaskNode({
+    sub,
+    projectId,
+    depth,
+    canEdit,
+    isPM,
+    onPromote,
+    onToggleDone,
+    onDelete,
+    onAddChild,
+    addingTo,
+    onAddDone,
+}: SubTaskNodeProps) {
     const router = useRouter()
-    const statusCfg = STATUS_CONFIG[sub.taskStatus as TaskStatus] ?? STATUS_CONFIG["TODO"]
+    const [expanded, setExpanded] = useState(false)
+    const { data: children, isFetching } = useSubTasks(expanded ? sub.id : "")
     const priCfg = PRIORITY_CONFIG[sub.priority]
+    const hasChildren = sub.subtaskCount > 0
+    const isDone = sub.taskStatus === "DONE"
+    const isCancelled = sub.taskStatus === "CANCELLED"
 
     return (
-        <div className="flex items-center gap-3 py-2 group hover:bg-accent/30 rounded px-2 transition-colors">
-            <Checkbox
-                checked={sub.taskStatus === "DONE"}
-                onCheckedChange={(v) => onToggleDone(sub, !!v)}
-                disabled={!canEdit}
-                className="h-4 w-4 shrink-0"
-            />
+        <div style={{ paddingLeft: depth * 20 }}>
+            <div className="flex items-center gap-2 py-1.5 group hover:bg-accent/30 rounded px-2 transition-colors">
+                {/* Expand toggle */}
+                <button
+                    className={cn(
+                        "w-4 h-4 flex items-center justify-center shrink-0 text-muted-foreground transition-transform",
+                        hasChildren ? "opacity-100" : "opacity-0 pointer-events-none",
+                        expanded && "rotate-90"
+                    )}
+                    onClick={() => setExpanded(v => !v)}
+                    aria-label={expanded ? "Thu gọn" : "Mở rộng"}
+                >
+                    <ChevronRight size={12} />
+                </button>
 
-            {/* Title */}
-            <button
-                className="flex-1 text-left text-sm truncate hover:text-primary"
-                onClick={() => router.push(`/projects/${projectId}/tasks/${sub.id}`)}
-                aria-label={`View sub-task ${sub.taskCode}`}
-            >
-                <span className="text-xs text-muted-foreground mr-1.5 font-mono">{sub.taskCode}</span>
-                {sub.title}
-            </button>
-
-            {/* Priority */}
-            <span className={cn("text-xs font-medium hidden group-hover:block shrink-0", priCfg.color)}>
-                {priCfg.label}
-            </span>
-
-            {/* Assignee avatar */}
-            {sub.assignee && (
-                <UserAvatar
-                    src={sub.assignee.avatarUrl ?? undefined}
-                    name={sub.assignee.fullName}
-                    size={20}
-                    className="shrink-0"
+                {/* Checkbox */}
+                <Checkbox
+                    checked={isDone}
+                    onCheckedChange={(v) => onToggleDone(sub, !!v)}
+                    disabled={!canEdit || isCancelled}
+                    className="h-4 w-4 rounded-full shrink-0"
                 />
+
+                {/* Title */}
+                <button
+                    className={cn(
+                        "flex-1 text-left text-sm truncate hover:text-primary transition-colors",
+                        (isDone || isCancelled) && "line-through text-muted-foreground"
+                    )}
+                    onClick={() => router.push(`/projects/${projectId}/tasks/${sub.id}`)}
+                >
+                    <span className="text-[11px] text-muted-foreground mr-1.5 font-mono">{sub.taskCode}</span>
+                    {sub.title}
+                </button>
+
+                {/* Child count badge */}
+                {hasChildren && (
+                    <span className="text-[10px] text-muted-foreground shrink-0 font-medium">
+                        ▶ {sub.completedSubtaskCount}/{sub.subtaskCount}
+                    </span>
+                )}
+
+                {/* Priority */}
+                <span className={cn("text-[11px] font-medium hidden group-hover:inline shrink-0", priCfg.color)}>
+                    {priCfg.label}
+                </span>
+
+                {/* Assignee avatar */}
+                {sub.assignee && (
+                    <UserAvatar
+                        src={sub.assignee.avatarUrl ?? undefined}
+                        name={sub.assignee.fullName}
+                        size={18}
+                        className="shrink-0"
+                    />
+                )}
+
+                {/* "..." menu */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded hover:bg-accent transition-opacity shrink-0">
+                            <MoreHorizontal size={13} />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => router.push(`/projects/${projectId}/tasks/${sub.id}`)}>
+                            <ExternalLink size={13} className="mr-2" />
+                            Mở chi tiết
+                        </DropdownMenuItem>
+                        {canEdit && (
+                            <DropdownMenuItem onClick={() => onAddChild(sub.id)}>
+                                <Plus size={13} className="mr-2" />
+                                Thêm sub-task con
+                            </DropdownMenuItem>
+                        )}
+                        {canEdit && (
+                            <DropdownMenuItem onClick={() => onPromote(sub)}>
+                                <ArrowUpRight size={13} className="mr-2" />
+                                Chuyển thành Task
+                            </DropdownMenuItem>
+                        )}
+                        {isPM && (
+                            <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    className="text-rose-600 focus:text-rose-600"
+                                    onClick={() => onDelete(sub)}
+                                >
+                                    <Trash2 size={13} className="mr-2" />
+                                    Xóa
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+
+            {/* Inline add form under this node */}
+            {addingTo === sub.id && (
+                <div style={{ paddingLeft: (depth + 1) * 20 }}>
+                    <InlineAddForm parentId={sub.id} projectId={projectId} onDone={onAddDone} />
+                </div>
             )}
 
-            {/* Status badge */}
-            <Badge className={cn("text-xs px-2 py-0 h-5 shrink-0 border-0", statusCfg.bg)}>
-                {statusCfg.label}
-            </Badge>
-
-            {/* Promote button */}
-            <button
-                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity shrink-0"
-                onClick={() => onPromote(sub.id)}
-                title="Promote to independent task"
-                aria-label="Promote sub-task"
-            >
-                <ArrowUpRight size={13} />
-            </button>
+            {/* Expanded children */}
+            {expanded && (
+                <div>
+                    {isFetching && (
+                        <div style={{ paddingLeft: (depth + 1) * 20 }} className="text-xs text-muted-foreground py-1 px-2 animate-pulse">
+                            Đang tải...
+                        </div>
+                    )}
+                    {!isFetching && children?.map(child => (
+                        <SubTaskNode
+                            key={child.id}
+                            sub={child}
+                            projectId={projectId}
+                            depth={depth + 1}
+                            canEdit={canEdit}
+                            isPM={isPM}
+                            onPromote={onPromote}
+                            onToggleDone={onToggleDone}
+                            onDelete={onDelete}
+                            onAddChild={onAddChild}
+                            addingTo={addingTo}
+                            onAddDone={onAddDone}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     )
 }
 
-export default function SubTaskSection({ task, projectId, canEdit }: SubTaskSectionProps) {
-    const { data: subTasks = [], isLoading } = useSubTasks(task.id)
-    const addSubTask = useAddSubTask(projectId, task.id)
-    const promoteSubTask = usePromoteSubTask(projectId, task.id)
-    const updateSubTaskStatus = useUpdateSubTaskStatus(projectId, task.id)
+// ── Inline add form ───────────────────────────────────────────
 
-    const [showInput, setShowInput] = useState(false)
-    const [newTitle, setNewTitle] = useState("")
-    const [promotingId, setPromotingId] = useState<string | null>(null)
+function InlineAddForm({
+    parentId,
+    projectId,
+    onDone,
+}: {
+    parentId: string
+    projectId: string
+    onDone: () => void
+}) {
+    const [title, setTitle] = useState("")
+    const addSubTask = useAddSubTask(projectId, parentId)
+
+    const submit = () => {
+        if (!title.trim()) return
+        addSubTask.mutate(title.trim(), { onSuccess: () => { setTitle(""); onDone() } })
+    }
+
+    return (
+        <div className="flex items-center gap-2 py-1 pr-2">
+            <Input
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Tên sub-task..."
+                className="h-7 text-sm flex-1"
+                autoFocus
+                onKeyDown={e => {
+                    if (e.key === "Enter") submit()
+                    if (e.key === "Escape") { setTitle(""); onDone() }
+                }}
+            />
+            <Button size="sm" className="h-7 px-3 text-xs" onClick={submit} disabled={!title.trim() || addSubTask.isPending}>
+                Thêm
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setTitle(""); onDone() }}>
+                Huỷ
+            </Button>
+        </div>
+    )
+}
+
+// ── Main component ────────────────────────────────────────────
+
+export default function SubTaskSection({ task, projectId, canEdit, isPM = false }: SubTaskSectionProps) {
+    const { data: subTasks = [], isLoading } = useSubTasks(task.id)
+    const updateSubTaskStatus = useUpdateSubTaskStatus(projectId, task.id)
+    const promoteSubTask = usePromoteSubTask(projectId, task.id)
+    const deleteSubTask = useDeleteSubTask(projectId, task.id)
+
+    const [addingTo, setAddingTo] = useState<string | null>(null)
+    const [promotingTarget, setPromotingTarget] = useState<SubTaskResponse | null>(null)
+    const [deletingTarget, setDeletingTarget] = useState<SubTaskResponse | null>(null)
 
     const total = subTasks.length
     const done = subTasks.filter(s => s.taskStatus === "DONE" || s.taskStatus === "CANCELLED").length
     const percent = total > 0 ? Math.round((done / total) * 100) : 0
-    const atDepthLimit = ((task as any).depth ?? 0) >= 3
     const isEpic = task.type === "EPIC"
-    const canAddSubTask = canEdit && !atDepthLimit && !isEpic
-
-    const handleAddSubTask = () => {
-        if (!newTitle.trim()) return
-        addSubTask.mutate(newTitle.trim(), {
-            onSuccess: () => { setNewTitle(""); setShowInput(false) }
-        })
-    }
-
-    const handlePromote = (id: string) => setPromotingId(id)
-
-    const handleToggleDone = (sub: SubTaskResponse, checked: boolean) => {
-        const targetStatus: TaskStatus = checked ? "DONE" : "IN_PROGRESS"
-        const statusColumnId = (sub as any).statusColumnId ?? (sub as any).columnId
-        if (!statusColumnId) {
-            toast.error("Thiếu status column để cập nhật sub-task")
-            return
-        }
-        updateSubTaskStatus.mutate({
-            taskId: sub.id,
-            status: targetStatus,
-            columnId: statusColumnId,
-        })
-    }
-
-    const confirmPromote = () => {
-        if (!promotingId) return
-        promoteSubTask.mutate(promotingId, {
-            onSuccess: () => setPromotingId(null),
-            onError: () => setPromotingId(null),
-        })
-    }
+    const canAdd = canEdit && !isEpic
 
     return (
-        <div className="space-y-2">
+        <div className="space-y-2" id="subtasks-section">
             {/* Header */}
             <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold flex items-center gap-1.5">
-                    📎 Sub-tasks
-                    <span className="text-muted-foreground font-normal">{done}/{total}</span>
+                <span className="text-sm font-semibold">
+                    Sub-tasks
+                    <span className="text-muted-foreground font-normal ml-1.5">({done}/{total})</span>
                 </span>
-                {total > 0 && (
-                    <Progress value={percent} className="flex-1 h-1" />
-                )}
-                {canEdit && !isEpic && (
+                {total > 0 && <Progress value={percent} className="flex-1 h-1.5" />}
+                {canAdd && (
                     <Button
                         size="sm"
                         variant="ghost"
                         className="text-xs h-7"
-                        onClick={() => {
-                            if (atDepthLimit) {
-                                toast.error("Maximum 3 sub-task levels reached")
-                                return
-                            }
-                            setShowInput(true)
-                        }}
-                        disabled={atDepthLimit}
-                        title={atDepthLimit ? "Maximum 3 levels reached" : "Add sub-task"}
-                        aria-label="Add sub-task"
+                        onClick={() => setAddingTo(task.id)}
+                        aria-label="Thêm sub-task"
                     >
-                        <Plus size={13} className="mr-0.5" /> Add
+                        <Plus size={13} className="mr-0.5" /> Thêm
                     </Button>
                 )}
             </div>
 
             {/* Loading skeleton */}
             {isLoading && (
-                <div className="space-y-2 animate-pulse pl-2">
-                    {[1, 2].map(i => <div key={i} className="h-6 bg-muted rounded" />)}
+                <div className="space-y-1.5 animate-pulse pl-6">
+                    {[1, 2, 3].map(i => <div key={i} className="h-5 bg-muted rounded" />)}
                 </div>
             )}
 
-            {/* Sub-task list */}
-            {!isLoading && subTasks.length > 0 && (
-                <div className="divide-y divide-border/50 pl-1">
-                    {subTasks.map(s => (
-                        <SubTaskRow
-                            key={s.id}
-                            sub={s}
+            {/* Tree */}
+            {!isLoading && (
+                <div>
+                    {subTasks.map(sub => (
+                        <SubTaskNode
+                            key={sub.id}
+                            sub={sub}
                             projectId={projectId}
-                            onPromote={handlePromote}
-                            onToggleDone={handleToggleDone}
+                            depth={0}
                             canEdit={canEdit}
+                            isPM={isPM}
+                            onPromote={setPromotingTarget}
+                            onToggleDone={(s, checked) =>
+                                updateSubTaskStatus.mutate({ taskId: s.id, status: checked ? "DONE" : "IN_PROGRESS" })
+                            }
+                            onDelete={setDeletingTarget}
+                            onAddChild={setAddingTo}
+                            addingTo={addingTo}
+                            onAddDone={() => setAddingTo(null)}
                         />
                     ))}
+                    {addingTo === task.id && (
+                        <InlineAddForm
+                            parentId={task.id}
+                            projectId={projectId}
+                            onDone={() => setAddingTo(null)}
+                        />
+                    )}
                 </div>
             )}
 
-            {/* Add form */}
-            {showInput && (
-                <div className="flex items-center gap-2 pl-1">
-                    <Input
-                        value={newTitle}
-                        onChange={e => setNewTitle(e.target.value)}
-                        placeholder="Sub-task title..."
-                        className="h-8 text-sm flex-1"
-                        autoFocus
-                        onKeyDown={e => {
-                            if (e.key === "Enter") handleAddSubTask()
-                            if (e.key === "Escape") { setShowInput(false); setNewTitle("") }
-                        }}
-                    />
-                    <Button size="sm" onClick={handleAddSubTask} disabled={!newTitle.trim() || addSubTask.isPending}>
-                        Add
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setShowInput(false); setNewTitle("") }}>
-                        Cancel
-                    </Button>
-                </div>
-            )}
-
-            {/* Promote confirm dialog */}
-            <Dialog open={!!promotingId} onOpenChange={() => setPromotingId(null)}>
-                <DialogContent>
+            {/* Promote dialog */}
+            <Dialog open={!!promotingTarget} onOpenChange={() => setPromotingTarget(null)}>
+                <DialogContent className="max-w-sm">
                     <DialogHeader>
-                        <DialogTitle>Promote sub-task?</DialogTitle>
-                        <DialogDescription>
-                            This sub-task will become an independent task and will no longer be a child of the current task.
+                        <DialogTitle>Chuyển thành Task độc lập?</DialogTitle>
+                        <DialogDescription asChild>
+                            <div className="space-y-2 text-sm text-muted-foreground mt-1">
+                                <p>
+                                    Sub-task <b className="text-foreground">&ldquo;{promotingTarget?.title}&rdquo;</b> sẽ được tách ra khỏi{" "}
+                                    <b className="text-foreground">{task.taskCode}</b>.
+                                </p>
+                                {(promotingTarget?.subtaskCount ?? 0) > 0 && (
+                                    <p className="text-amber-600 font-medium text-xs">
+                                        ⚠ Sub-task con (nếu có) sẽ theo cùng.
+                                    </p>
+                                )}
+                            </div>
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex justify-end gap-2 mt-4">
-                        <Button variant="ghost" size="sm" onClick={() => setPromotingId(null)}>Cancel</Button>
-                        <Button size="sm" onClick={confirmPromote} disabled={promoteSubTask.isPending}>
-                            Confirm
+                    <div className="flex justify-end gap-2 mt-2">
+                        <Button variant="ghost" size="sm" onClick={() => setPromotingTarget(null)}>Huỷ</Button>
+                        <Button
+                            size="sm"
+                            onClick={() => {
+                                if (!promotingTarget) return
+                                promoteSubTask.mutate(promotingTarget.id, {
+                                    onSuccess: () => setPromotingTarget(null),
+                                    onError: () => setPromotingTarget(null),
+                                })
+                            }}
+                            disabled={promoteSubTask.isPending}
+                        >
+                            Xác nhận
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete dialog */}
+            <Dialog open={!!deletingTarget} onOpenChange={() => setDeletingTarget(null)}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Xóa sub-task?</DialogTitle>
+                        <DialogDescription>
+                            Tất cả sub-task con (nếu có) cũng sẽ bị xóa theo. Hành động này không thể hoàn tác.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex justify-end gap-2 mt-2">
+                        <Button variant="ghost" size="sm" onClick={() => setDeletingTarget(null)}>Huỷ</Button>
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                                if (!deletingTarget) return
+                                deleteSubTask.mutate(deletingTarget.id, {
+                                    onSuccess: () => setDeletingTarget(null),
+                                    onError: () => setDeletingTarget(null),
+                                })
+                            }}
+                            disabled={deleteSubTask.isPending}
+                        >
+                            Xóa
                         </Button>
                     </div>
                 </DialogContent>

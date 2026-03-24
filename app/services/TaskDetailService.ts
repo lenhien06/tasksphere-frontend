@@ -114,6 +114,10 @@ export const TaskDetailService = {
         apiJava.post(`/v1/tasks/${subtaskId}/promote`)
             .then(r => r.data.data),
 
+    deleteSubtask: (projectId: string, subtaskId: string) =>
+        apiJava.delete(`/v1/projects/${projectId}/tasks/${subtaskId}`)
+            .then(() => undefined),
+
     // ════════════ ACTIVITY LOG ════════════
     getTaskActivity: (
         projectId: string,

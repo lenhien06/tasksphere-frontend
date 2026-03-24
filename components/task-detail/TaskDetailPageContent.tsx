@@ -321,7 +321,15 @@ export default function TaskDetailPageContent({
 
                 {/* Details */}
                 <div className="mb-4">
-                    <TaskMetaGrid task={task} projectId={projectId} canEdit={canEdit} etag={data.etag} />
+                    <TaskMetaGrid
+                        task={task}
+                        projectId={projectId}
+                        canEdit={canEdit}
+                        etag={data.etag}
+                        onBlockedBySubtask={(pending) =>
+                            setBlockedDialog({ open: true, taskTitle: task.title, pendingSubtasks: pending })
+                        }
+                    />
                 </div>
 
                 {/* Description block */}
@@ -342,7 +350,7 @@ export default function TaskDetailPageContent({
                             </span>
                         </AccordionTrigger>
                         <AccordionContent className="pt-2">
-                             <SubTaskSection task={task} projectId={projectId} canEdit={canEdit} />
+                             <SubTaskSection task={task} projectId={projectId} canEdit={canEdit} isPM={isAdminOrPM} />
                         </AccordionContent>
                     </AccordionItem>
 

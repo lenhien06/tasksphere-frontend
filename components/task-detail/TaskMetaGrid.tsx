@@ -37,6 +37,7 @@ interface TaskMetaGridProps {
     projectId: string
     canEdit: boolean
     etag?: string
+    onBlockedBySubtask?: (pendingSubtasks: any[]) => void
 }
 
 // ── Reusable Field Label with Icon ─────────────────────────
@@ -54,7 +55,7 @@ function FieldLabel({ icon: Icon, label }: { icon: any; label: string }) {
 
 const STATUS_ORDER: TaskStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"]
 
-function StatusField({ task, projectId, canEdit, etag }: { task: TaskDetailResponse; projectId: string; canEdit: boolean; etag?: string }) {
+function StatusField({ task, projectId, canEdit, etag, onBlockedBySubtask }: { task: TaskDetailResponse; projectId: string; canEdit: boolean; etag?: string; onBlockedBySubtask?: (p: any[]) => void }) {
     const qc = useQueryClient()
 
     const updateStatus = useMutation({
@@ -68,7 +69,12 @@ function StatusField({ task, projectId, canEdit, etag }: { task: TaskDetailRespo
         },
         onError: (err: any) => {
             if (err?.response?.status === 422) {
-                toast.error(err?.response?.data?.meta?.message ?? err?.response?.data?.message ?? "Không thể chuyển trạng thái")
+                const pending = err?.response?.data?.meta?.pendingSubtasks
+                if (pending && onBlockedBySubtask) {
+                    onBlockedBySubtask(pending)
+                } else {
+                    toast.error(err?.response?.data?.message ?? "Không thể chuyển trạng thái")
+                }
             } else {
                 toast.error(err?.response?.data?.message ?? "Error updating status")
             }
@@ -295,7 +301,7 @@ function WorklogWidget({ task, projectId, canEdit }: { task: TaskDetailResponse;
 
 // ── Main Component ─────────────────────────────────────────
 
-export default function TaskMetaGrid({ task, projectId, canEdit, etag }: TaskMetaGridProps) {
+export default function TaskMetaGrid({ task, projectId, canEdit, etag, onBlockedBySubtask }: TaskMetaGridProps) {
     const qc = useQueryClient()
     const updateTask = useMutation({
         mutationFn: (data: any) => TaskService.updateTask(projectId, task.id, { title: task.title, ...data }),
@@ -326,7 +332,7 @@ export default function TaskMetaGrid({ task, projectId, canEdit, etag }: TaskMet
                 <div><FieldLabel icon={Hash} label="Story Points" /><InlineNumberField value={task.storyPoints} onSave={v => updateTask.mutate({ storyPoints: v })} readOnly={!canEdit} /></div>
             </div>
             <div className="space-y-5">
-                <div><FieldLabel icon={Target} label="Status" /><StatusField task={task} projectId={projectId} canEdit={canEdit} etag={etag} /></div>
+                <div><FieldLabel icon={Target} label="Status" /><StatusField task={task} projectId={projectId} canEdit={canEdit} etag={etag} onBlockedBySubtask={onBlockedBySubtask} /></div>
                 <div><FieldLabel icon={Flag} label="Priority" /><PriorityField priority={task.priority} onSave={p => updateTask.mutate({ priority: p })} readOnly={!canEdit} /></div>
                 <WorklogWidget task={task} projectId={projectId} canEdit={canEdit} />
             </div>
