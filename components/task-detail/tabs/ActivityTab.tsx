@@ -176,6 +176,26 @@ function renderChips(item: TaskActivityItem): React.ReactNode | null {
       )
     }
 
+    case "POSITION_CHANGED": {
+      const o = safeStr(old?.columnName)
+      const n = safeStr(nw?.columnName)
+      if (o === "—" && n === "—") return null
+      return (
+        <span>
+          <span style={chipOld}>{o}</span>
+          <span style={arrowStyle}>→</span>
+          <span style={chipNew}>{n}</span>
+        </span>
+      )
+    }
+
+    case "COMMENT_ADDED": {
+      const content = safeStr(nw?.content)
+      if (content === "—") return null
+      const preview = content.length > 60 ? content.slice(0, 60) + "…" : content
+      return <span style={chipNeutral}>{preview}</span>
+    }
+
     case "SPRINT_CHANGED": {
       const o = safeStr(old?.sprintName ?? old?.sprint, "Backlog")
       const n = safeStr(nw?.sprintName  ?? nw?.sprint,  "Backlog")
@@ -214,9 +234,7 @@ function renderChips(item: TaskActivityItem): React.ReactNode | null {
 
     // No chips for these
     case "TASK_CREATED":
-    case "COMMENT_ADDED":
     case "COMMENT_DELETED":
-    case "POSITION_CHANGED":
     default:
       return null
   }
