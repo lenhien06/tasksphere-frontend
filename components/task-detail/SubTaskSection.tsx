@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Plus, ChevronRight, MoreHorizontal, ExternalLink, ArrowUpRight, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,14 +20,16 @@ import {
     useSubTasks,
     useAddSubTask,
     usePromoteSubTask,
-    useUpdateSubTaskStatus,
     useDeleteSubTask,
 } from "@/hooks/useSubTasks"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { TaskService } from "@/app/services/TaskService"
 import { PRIORITY_CONFIG } from "@/components/task-detail/config"
-import type { TaskDetailResponse, SubTaskResponse } from "@/app/types/task.schema"
+import type { TaskDetailResponse, SubTaskResponse, TaskStatus } from "@/app/types/task.schema"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "sonner"
 
 interface SubTaskSectionProps {
     task: TaskDetailResponse
@@ -36,47 +38,93 @@ interface SubTaskSectionProps {
     isPM?: boolean
 }
 
+// ── Per-node toggle mutation (uses the correct parent cache key) ──
+
+function useToggleSubtask(projectId: string, parentId: string) {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: ({ taskId, status }: { taskId: string; status: TaskStatus }) =>
+            TaskService.updateStatus(projectId, taskId, { status }),
+        onMutate: async ({ taskId, status }) => {
+            await qc.cancelQueries({ queryKey: ["subtasks", parentId] })
+            const prev = qc.getQueryData(["subtasks", parentId])
+            qc.setQueryData(["subtasks", parentId], (old: SubTaskResponse[] | undefined) =>
+                old?.map(s => s.id === taskId ? { ...s, taskStatus: status } : s)
+            )
+            return { prev }
+        },
+        onError: (_err, _vars, ctx) => {
+            if (ctx?.prev) qc.setQueryData(["subtasks", parentId], ctx.prev)
+            toast.error("Không thể cập nhật trạng thái")
+        },
+        onSettled: () => {
+            // Invalidate both this node's children list and the parent list to keep counts fresh
+            qc.invalidateQueries({ queryKey: ["subtasks", parentId] })
+            qc.invalidateQueries({ queryKey: ["task", projectId] })
+        },
+    })
+}
+
 // ── Recursive subtask node ────────────────────────────────────
 
 interface SubTaskNodeProps {
     sub: SubTaskResponse
+    parentId: string        // ID of the list this node belongs to (for cache ops)
     projectId: string
     depth: number
     canEdit: boolean
     isPM: boolean
     onPromote: (sub: SubTaskResponse) => void
-    onToggleDone: (sub: SubTaskResponse, checked: boolean) => void
     onDelete: (sub: SubTaskResponse) => void
-    onAddChild: (parentId: string) => void
     addingTo: string | null
+    onAddChild: (parentId: string) => void
     onAddDone: () => void
 }
 
 function SubTaskNode({
     sub,
+    parentId,
     projectId,
     depth,
     canEdit,
     isPM,
     onPromote,
-    onToggleDone,
     onDelete,
-    onAddChild,
     addingTo,
+    onAddChild,
     onAddDone,
 }: SubTaskNodeProps) {
     const router = useRouter()
     const [expanded, setExpanded] = useState(false)
+    const [localDone, setLocalDone] = useState(sub.taskStatus === "DONE")
     const { data: children, isFetching } = useSubTasks(expanded ? sub.id : "")
+    const toggleMutation = useToggleSubtask(projectId, parentId)
     const priCfg = PRIORITY_CONFIG[sub.priority]
     const hasChildren = sub.subtaskCount > 0
-    const isDone = sub.taskStatus === "DONE"
     const isCancelled = sub.taskStatus === "CANCELLED"
+
+    // Sync localDone from server (e.g. websocket push)
+    useEffect(() => {
+        setLocalDone(sub.taskStatus === "DONE")
+    }, [sub.taskStatus])
+
+    // Auto-expand when this node is the target for adding a child
+    useEffect(() => {
+        if (addingTo === sub.id) setExpanded(true)
+    }, [addingTo, sub.id])
+
+    const handleToggle = (checked: boolean) => {
+        setLocalDone(checked)
+        toggleMutation.mutate(
+            { taskId: sub.id, status: (checked ? "DONE" : "IN_PROGRESS") as TaskStatus },
+            { onError: () => setLocalDone(!checked) }
+        )
+    }
 
     return (
         <div style={{ paddingLeft: depth * 20 }}>
             <div className="flex items-center gap-2 py-1.5 group hover:bg-accent/30 rounded px-2 transition-colors">
-                {/* Expand toggle */}
+                {/* Expand toggle — only if has children, no ▶ icon */}
                 <button
                     className={cn(
                         "w-4 h-4 flex items-center justify-center shrink-0 text-muted-foreground transition-transform",
@@ -89,11 +137,11 @@ function SubTaskNode({
                     <ChevronRight size={12} />
                 </button>
 
-                {/* Checkbox */}
+                {/* Checkbox — uses local state for instant feedback */}
                 <Checkbox
-                    checked={isDone}
-                    onCheckedChange={(v) => onToggleDone(sub, !!v)}
-                    disabled={!canEdit || isCancelled}
+                    checked={localDone}
+                    onCheckedChange={(v) => handleToggle(!!v)}
+                    disabled={!canEdit || isCancelled || toggleMutation.isPending}
                     className="h-4 w-4 rounded-full shrink-0"
                 />
 
@@ -101,7 +149,7 @@ function SubTaskNode({
                 <button
                     className={cn(
                         "flex-1 text-left text-sm truncate hover:text-primary transition-colors",
-                        (isDone || isCancelled) && "line-through text-muted-foreground"
+                        (localDone || isCancelled) && "line-through text-muted-foreground"
                     )}
                     onClick={() => router.push(`/projects/${projectId}/tasks/${sub.id}`)}
                 >
@@ -109,10 +157,10 @@ function SubTaskNode({
                     {sub.title}
                 </button>
 
-                {/* Child count badge */}
+                {/* Child count badge — no ▶ */}
                 {hasChildren && (
                     <span className="text-[10px] text-muted-foreground shrink-0 font-medium">
-                        ▶ {sub.completedSubtaskCount}/{sub.subtaskCount}
+                        {sub.completedSubtaskCount}/{sub.subtaskCount}
                     </span>
                 )}
 
@@ -174,7 +222,11 @@ function SubTaskNode({
             {/* Inline add form under this node */}
             {addingTo === sub.id && (
                 <div style={{ paddingLeft: (depth + 1) * 20 }}>
-                    <InlineAddForm parentId={sub.id} projectId={projectId} onDone={onAddDone} />
+                    <InlineAddForm
+                        parentId={sub.id}
+                        projectId={projectId}
+                        onDone={onAddDone}
+                    />
                 </div>
             )}
 
@@ -182,20 +234,25 @@ function SubTaskNode({
             {expanded && (
                 <div>
                     {isFetching && (
-                        <div style={{ paddingLeft: (depth + 1) * 20 }} className="text-xs text-muted-foreground py-1 px-2 animate-pulse">
-                            Đang tải...
+                        <div style={{ paddingLeft: (depth + 1) * 20 }} className="space-y-1.5 py-1 animate-pulse px-2">
+                            {[1, 2].map(i => (
+                                <div key={i} className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded bg-muted shrink-0" />
+                                    <div className="h-4 bg-muted rounded flex-1" />
+                                </div>
+                            ))}
                         </div>
                     )}
                     {!isFetching && children?.map(child => (
                         <SubTaskNode
                             key={child.id}
                             sub={child}
+                            parentId={sub.id}      // ← correct parent cache key
                             projectId={projectId}
                             depth={depth + 1}
                             canEdit={canEdit}
                             isPM={isPM}
                             onPromote={onPromote}
-                            onToggleDone={onToggleDone}
                             onDelete={onDelete}
                             onAddChild={onAddChild}
                             addingTo={addingTo}
@@ -219,12 +276,20 @@ function InlineAddForm({
     projectId: string
     onDone: () => void
 }) {
+    const qc = useQueryClient()
     const [title, setTitle] = useState("")
     const addSubTask = useAddSubTask(projectId, parentId)
 
     const submit = () => {
         if (!title.trim()) return
-        addSubTask.mutate(title.trim(), { onSuccess: () => { setTitle(""); onDone() } })
+        addSubTask.mutate(title.trim(), {
+            onSuccess: () => {
+                setTitle("")
+                onDone()
+                // Refresh all subtask lists so parent counts update
+                qc.invalidateQueries({ queryKey: ["subtasks"] })
+            },
+        })
     }
 
     return (
@@ -241,7 +306,7 @@ function InlineAddForm({
                 }}
             />
             <Button size="sm" className="h-7 px-3 text-xs" onClick={submit} disabled={!title.trim() || addSubTask.isPending}>
-                Thêm
+                {addSubTask.isPending ? "..." : "Thêm"}
             </Button>
             <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setTitle(""); onDone() }}>
                 Huỷ
@@ -254,7 +319,6 @@ function InlineAddForm({
 
 export default function SubTaskSection({ task, projectId, canEdit, isPM = false }: SubTaskSectionProps) {
     const { data: subTasks = [], isLoading } = useSubTasks(task.id)
-    const updateSubTaskStatus = useUpdateSubTaskStatus(projectId, task.id)
     const promoteSubTask = usePromoteSubTask(projectId, task.id)
     const deleteSubTask = useDeleteSubTask(projectId, task.id)
 
@@ -263,7 +327,7 @@ export default function SubTaskSection({ task, projectId, canEdit, isPM = false 
     const [deletingTarget, setDeletingTarget] = useState<SubTaskResponse | null>(null)
 
     const total = subTasks.length
-    const done = subTasks.filter(s => s.taskStatus === "DONE" || s.taskStatus === "CANCELLED").length
+    const done = subTasks.filter(s => s.taskStatus === "DONE").length
     const percent = total > 0 ? Math.round((done / total) * 100) : 0
     const isEpic = task.type === "EPIC"
     const canAdd = canEdit && !isEpic
@@ -304,14 +368,12 @@ export default function SubTaskSection({ task, projectId, canEdit, isPM = false 
                         <SubTaskNode
                             key={sub.id}
                             sub={sub}
+                            parentId={task.id}      // top-level nodes belong to task.id list
                             projectId={projectId}
                             depth={0}
                             canEdit={canEdit}
                             isPM={isPM}
                             onPromote={setPromotingTarget}
-                            onToggleDone={(s, checked) =>
-                                updateSubTaskStatus.mutate({ taskId: s.id, status: checked ? "DONE" : "IN_PROGRESS" })
-                            }
                             onDelete={setDeletingTarget}
                             onAddChild={setAddingTo}
                             addingTo={addingTo}
