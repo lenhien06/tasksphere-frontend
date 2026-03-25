@@ -237,7 +237,7 @@ export default function TaskDetailPageContent({
 
     return (
         <div className={cn("bg-white", onClose ? "flex flex-col h-full" : "flex flex-col min-h-screen")}>
-            <div className={cn("px-8 py-6 flex-1", onClose ? "overflow-y-auto" : "")}>
+            <div className={cn("px-8 py-6 pb-24 flex-1", onClose ? "overflow-y-auto" : "")}>
                 
                 {/* Professional Jira-style Header */}
                 <div className="flex items-start justify-between gap-6 mb-4">

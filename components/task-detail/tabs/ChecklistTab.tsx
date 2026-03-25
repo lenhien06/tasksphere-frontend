@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Plus, Trash2, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,8 +40,14 @@ function SortableChecklistItem({
 }) {
     const [editing, setEditing] = useState(false)
     const [editTitle, setEditTitle] = useState(item.title)
+    const [localDone, setLocalDone] = useState(item.isDone)
     const updateItem = useUpdateChecklistItem(taskId)
     const deleteItem = useDeleteChecklistItem(taskId)
+
+    // Sync local state when server data changes externally (e.g. websocket)
+    useEffect(() => {
+        setLocalDone(item.isDone)
+    }, [item.isDone])
 
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: item.id,
@@ -54,7 +60,12 @@ function SortableChecklistItem({
     }
 
     const handleToggle = () => {
-        updateItem.mutate({ itemId: item.id, data: { isDone: !item.isDone } })
+        const newValue = !localDone
+        setLocalDone(newValue)
+        updateItem.mutate(
+            { itemId: item.id, data: { isDone: newValue } },
+            { onError: () => setLocalDone(!newValue) }
+        )
     }
 
     const handleSaveTitle = () => {
@@ -80,7 +91,7 @@ function SortableChecklistItem({
                 <GripVertical size={14} />
             </button>
             <Checkbox
-                checked={item.isDone}
+                checked={localDone}
                 onCheckedChange={handleToggle}
                 aria-label={`Complete: ${item.title}`}
                 className="shrink-0"
@@ -101,7 +112,7 @@ function SortableChecklistItem({
                 <span
                     className={cn(
                         "flex-1 text-sm cursor-pointer hover:text-primary truncate",
-                        item.isDone && "line-through text-muted-foreground"
+                        localDone && "line-through text-muted-foreground"
                     )}
                     onClick={() => setEditing(true)}
                     aria-label={`Edit: ${item.title}`}
