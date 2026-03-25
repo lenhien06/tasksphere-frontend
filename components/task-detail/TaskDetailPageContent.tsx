@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { Bug, CheckSquare, BookOpen, Zap, Subtitles, MoreHorizontal, Trash2, X, Link2, Pencil } from "lucide-react"
+import { Bug, CheckSquare, BookOpen, Zap, Subtitles, MoreHorizontal, Trash2, X, Link2, Pencil, ArrowUpRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation"
 import TaskDetailTabs from "@/components/task-detail/TaskDetailTabs"
 import { STATUS_CONFIG } from "@/components/task-detail/config"
 import SubTaskSection from "@/components/task-detail/SubTaskSection"
+import PromoteSubTaskDialog from "@/components/task-detail/PromoteSubTaskDialog"
 import DependencySection from "@/components/task-detail/DependencySection"
 import RecurringSection from "@/components/task-detail/RecurringSection"
 import CustomFieldSection from "@/components/task-detail/CustomFieldSection"
@@ -103,6 +104,7 @@ export default function TaskDetailPageContent({
     const [newFieldType, setNewFieldType] = React.useState<CustomFieldType>("TEXT")
     const [newFieldRequired, setNewFieldRequired] = React.useState(false)
     const [newFieldOptionsText, setNewFieldOptionsText] = React.useState("")
+    const [promoteToTaskOpen, setPromoteToTaskOpen] = React.useState(false)
 
     const { data, isLoading, isError } = useQuery({
         queryKey: ["task", projectId, taskId],
@@ -293,6 +295,18 @@ export default function TaskDetailPageContent({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 pt-1">
+                        {task.parentTask && canEdit && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-9 rounded-xl text-xs font-semibold border-slate-200"
+                                onClick={() => setPromoteToTaskOpen(true)}
+                            >
+                                <ArrowUpRight size={14} className="mr-1.5" />
+                                Nâng cấp thành Task
+                            </Button>
+                        )}
                         {canDelete && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -495,6 +509,29 @@ export default function TaskDetailPageContent({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {task.parentTask && (
+                <PromoteSubTaskDialog
+                    open={promoteToTaskOpen}
+                    onOpenChange={setPromoteToTaskOpen}
+                    projectId={projectId}
+                    subtasksListParentId={task.parentTask.id}
+                    assigneeFallback={null}
+                    source={
+                        promoteToTaskOpen
+                            ? {
+                                  id: task.id,
+                                  title: task.title,
+                                  taskCode: task.taskCode,
+                                  assignee: task.assignee,
+                                  dueDate: task.dueDate,
+                                  subtaskCount: task.subtaskCount,
+                                  description: task.description,
+                              }
+                            : null
+                    }
+                />
+            )}
         </div>
     )
 }

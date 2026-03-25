@@ -110,9 +110,16 @@ export const TaskDetailService = {
         apiJava.post(`/v1/tasks/${parentTaskId}/subtasks`, { title })
             .then(r => r.data.data as SubTaskResponse),
 
-    promoteSubtask: (subtaskId: string) =>
-        apiJava.post(`/v1/tasks/${subtaskId}/promote`)
-            .then(r => r.data.data),
+    promoteSubtask: (
+        subtaskId: string,
+        body: {
+            title: string
+            assigneeId: string | null
+            dueDate: string | null
+            description: string | null
+        }
+    ) =>
+        apiJava.post(`/v1/tasks/${subtaskId}/promote`, body).then(r => r.data.data),
 
     deleteSubtask: (projectId: string, subtaskId: string) =>
         apiJava.delete(`/v1/projects/${projectId}/tasks/${subtaskId}`)

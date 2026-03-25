@@ -56,20 +56,6 @@ export function useUpdateSubTaskStatus(projectId: string, parentTaskId: string) 
     })
 }
 
-export function usePromoteSubTask(projectId: string, parentTaskId: string) {
-    const qc = useQueryClient()
-    return useMutation({
-        mutationFn: (subtaskId: string) => TaskDetailService.promoteSubtask(subtaskId),
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["subtasks", parentTaskId] })
-            qc.invalidateQueries({ queryKey: ["task", projectId, parentTaskId] })
-            toast.success("Đã chuyển thành task độc lập")
-        },
-        onError: (err: any) => {
-            toast.error(err?.response?.data?.message ?? "Không thể chuyển sub-task")
-        },
-    })
-}
 
 export function useDeleteSubTask(projectId: string, parentTaskId: string) {
     const qc = useQueryClient()

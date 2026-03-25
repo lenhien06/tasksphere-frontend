@@ -19,13 +19,13 @@ import { UserAvatar } from "@/components/common/UserAvatar"
 import {
     useSubTasks,
     useAddSubTask,
-    usePromoteSubTask,
     useDeleteSubTask,
 } from "@/hooks/useSubTasks"
+import PromoteSubTaskDialog from "@/components/task-detail/PromoteSubTaskDialog"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { TaskService } from "@/app/services/TaskService"
 import { PRIORITY_CONFIG } from "@/components/task-detail/config"
-import type { TaskDetailResponse, SubTaskResponse, TaskStatus } from "@/app/types/task.schema"
+import type { TaskDetailResponse, SubTaskResponse, TaskStatus, UserSummary } from "@/app/types/task.schema"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -74,7 +74,8 @@ interface SubTaskNodeProps {
     depth: number
     canEdit: boolean
     isPM: boolean
-    onPromote: (sub: SubTaskResponse) => void
+    assigneeFallback: UserSummary | null
+    onPromote: (sub: SubTaskResponse, fallback: UserSummary | null) => void
     onDelete: (sub: SubTaskResponse) => void
     addingTo: string | null
     onAddChild: (parentId: string) => void
@@ -88,6 +89,7 @@ function SubTaskNode({
     depth,
     canEdit,
     isPM,
+    assigneeFallback,
     onPromote,
     onDelete,
     addingTo,
@@ -198,7 +200,7 @@ function SubTaskNode({
                             </DropdownMenuItem>
                         )}
                         {canEdit && (
-                            <DropdownMenuItem onClick={() => onPromote(sub)}>
+                            <DropdownMenuItem onClick={() => onPromote(sub, assigneeFallback)}>
                                 <ArrowUpRight size={13} className="mr-2" />
                                 Chuyển thành Task
                             </DropdownMenuItem>
@@ -252,6 +254,7 @@ function SubTaskNode({
                             depth={depth + 1}
                             canEdit={canEdit}
                             isPM={isPM}
+                            assigneeFallback={sub.assignee}
                             onPromote={onPromote}
                             onDelete={onDelete}
                             onAddChild={onAddChild}
@@ -319,11 +322,11 @@ function InlineAddForm({
 
 export default function SubTaskSection({ task, projectId, canEdit, isPM = false }: SubTaskSectionProps) {
     const { data: subTasks = [], isLoading } = useSubTasks(task.id)
-    const promoteSubTask = usePromoteSubTask(projectId, task.id)
     const deleteSubTask = useDeleteSubTask(projectId, task.id)
 
     const [addingTo, setAddingTo] = useState<string | null>(null)
     const [promotingTarget, setPromotingTarget] = useState<SubTaskResponse | null>(null)
+    const [promoteAssigneeFallback, setPromoteAssigneeFallback] = useState<UserSummary | null>(null)
     const [deletingTarget, setDeletingTarget] = useState<SubTaskResponse | null>(null)
 
     const total = subTasks.length
@@ -373,7 +376,11 @@ export default function SubTaskSection({ task, projectId, canEdit, isPM = false 
                             depth={0}
                             canEdit={canEdit}
                             isPM={isPM}
-                            onPromote={setPromotingTarget}
+                            assigneeFallback={task.assignee ?? null}
+                            onPromote={(s, fb) => {
+                                setPromoteAssigneeFallback(fb)
+                                setPromotingTarget(s)
+                            }}
                             onDelete={setDeletingTarget}
                             onAddChild={setAddingTo}
                             addingTo={addingTo}
@@ -390,43 +397,31 @@ export default function SubTaskSection({ task, projectId, canEdit, isPM = false 
                 </div>
             )}
 
-            {/* Promote dialog */}
-            <Dialog open={!!promotingTarget} onOpenChange={() => setPromotingTarget(null)}>
-                <DialogContent className="max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>Chuyển thành Task độc lập?</DialogTitle>
-                        <DialogDescription asChild>
-                            <div className="space-y-2 text-sm text-muted-foreground mt-1">
-                                <p>
-                                    Sub-task <b className="text-foreground">&ldquo;{promotingTarget?.title}&rdquo;</b> sẽ được tách ra khỏi{" "}
-                                    <b className="text-foreground">{task.taskCode}</b>.
-                                </p>
-                                {(promotingTarget?.subtaskCount ?? 0) > 0 && (
-                                    <p className="text-amber-600 font-medium text-xs">
-                                        ⚠ Sub-task con (nếu có) sẽ theo cùng.
-                                    </p>
-                                )}
-                            </div>
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex justify-end gap-2 mt-2">
-                        <Button variant="ghost" size="sm" onClick={() => setPromotingTarget(null)}>Huỷ</Button>
-                        <Button
-                            size="sm"
-                            onClick={() => {
-                                if (!promotingTarget) return
-                                promoteSubTask.mutate(promotingTarget.id, {
-                                    onSuccess: () => setPromotingTarget(null),
-                                    onError: () => setPromotingTarget(null),
-                                })
-                            }}
-                            disabled={promoteSubTask.isPending}
-                        >
-                            Xác nhận
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <PromoteSubTaskDialog
+                open={!!promotingTarget}
+                onOpenChange={(o) => {
+                    if (!o) {
+                        setPromotingTarget(null)
+                        setPromoteAssigneeFallback(null)
+                    }
+                }}
+                projectId={projectId}
+                subtasksListParentId={task.id}
+                assigneeFallback={promoteAssigneeFallback}
+                source={
+                    promotingTarget
+                        ? {
+                            id: promotingTarget.id,
+                            title: promotingTarget.title,
+                            taskCode: promotingTarget.taskCode,
+                            assignee: promotingTarget.assignee,
+                            dueDate: promotingTarget.dueDate,
+                            subtaskCount: promotingTarget.subtaskCount,
+                            description: null,
+                        }
+                        : null
+                }
+            />
 
             {/* Delete dialog */}
             <Dialog open={!!deletingTarget} onOpenChange={() => setDeletingTarget(null)}>

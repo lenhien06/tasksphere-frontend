@@ -96,7 +96,10 @@ export function useProjectWebSocket(projectId: string, onEvent?: (event: Project
             }
         }
 
-        const handleEvent = (event: ProjectWebSocketEvent) => {
+        const handleEvent = (raw: ProjectWebSocketEvent & { data?: unknown }) => {
+            const payload = raw.payload !== undefined ? raw.payload : raw.data
+            const event = { ...raw, payload } as ProjectWebSocketEvent & { payload: any }
+
             switch (event.type) {
                 case "sprint.started":
                     qc.invalidateQueries({ queryKey: ["sprints", projectId] })
@@ -131,6 +134,17 @@ export function useProjectWebSocket(projectId: string, onEvent?: (event: Project
                     toast.error(
                         `File "${event.payload?.fileName ?? "unknown"}" bị từ chối — không an toàn (virus scan failed)`
                     )
+                    break
+                case "subtask.promoted":
+                    qc.invalidateQueries({ queryKey: ["tasks", projectId] })
+                    qc.invalidateQueries({ queryKey: ["backlog", projectId] })
+                    if (event.payload?.oldParentTaskId) {
+                        qc.invalidateQueries({ queryKey: ["subtasks", event.payload.oldParentTaskId] })
+                        qc.invalidateQueries({ queryKey: ["task", projectId, event.payload.oldParentTaskId] })
+                    }
+                    if (event.payload?.promotedTaskId) {
+                        qc.invalidateQueries({ queryKey: ["task", projectId, event.payload.promotedTaskId] })
+                    }
                     break
             }
         }
