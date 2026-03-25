@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (remove prettier after install - devDep not needed in build)
+RUN npm ci && rm -rf node_modules/prettier
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
