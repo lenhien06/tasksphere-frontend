@@ -31,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/app/services/auth.service";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useAIModalStore } from "@/stores/useAIModalStore";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -170,6 +171,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const { t } = useTranslation()
   const { logout } = useAuthStore()
+  const openAIModal = useAIModalStore((s) => s.open);
 
   const handleLogout = async () => {
     try {
@@ -355,12 +357,25 @@ export default function Sidebar({
               <p className="mt-1 text-[10px] text-slate-500 leading-relaxed italic">
                 "{t('sidebar.aiDesc')}"
               </p>
-              <button className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-2 py-2 text-[10px] font-bold text-white hover:from-purple-500 hover:to-blue-500 transition-all shadow-lg active:scale-95">
-                {t('landing.getStarted')}
+              <button
+                onClick={openAIModal}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-2 py-2 text-[10px] font-bold text-white hover:from-purple-500 hover:to-blue-500 transition-all shadow-lg active:scale-95"
+              >
+                <Sparkles size={11} />
+                Tạo dự án với AI
               </button>
             </motion.div>
           )}
         </AnimatePresence>        
+        {isCollapsed && (
+          <button
+            onClick={openAIModal}
+            title="Tạo dự án với AI"
+            className="mx-auto mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 transition-all"
+          >
+            <Sparkles size={16} />
+          </button>
+        )}
         <MenuItem icon={HelpCircle} label={t('sidebar.helpFeedback')} path="/help" active={activeItem === "/help"} onClick={onNavigate} isCollapsed={isCollapsed} />
         
         <div 

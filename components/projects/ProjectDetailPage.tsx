@@ -435,6 +435,23 @@ function ChangeRoleModal({ isOpen, onClose, member, onSubmit, isLoading }: {
     );
 }
 
+const SKILL_COLORS: Record<string, string> = {
+    "React": "bg-emerald-500 text-white",
+    "Vue.js": "bg-blue-500 text-white",
+    "Python": "bg-blue-600 text-white",
+    "Django": "bg-emerald-700 text-white",
+    "Linux": "bg-purple-600 text-white",
+    "AWS": "bg-orange-500 text-white",
+    "Selenium": "bg-red-500 text-white",
+    "JMeter": "bg-yellow-500 text-white",
+    "Scrum": "bg-cyan-500 text-white",
+    "Jira": "bg-fuchsia-500 text-white",
+    "SQL": "bg-blue-600 text-white",
+    "Tableau": "bg-purple-600 text-white",
+    "Node.js": "bg-emerald-500 text-white",
+    "MongoDB": "bg-orange-500 text-white",
+};
+
 function TabMembers({ project }: { project: Project }) {
     const { t } = useTranslation()
     const router = useRouter();
@@ -443,6 +460,36 @@ function TabMembers({ project }: { project: Project }) {
     const [changeRoleTarget, setChangeRoleTarget] = useState<{ id: string; userId: string; fullName: string; currentRole: string } | null>(null);
     const queryClient = useQueryClient();
     
+    // --- SKILL MOCK & STATE ---
+    const [addingSkillToMemberId, setAddingSkillToMemberId] = useState<string | null>(null);
+    const [newSkillText, setNewSkillText] = useState("");
+    const [mockSkills, setMockSkills] = useState<Record<string, string[]>>({
+        'dev4@tasksphere.local': ['React', 'Vue.js'],
+        'dev1@tasksphere.local': ['Python', 'Django'],
+        'admin@tasksphere.local': ['Linux', 'AWS'],
+        'qa@tasksphere.local': ['Selenium', 'JMeter'],
+        'pm@tasksphere.local': ['Scrum', 'Jira'],
+        'ba@tasksphere.local': ['SQL', 'Tableau'],
+        'dev3@tasksphere.local': ['Node.js', 'MongoDB'],
+    });
+
+    const handleRemoveSkill = (memberId: string, email: string, skill: string) => {
+        toast.success(`Đã xóa skill ${skill}`);
+        setMockSkills(prev => ({ ...prev, [email]: (prev[email] || []).filter(s => s !== skill) }));
+    };
+
+    const handleAddSkill = (memberId: string, email: string) => {
+        if (!newSkillText.trim()) {
+            setAddingSkillToMemberId(null);
+            return;
+        }
+        toast.success(`Đã thêm skill ${newSkillText.trim()}`);
+        setMockSkills(prev => ({ ...prev, [email]: [...(prev[email] || []), newSkillText.trim()] }));
+        setNewSkillText("");
+        setAddingSkillToMemberId(null);
+    };
+    // -------------------------
+
     const currentUserId = useAuthStore((s) => String(s.user?.id ?? ""));
     const canManageMembers = canActAsProjectManager(project.myRole, project.isOwner);
 
@@ -565,6 +612,7 @@ function TabMembers({ project }: { project: Project }) {
                                 <th className="px-6 py-4 text-xs font-bold text-slate-900">Tên</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-900">Email</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-900">Role</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-900">Skill</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-900">Ngày tham gia</th>
                                 <th className="px-6 py-4 text-center text-xs font-bold text-slate-900">Action</th>
                             </tr>
@@ -597,6 +645,50 @@ function TabMembers({ project }: { project: Project }) {
                                                 ) : (
                                                     <RoleBadge role={m.projectRole} />
                                                 )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 min-w-[200px]">
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                {(mockSkills[m.user.email] || m.user.skills || []).map((skill: string) => (
+                                                    <span 
+                                                        key={skill} 
+                                                        className={cn("px-2.5 py-1 text-[11px] font-bold rounded-full flex items-center gap-1.5 whitespace-nowrap", SKILL_COLORS[skill] || "bg-slate-500 text-white")}
+                                                    >
+                                                        {skill}
+                                                        {canManageMembers && (
+                                                            <button 
+                                                                onClick={() => handleRemoveSkill(m.id, m.user.email, skill)}
+                                                                className="hover:bg-black/20 rounded-full p-0.5 transition-colors"
+                                                            >
+                                                                <X size={10} strokeWidth={3} />
+                                                            </button>
+                                                        )}
+                                                    </span>
+                                                ))}
+                                                {canManageMembers && addingSkillToMemberId === m.id ? (
+                                                    <input 
+                                                        autoFocus
+                                                        value={newSkillText}
+                                                        onChange={(e) => setNewSkillText(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleAddSkill(m.id, m.user.email);
+                                                            if (e.key === 'Escape') setAddingSkillToMemberId(null);
+                                                        }}
+                                                        onBlur={() => handleAddSkill(m.id, m.user.email)}
+                                                        className="h-6 w-24 text-[11px] font-bold px-2 py-0 border border-blue-300 rounded-full outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 placeholder:text-slate-300 placeholder:font-normal"
+                                                        placeholder="Add..."
+                                                    />
+                                                ) : canManageMembers ? (
+                                                    <button 
+                                                        onClick={() => {
+                                                            setAddingSkillToMemberId(m.id);
+                                                            setNewSkillText("");
+                                                        }}
+                                                        className="h-5 w-5 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                                    >
+                                                        <Plus size={12} strokeWidth={3} />
+                                                    </button>
+                                                ) : null}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
