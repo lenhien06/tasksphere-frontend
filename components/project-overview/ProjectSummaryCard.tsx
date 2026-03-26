@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Plus, Target } from "lucide-react";
+import { AlertCircle, Plus, Target, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import type { ProjectOverviewPageProps } from "./types";
@@ -10,6 +10,8 @@ interface ProjectSummaryCardProps {
   overview: ProjectOverviewPageProps["overview"];
   userRole: ProjectOverviewPageProps["userRole"];
   onCreateTask: () => void;
+  /** Optional: opens the AI Skill Allocation modal */
+  onOpenAISkillModal?: () => void;
   className?: string;
 }
 
@@ -19,7 +21,7 @@ const STATUS_STYLE: Record<ProjectOverviewPageProps["project"]["status"], string
   archived: "bg-gray-200 text-gray-600",
 };
 
-export default function ProjectSummaryCard({ project, overview, userRole, onCreateTask, className }: ProjectSummaryCardProps) {
+export default function ProjectSummaryCard({ project, overview, userRole, onCreateTask, onOpenAISkillModal, className }: ProjectSummaryCardProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.toLowerCase().startsWith("vi") ? "vi-VN" : "en-US";
   const statusLabelKey: Record<ProjectOverviewPageProps["project"]["status"], string> = {
@@ -81,13 +83,24 @@ export default function ProjectSummaryCard({ project, overview, userRole, onCrea
       </div>
 
       {userRole !== "VIEWER" && (
-        <button
-          onClick={onCreateTask}
-          className="w-full mt-3 py-2 rounded-lg font-semibold text-sm bg-blue-600 hover:bg-blue-700 text-white inline-flex items-center justify-center gap-2"
-        >
-          <Plus size={16} />
-          {t("kanban.addTask", { defaultValue: "Create New Task" })}
-        </button>
+        <div className="mt-3 flex flex-col gap-2">
+          {onOpenAISkillModal && (
+            <button
+              onClick={onOpenAISkillModal}
+              className="w-full py-2 rounded-lg font-bold text-sm bg-white border-2 border-purple-400 text-purple-700 hover:bg-purple-50 hover:border-purple-500 inline-flex items-center justify-center gap-2 transition-all shadow-sm shadow-purple-200 active:scale-95"
+            >
+              <Sparkles size={15} className="text-purple-500" />
+              Sắp xếp nhanh công việc với AI
+            </button>
+          )}
+          <button
+            onClick={onCreateTask}
+            className="w-full py-2 rounded-lg font-semibold text-sm bg-blue-600 hover:bg-blue-700 text-white inline-flex items-center justify-center gap-2 transition-all active:scale-95"
+          >
+            <Plus size={16} />
+            {t("kanban.addTask", { defaultValue: "Create New Task" })}
+          </button>
+        </div>
       )}
     </div>
   );

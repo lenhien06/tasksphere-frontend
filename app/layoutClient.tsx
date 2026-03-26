@@ -16,6 +16,8 @@ import { ProjectService } from '@/app/services/ProjectService'
 import I18nProvider from '@/components/providers/I18nProvider'
 import { AIProjectCreationModal } from '@/components/projects/AIProjectCreationModal'
 import { useAIModalStore } from '@/stores/useAIModalStore'
+import { AISkillAllocationModal } from '@/components/projects/AISkillAllocationModal'
+import { useAISkillModalStore } from '@/stores/useAISkillModalStore'
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -121,6 +123,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
       {/* Global AI Project Creation Modal — accessible from anywhere via useAIModalStore */}
       <AIModalGlobal />
+      {/* Global AI Skill Allocation Modal — accessible from anywhere via useAISkillModalStore */}
+      <AISkillModalGlobal />
     </div>
   )
 }
@@ -134,6 +138,22 @@ function AIModalGlobal() {
       onGenerate={async (data) => {
         // TODO: wire to backend AI project generation API
         console.log('[AI Project Generation] payload:', data);
+      }}
+    />
+  );
+}
+
+function AISkillModalGlobal() {
+  const { isOpen, members, canEdit, onConfirm, close } = useAISkillModalStore();
+  return (
+    <AISkillAllocationModal
+      isOpen={isOpen}
+      onClose={close}
+      members={members}
+      canEdit={canEdit}
+      onConfirm={(updated) => {
+        onConfirm?.(updated);
+        console.log('[AI Skill Allocation] confirmed:', updated);
       }}
     />
   );

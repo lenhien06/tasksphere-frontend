@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Search, Lock, Users, Globe, Check, Mail, Crown, Shield, Eye, Settings, Bell,
-    AlertTriangle, MessageCircle, Plus, CheckCircle2, BarChart2,
+    AlertTriangle, MessageCircle, Plus, CheckCircle2, BarChart2, Sparkles,
     ShieldOff, ArrowLeft, X, Calendar, Clock, Trash2, Loader2, ChevronDown, ChevronRight, Archive, RefreshCw, Filter,
     Layout, Kanban, ListTodo, MoreHorizontal, Tag, Rocket, Webhook, GitBranch
 } from "lucide-react";
@@ -46,6 +46,8 @@ import CalendarView from "@/components/projects/CalendarView";
 import TaskDetailPanel, { type Member } from "@/components/projects/TaskDetailPanel";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import ForbiddenPage from "@/components/common/ForbiddenPage";
+import { AISkillTriggerButton } from "@/components/projects/AISkillAllocationModal";
+import { useAISkillModalStore } from "@/stores/useAISkillModalStore";
 import { canActAsProjectManager, toKanbanUserRole, toLegacyMyRoleLower, toTaskPanelRole } from "@/lib/projectRole";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -467,6 +469,7 @@ function TabMembers({ project }: { project: Project }) {
     const [inviteStatusFilter, setInviteStatusFilter] = useState<string>("PENDING");
     const [changeRoleTarget, setChangeRoleTarget] = useState<{ id: string; userId: string; fullName: string; currentRole: string } | null>(null);
     const queryClient = useQueryClient();
+    const openSkillModal = useAISkillModalStore((s) => s.open);
     
     // --- SKILL MOCK & STATE ---
     const [addingSkillToMemberId, setAddingSkillToMemberId] = useState<string | null>(null);
@@ -603,15 +606,43 @@ function TabMembers({ project }: { project: Project }) {
                             {members?.length || 0}
                         </span>
                     </div>
-                    {canManageMembers && (
-                        <button 
-                            onClick={() => setShowInviteModal(true)} 
-                            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
-                        >
-                            <Plus size={16} strokeWidth={3} /> 
-                            Mời thành viên
-                        </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {canManageMembers && (
+                            <AISkillTriggerButton
+                                onClick={() => {
+                                    const memberList = (members as any[] || []).map((m: any) => ({
+                                        memberId: m.id,
+                                        userId: m.user.id,
+                                        fullName: m.user.fullName,
+                                        email: m.user.email,
+                                        avatarUrl: m.user.avatarUrl ?? undefined,
+                                        roleLabel: m.user.id === project.ownerId ? 'Owner' : (m.projectRole || 'Member'),
+                                        profileSkills: [],
+                                        projectSkills: mockSkills[m.user.email] || m.user.skills || [],
+                                    }));
+                                    openSkillModal({
+                                        members: memberList,
+                                        canEdit: canManageMembers,
+                                        onConfirm: (updated) => {
+                                            // Apply updates back to local mock skill state
+                                            const newSkills: Record<string, string[]> = {};
+                                            updated.forEach((u) => { newSkills[u.email] = u.projectSkills; });
+                                            setMockSkills((prev) => ({ ...prev, ...newSkills }));
+                                        },
+                                    });
+                                }}
+                            />
+                        )}
+                        {canManageMembers && (
+                            <button 
+                                onClick={() => setShowInviteModal(true)} 
+                                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                            >
+                                <Plus size={16} strokeWidth={3} /> 
+                                Mời thành viên
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">

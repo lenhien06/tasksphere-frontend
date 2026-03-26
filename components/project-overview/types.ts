@@ -75,4 +75,6 @@ export interface ProjectOverviewPageProps {
   onNavigateToMembers: () => void;
   onNavigateToBoard: () => void;
   onNavigateToBacklog: () => void;
+  /** Optional: opens the AI Skill Allocation modal */
+  onOpenAISkillModal?: () => void;
 }
