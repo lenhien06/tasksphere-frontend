@@ -495,25 +495,36 @@ export interface TimelineTask {
     dueDate: TimelineDate;
     parentTaskId: string | null;
     blockedBy: Array<{
+        linkId: string;
         taskId: string;
         taskCode: string;
         title: string;
+        linkType: "BLOCKED_BY" | "BLOCKS";
     }>;
     blocking: Array<{
+        linkId: string;
         taskId: string;
         taskCode: string;
         title: string;
+        linkType: "BLOCKS" | "BLOCKED_BY";
     }>;
 }
 
 export interface TimelineDependency {
-    sourceTaskId: string;
-    targetTaskId: string;
+    linkId: string;
+    blockerTaskId: string;
+    blockerTaskCode: string;
+    blockerTitle: string;
+    blockedTaskId: string;
+    blockedTaskCode: string;
+    blockedTaskTitle: string;
     linkType: "BLOCKS";
 }
 
 export interface TimelineResponse {
     projectId: string;
+    totalTasks: number;
+    totalDependencies: number;
     tasks: TimelineTask[];
     dependencies: TimelineDependency[];
 }

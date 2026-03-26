@@ -1,35 +1,58 @@
-import { TimelineDate, TimelineTask, TaskStatus, TaskPriority } from "@/app/types/task.schema";
-import { format, parse, isBefore, isAfter, startOfDay, addDays, differenceInDays, startOfMonth, endOfMonth, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from "date-fns";
+import { TimelineDate, TimelineTask } from "@/app/types/task.schema";
+import { addDays, differenceInCalendarDays, endOfMonth, eachDayOfInterval, eachMonthOfInterval, eachWeekOfInterval, startOfDay, startOfMonth, subDays } from "date-fns";
 
 export function parseTimelineDate(date: TimelineDate): Date | null {
     if (!date) return null;
     const [year, month, day] = date;
-    // month in BE is 1-based, JS Date is 0-based
-    return new Date(year, month - 1, day);
+    return startOfDay(new Date(year, month - 1, day));
 }
 
-export function getTaskDates(task: TimelineTask): { start: Date; end: Date; hasDates: boolean } {
+export function getTaskDates(task: TimelineTask): { start: Date; end: Date; hasDates: boolean; durationDays: number } {
     const startDate = parseTimelineDate(task.startDate);
     const dueDate = parseTimelineDate(task.dueDate);
 
     if (!startDate && !dueDate) {
         const fallback = startOfDay(new Date());
-        return { start: fallback, end: fallback, hasDates: false };
+        return { start: fallback, end: addDays(fallback, 1), hasDates: false, durationDays: 1 };
     }
 
     if (!startDate && dueDate) {
-        return { start: dueDate, end: dueDate, hasDates: true };
+        const start = subDays(dueDate, 1);
+        const end = dueDate;
+        const durationDays = Math.max(1, differenceInCalendarDays(end, start));
+        return { start, end, hasDates: true, durationDays };
     }
 
     if (startDate && !dueDate) {
-        return { start: startDate, end: startDate, hasDates: true };
+        return { start: startDate, end: addDays(startDate, 1), hasDates: true, durationDays: 1 };
     }
 
-    // Both exist
+    let start = startDate!;
+    let end = dueDate!;
+
+    if (differenceInCalendarDays(end, start) <= 0) {
+        end = addDays(start, 1);
+    }
+
+    const durationDays = Math.max(1, differenceInCalendarDays(end, start));
+
+    if (process.env.NODE_ENV !== "production") {
+        console.debug("[timeline] task dates", {
+            taskId: task.id,
+            taskCode: task.taskCode,
+            rawStartDate: task.startDate,
+            rawDueDate: task.dueDate,
+            parsedStart: start.toISOString(),
+            parsedEnd: end.toISOString(),
+            durationDays,
+        });
+    }
+
     return {
-        start: startDate!,
-        end: dueDate!,
-        hasDates: true
+        start,
+        end,
+        hasDates: true,
+        durationDays,
     };
 }
 
@@ -41,6 +64,7 @@ export interface TimelineRow extends TimelineTask {
     startDateObj: Date;
     endDateObj: Date;
     hasDates: boolean;
+    durationDays: number;
 }
 
 export function buildTaskTree(tasks: TimelineTask[]): TimelineRow[] {
@@ -49,7 +73,7 @@ export function buildTaskTree(tasks: TimelineTask[]): TimelineRow[] {
 
     // Initialize rows
     tasks.forEach(task => {
-        const { start, end, hasDates } = getTaskDates(task);
+        const { start, end, hasDates, durationDays } = getTaskDates(task);
         taskMap.set(task.id, {
             ...task,
             level: 0,
@@ -58,7 +82,8 @@ export function buildTaskTree(tasks: TimelineTask[]): TimelineRow[] {
             children: [],
             startDateObj: start,
             endDateObj: end,
-            hasDates
+            hasDates,
+            durationDays,
         });
     });
 

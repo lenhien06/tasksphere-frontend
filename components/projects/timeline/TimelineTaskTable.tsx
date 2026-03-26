@@ -1,11 +1,10 @@
 "use client";
 
 import React from "react";
-import { ChevronRight, ChevronDown, User, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { ChevronRight, ChevronDown, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TimelineRow } from "./utils";
 import { UserAvatar } from "@/components/common/UserAvatar";
-import { format } from "date-fns";
 
 interface TimelineTaskTableProps {
     rows: TimelineRow[];

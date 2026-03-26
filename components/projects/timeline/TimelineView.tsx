@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, AlertCircle } from "lucide-react";
 import { TaskService } from "@/app/services/TaskService";
-import { TimelineResponse, TimelineTask } from "@/app/types/task.schema";
+import { TimelineResponse } from "@/app/types/task.schema";
 import { buildTaskTree, flattenTree, getTimelineInterval, ZoomLevel, TimelineRow } from "./utils";
 import TimelineToolbar, { TimelineFilterState } from "./TimelineToolbar";
 import TimelineTaskTable from "./TimelineTaskTable";
@@ -81,6 +81,24 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
     }, [tree, expandedIds]);
 
     const flattenedRows = useMemo(() => flattenTree(processedTree), [processedTree]);
+
+    useEffect(() => {
+        if (process.env.NODE_ENV !== "production") {
+            console.debug("[timeline] visible task durations", flattenedRows.map((row) => ({
+                id: row.id,
+                taskCode: row.taskCode,
+                start: row.startDateObj.toISOString(),
+                end: row.endDateObj.toISOString(),
+                durationDays: row.durationDays,
+            })));
+            console.debug("[timeline] dependency pairs", (timelineData?.dependencies || []).map((dep) => ({
+                linkId: dep.linkId,
+                from: dep.blockerTaskId,
+                to: dep.blockedTaskId,
+                type: dep.linkType,
+            })));
+        }
+    }, [flattenedRows, timelineData]);
 
     const { start: timelineStart, end: timelineEnd } = useMemo(() => 
         getTimelineInterval(timelineData?.tasks || [], zoom), 

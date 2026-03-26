@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useMemo, useRef, useEffect, useState } from "react";
-import { format, differenceInDays, addDays, isSameDay, startOfDay } from "date-fns";
+import React, { useMemo } from "react";
+import { format, differenceInCalendarDays, addDays, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TimelineRow, ZoomLevel } from "./utils";
 import { TimelineDependency } from "@/app/types/task.schema";
@@ -35,13 +35,11 @@ export default function TimelineGanttChart({
     rowHeight
 }: TimelineGanttChartProps) {
     const columnWidth = COLUMN_WIDTHS[zoom];
-    const totalDays = differenceInDays(endDate, startDate) + 1;
-    const chartWidth = totalDays * (zoom === 'day' ? columnWidth : columnWidth / (zoom === 'week' ? 7 : 30));
+    const pixelsPerDay = zoom === "day" ? columnWidth : columnWidth / (zoom === "week" ? 7 : 30);
+    const totalDays = Math.max(1, differenceInCalendarDays(startOfDay(endDate), startOfDay(startDate)));
 
-    // Helper to get x position by date
     const getX = (date: Date) => {
-        const days = differenceInDays(startOfDay(date), startOfDay(startDate));
-        const pixelsPerDay = zoom === 'day' ? columnWidth : columnWidth / (zoom === 'week' ? 7 : 30);
+        const days = differenceInCalendarDays(startOfDay(date), startOfDay(startDate));
         return days * pixelsPerDay;
     };
 
@@ -57,11 +55,12 @@ export default function TimelineGanttChart({
         return cols;
     }, [startDate, endDate, zoom]);
 
+    const chartWidth = Math.max(columnWidth * 6, totalDays * pixelsPerDay, columns.length * columnWidth);
+
     const taskBars = useMemo(() => {
         return rows.map((row, index) => {
             const startX = getX(row.startDateObj);
-            const endX = getX(row.endDateObj) + (zoom === 'day' ? columnWidth : columnWidth / (zoom === 'week' ? 7 : 30));
-            const width = Math.max(endX - startX, 20); // Min width 20px
+            const width = Math.max(row.durationDays * pixelsPerDay, 24);
 
             return {
                 ...row,
@@ -72,7 +71,7 @@ export default function TimelineGanttChart({
                 height: rowHeight - 20
             };
         });
-    }, [rows, startDate, zoom, columnWidth, rowHeight]);
+    }, [rows, rowHeight, pixelsPerDay]);
 
     const dependencyLines = useMemo(() => {
         if (!showDependencies) return [];
@@ -81,8 +80,8 @@ export default function TimelineGanttChart({
         taskBars.forEach(t => taskMap.set(t.id, t));
 
         dependencies.forEach(dep => {
-            const source = taskMap.get(dep.sourceTaskId);
-            const target = taskMap.get(dep.targetTaskId);
+            const source = taskMap.get(dep.blockerTaskId);
+            const target = taskMap.get(dep.blockedTaskId);
 
             if (source && target) {
                 const x1 = source.x + source.width;
@@ -95,10 +94,20 @@ export default function TimelineGanttChart({
                 const path = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
                 
                 lines.push({
-                    id: `${dep.sourceTaskId}-${dep.targetTaskId}`,
+                    id: dep.linkId,
                     path,
                     source,
                     target
+                });
+            }
+
+            if (process.env.NODE_ENV !== "production") {
+                console.debug("[timeline] dependency render", {
+                    linkId: dep.linkId,
+                    blockerTaskId: dep.blockerTaskId,
+                    blockedTaskId: dep.blockedTaskId,
+                    sourceVisible: Boolean(source),
+                    targetVisible: Boolean(target),
                 });
             }
         });
@@ -215,7 +224,7 @@ export default function TimelineGanttChart({
                 {/* Dependencies Layer */}
                 {showDependencies && (
                     <svg
-                        className="absolute top-0 left-0 w-full h-full pointer-events-none z-0"
+                        className="absolute top-0 left-0 h-full w-full pointer-events-none z-[1]"
                         style={{ width: chartWidth, height: rows.length * rowHeight + 40 }}
                     >
                         <defs>
@@ -236,9 +245,9 @@ export default function TimelineGanttChart({
                                 d={line.path}
                                 fill="none"
                                 stroke="#94a3b8"
-                                strokeWidth="1.5"
+                                strokeWidth="2"
                                 markerEnd="url(#arrowhead)"
-                                className="transition-all hover:stroke-blue-400 hover:stroke-[2px]"
+                                className="transition-all"
                             />
                         ))}
                     </svg>
