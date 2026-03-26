@@ -48,7 +48,8 @@
     "settings": "Cài đặt",
     "overview": "Tổng quan",
     "backlog": "Backlog",
-    "notFound": "Không tìm thấy"
+    "notFound": "Không tìm thấy",
+    "more": "khác"
   },
 
   "nav": {
@@ -543,13 +544,16 @@
   "calendar": {
     "title": "Lịch công việc",
     "loadError": "Không thể tải lịch. Vui lòng thử lại.",
-    "mon": "T2",
-    "tue": "T3",
-    "wed": "T4",
-    "thu": "T5",
-    "fri": "T6",
-    "sat": "T7",
-    "sun": "CN"
+    "mon": "Thứ 2",
+    "tue": "Thứ 3",
+    "wed": "Thứ 4",
+    "thu": "Thứ 5",
+    "fri": "Thứ 6",
+    "sat": "Thứ 7",
+    "sun": "Chủ nhật",
+    "today": "Hôm nay",
+    "taskMovedSuccess": "Di chuyển công việc thành công",
+    "taskMovedError": "Lỗi khi di chuyển công việc"
   },
 
   "filter": {

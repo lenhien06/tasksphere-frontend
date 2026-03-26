@@ -48,7 +48,8 @@
     "settings": "Settings",
     "overview": "Overview",
     "backlog": "Backlog",
-    "notFound": "Not found"
+    "notFound": "Not found",
+    "more": "more"
   },
 
   "nav": {
@@ -549,7 +550,10 @@
     "thu": "Thu",
     "fri": "Fri",
     "sat": "Sat",
-    "sun": "Sun"
+    "sun": "Sun",
+    "today": "Today",
+    "taskMovedSuccess": "Task moved successfully",
+    "taskMovedError": "Error moving task"
   },
 
   "filter": {

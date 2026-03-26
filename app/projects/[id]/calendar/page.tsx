@@ -1,31 +1,61 @@
 "use client"
 
-import React, { useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import React, { useState, useMemo } from "react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import CalendarView from "@/components/projects/CalendarView"
-import TaskDetailPanel from "@/components/projects/TaskDetailPanel"
-
-// Mock members (sync with KanbanBoard)
-const PROJECT_MEMBERS = [
-  { id: "u1", name: "Alice PM", email: "pm@example.com", avatarUrl: "https://i.pravatar.cc/150?u=u1" },
-  { id: "u2", name: "Bob Dev", email: "dev@example.com", avatarUrl: "https://i.pravatar.cc/150?u=u2" },
-  { id: "u3", name: "Carol Tech", email: "le@example.com", avatarUrl: "https://i.pravatar.cc/150?u=u3" },
-  { id: "u4", name: "Dave Backend", email: "be@example.com", avatarUrl: "https://i.pravatar.cc/150?u=u4" },
-]
-
-const CURRENT_USER = {
-  id: "u3",
-  name: "Carol Tech",
-  email: "le@example.com",
-  avatarUrl: "https://i.pravatar.cc/150?u=u3"
-}
+import TaskDetailPanel, { Member } from "@/components/projects/TaskDetailPanel"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
+import { useQuery } from "@tanstack/react-query"
+import { ProjectService } from "@/app/services/ProjectService"
+import { ProjectMemberService } from "@/app/services/project-member.service"
+import { toKanbanUserRole, toTaskPanelRole } from "@/lib/projectRole"
 
 export default function ProjectCalendarPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const projectId = params.id as string
   
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(
+    searchParams.get("taskId")
+  )
+
+  const { data: currentUser } = useCurrentUser()
+
+  const { data: projectData } = useQuery({
+    queryKey: ["project-detail", projectId],
+    queryFn: () => ProjectService.getById(projectId),
+    enabled: !!projectId,
+  })
+
+  const { data: membersData } = useQuery({
+    queryKey: ["project-members", projectId],
+    queryFn: () => ProjectMemberService.getMembers(projectId),
+    enabled: !!projectId,
+  })
+
+  const kanbanRole = toKanbanUserRole(projectData?.data?.myRole, projectData?.data?.isOwner)
+  const panelRole = toTaskPanelRole(projectData?.data?.myRole, projectData?.data?.isOwner)
+
+  const projectMembers: Member[] = useMemo(() => {
+    const list = (membersData as any)?.data || membersData || []
+    if (!Array.isArray(list)) return []
+    return list.map((m: any) => ({
+      id: m.user?.id || m.id,
+      name: m.user?.fullName || m.fullName || "Unknown",
+      email: m.user?.email || m.email || "",
+      avatarUrl: m.user?.avatarUrl || m.avatarUrl,
+    }))
+  }, [membersData])
+
+  const mappedCurrentUser = currentUser
+    ? {
+        id: currentUser.id?.toString() || "unknown",
+        name: currentUser.fullName || "Unknown User",
+        email: currentUser.email,
+        avatarUrl: currentUser.avatar?.imageUrl || undefined,
+      }
+    : { id: "guest", name: "Guest", email: "guest@example.com" }
 
   const handleViewChange = (view: "board" | "list" | "calendar") => {
     if (view === "board") {
@@ -35,22 +65,38 @@ export default function ProjectCalendarPage() {
     }
   }
 
+  const openTask = (taskId: string) => {
+    setSelectedTaskId(taskId)
+    const next = new URLSearchParams(searchParams.toString())
+    next.set("taskId", taskId)
+    router.replace(`?${next.toString()}`, { scroll: false })
+  }
+
+  const closePanel = () => {
+    setSelectedTaskId(null)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete("taskId")
+    const qs = next.toString()
+    router.replace(qs ? `?${qs}` : ".", { scroll: false })
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <CalendarView
         projectId={projectId}
-        onTaskClick={(id) => setSelectedTaskId(id)}
+        onTaskClick={openTask}
         onViewChange={handleViewChange}
+        currentUserRole={kanbanRole}
       />
 
       {/* Task Detail Panel */}
       <TaskDetailPanel
         taskId={selectedTaskId}
         projectId={projectId}
-        projectMembers={PROJECT_MEMBERS}
-        currentUser={CURRENT_USER}
-        currentUserRole="PM"
-        onClose={() => setSelectedTaskId(null)}
+        projectMembers={projectMembers}
+        currentUser={mappedCurrentUser}
+        currentUserRole={panelRole}
+        onClose={closePanel}
         onTaskUpdated={() => {}}
       />
     </div>

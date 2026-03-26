@@ -26,6 +26,7 @@ import type { CustomFieldType } from "@/app/types/task.schema"
 
 import { SubtaskBlockedDialog } from "@/components/kanban/SubtaskBlockedDialog"
 import { TaskDetailService } from "@/app/services/TaskDetailService"
+import { invalidateTaskCollections, patchTaskCollections } from "@/lib/task-query-sync"
 import type { SubTaskResponse } from "@/app/types/task.schema"
 import {
     Accordion,
@@ -146,6 +147,7 @@ export default function TaskDetailPageContent({
             qc.setQueryData(["task", projectId, taskId], (old: any) =>
                 old?.task ? { ...old, task: { ...old.task, title: newTitle } } : old
             )
+            patchTaskCollections(qc, projectId, taskId, { title: newTitle })
             return { previous }
         },
         onSuccess: () => { toast.success("Title updated") },
@@ -156,6 +158,7 @@ export default function TaskDetailPageContent({
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
             qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
+            invalidateTaskCollections(qc, projectId)
         },
     })
     const createCustomField = useMutation({

@@ -287,6 +287,12 @@ export default function KanbanBoard({
     }));
   }, [tasksData]);
 
+  const openTaskById = (taskId: string) => {
+    setSelectedTaskId(taskId);
+    const task = tasks.find((x) => x.id === taskId);
+    if (task) onTaskClick?.(task);
+  };
+
   const hasAnyFilterActive = useMemo(
     () =>
       Boolean(
@@ -486,11 +492,7 @@ export default function KanbanBoard({
             setCreateDefaults({ columnId });
             setShowCreate(true);
           }}
-          onCardClick={(taskId) => {
-            setSelectedTaskId(taskId);
-            const task = tasks.find((x) => x.id === taskId);
-            if (task) onTaskClick?.(task);
-          }}
+          onCardClick={openTaskById}
           onViewChange={setView}
           view={view}
           filterValue={filters}
@@ -505,9 +507,10 @@ export default function KanbanBoard({
       ) : (
         <CalendarView
           projectId={projectId}
-          onTaskClick={(id) => setSelectedTaskId(id)}
+          onTaskClick={openTaskById}
           onViewChange={setView}
           currentView="calendar"
+          currentUserRole={currentUserRole}
         />
       )}
 

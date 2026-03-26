@@ -7,6 +7,7 @@ import { TaskService } from "@/app/services/TaskService"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { invalidateTaskCollections, patchTaskCollections } from "@/lib/task-query-sync"
 
 interface TaskHeaderProps {
     task: TaskDetailResponse
@@ -42,8 +43,10 @@ function InlineTitle({
                 title: newTitle,
                 description: undefined,
             }),
-        onSuccess: () => {
+        onSuccess: (_, newTitle) => {
+            patchTaskCollections(qc, projectId, taskId, { title: newTitle })
             qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+            invalidateTaskCollections(qc, projectId)
             setEditing(false)
         },
         onError: (err: any) => {

@@ -10,6 +10,7 @@ import { TaskService } from "@/app/services/TaskService"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { invalidateTaskCollections } from "@/lib/task-query-sync"
 import type { TaskDetailResponse } from "@/app/types/task.schema"
 
 interface TaskDescriptionProps {
@@ -129,6 +130,7 @@ export default function TaskDescription({ task, projectId, canEdit }: TaskDescri
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["task", projectId, task.id] })
             qc.invalidateQueries({ queryKey: ["activity", projectId, task.id] })
+            invalidateTaskCollections(qc, projectId)
             editor?.setEditable(false)
             setEditing(false)
             toast.success("Đã lưu")

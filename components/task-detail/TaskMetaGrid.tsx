@@ -31,6 +31,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAddWorklog } from "@/hooks/useWorklogs"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { invalidateTaskCollections, patchTaskCollections } from "@/lib/task-query-sync"
 
 interface TaskMetaGridProps {
     task: TaskDetailResponse
@@ -61,10 +62,11 @@ function StatusField({ task, projectId, canEdit, etag, onBlockedBySubtask }: { t
     const updateStatus = useMutation({
         mutationFn: ({ status }: { status: TaskStatus }) =>
             TaskService.updateStatus(projectId, task.id, { status }, etag),
-        onSuccess: () => {
+        onSuccess: (_, { status }) => {
+            patchTaskCollections(qc, projectId, task.id, { taskStatus: status })
             qc.invalidateQueries({ queryKey: ["task", projectId, task.id] })
-            qc.invalidateQueries({ queryKey: ["tasks", projectId] })
             qc.invalidateQueries({ queryKey: ["activity", projectId, task.id] })
+            invalidateTaskCollections(qc, projectId)
             toast.success("Updated status")
         },
         onError: (err: any) => {
@@ -305,9 +307,11 @@ export default function TaskMetaGrid({ task, projectId, canEdit, etag, onBlocked
     const qc = useQueryClient()
     const updateTask = useMutation({
         mutationFn: (data: any) => TaskService.updateTask(projectId, task.id, { title: task.title, ...data }),
-        onSuccess: () => {
+        onSuccess: (_, data) => {
+            patchTaskCollections(qc, projectId, task.id, data)
             qc.invalidateQueries({ queryKey: ["task", projectId, task.id] })
             qc.invalidateQueries({ queryKey: ["activity", projectId, task.id] })
+            invalidateTaskCollections(qc, projectId)
         },
     })
 
