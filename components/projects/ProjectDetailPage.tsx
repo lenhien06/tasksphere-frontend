@@ -42,18 +42,20 @@ import { getBeErrorMessage, getStructuredErrorCode } from "@/lib/axios";
 import ProjectOverview from "@/components/projects/ProjectOverview";
 import KanbanBoard from "@/components/projects/KanbanBoard";
 import BacklogPage from "@/components/projects/BacklogPage";
+import CalendarView from "@/components/projects/CalendarView";
+import TaskDetailPanel, { type Member } from "@/components/projects/TaskDetailPanel";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import ForbiddenPage from "@/components/common/ForbiddenPage";
-import { canActAsProjectManager, toKanbanUserRole, toLegacyMyRoleLower } from "@/lib/projectRole";
 import { AISkillTriggerButton } from "@/components/projects/AISkillAllocationModal";
 import { useAISkillModalStore } from "@/stores/useAISkillModalStore";
+import { canActAsProjectManager, toKanbanUserRole, toLegacyMyRoleLower, toTaskPanelRole } from "@/lib/projectRole";
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
 
 type Visibility = "private" | "internal" | "public";
-type Tab = "overview" | "board" | "backlog" | "members" | "settings";
+type Tab = "overview" | "board" | "backlog" | "calendar" | "members" | "settings";
 
 interface Project {
     id: string;
@@ -200,6 +202,7 @@ function ProjectHeader({ project, activeTab, onTabChange }: { project: Project; 
         { id: "overview", label: t('common.overview'), icon: <Layout size={16} /> },
         { id: "board", label: t('kanban.board'), icon: <Kanban size={16} /> },
         { id: "backlog", label: t('common.backlog'), icon: <ListTodo size={16} /> },
+        { id: "calendar", label: t('calendar.title'), icon: <Calendar size={16} /> },
         { id: "members", label: t('common.members'), icon: <Users size={16} /> },
         ...(canManage ? [{ id: "settings", label: t('common.settings'), icon: <Settings size={16} /> } as const] : []),
     ];
@@ -1024,22 +1027,49 @@ export default function ProjectDetailPage({ projectId: propProjectId, onBack }: 
     const router = useRouter();
     const projectId = propProjectId || (params.id as string);
     const [activeTab, setActiveTab] = useState<Tab>("overview");
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
     useEffect(() => {
         const tab = (searchParams.get("tab") || "").toLowerCase();
-        const allowedTabs: Tab[] = ["overview", "board", "backlog", "members", "settings"];
+        const allowedTabs: Tab[] = ["overview", "board", "backlog", "calendar", "members", "settings"];
         if (allowedTabs.includes(tab as Tab)) {
             setActiveTab(tab as Tab);
         }
     }, [searchParams]);
+
     const { data: projectData, isLoading, error } = useQuery({ queryKey: ["project-detail", projectId], queryFn: () => ProjectService.getById(projectId), enabled: !!projectId, });
+    const currentUser = useAuthStore((s) => s.user);
+    const { data: membersData } = useQuery({
+        queryKey: ["project-members", projectId],
+        queryFn: () => ProjectMemberService.getMembers(projectId),
+        enabled: !!projectId,
+    });
+
     if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
     if ((error as any)?.response?.status === 403) return <ForbiddenPage />;
     if (!projectData?.data) return <div className="p-20 text-center font-bold">{t('project.notFound')}</div>;
+
     const project = mapToUIProject(projectData.data);
-    
     const roleUpper = toKanbanUserRole(project.myRole, project.isOwner);
     const roleLower = toLegacyMyRoleLower(project.myRole, project.isOwner);
+    const panelRole = toTaskPanelRole(project.myRole, project.isOwner);
     const canManage = canActAsProjectManager(project.myRole, project.isOwner);
+
+    const projectMembers: Member[] = (membersData as any)?.data?.map((m: any) => ({
+        id: m.user?.id || m.id,
+        name: m.user?.fullName || m.fullName || "Unknown",
+        email: m.user?.email || m.email || "",
+        avatarUrl: m.user?.avatarUrl || m.avatarUrl,
+    })) || [];
+
+    const mappedCurrentUser = currentUser
+        ? {
+            id: currentUser.id?.toString() || "unknown",
+            name: currentUser.fullName || "Unknown User",
+            email: currentUser.email,
+            avatarUrl: currentUser.avatar?.imageUrl || undefined,
+        }
+        : { id: "guest", name: "Guest", email: "guest@example.com" };
 
     return (
         <div className="min-h-screen bg-slate-50/30">
@@ -1049,14 +1079,31 @@ export default function ProjectDetailPage({ projectId: propProjectId, onBack }: 
                     <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
                         <ErrorBoundary>
                             {activeTab === "overview" && <ProjectOverview projectId={project.id} />}
-                            {activeTab === "board" && <KanbanBoard currentUserRole={roleUpper} />}
+                            {activeTab === "board" && <KanbanBoard currentUserRole={roleUpper} onTaskClick={(t) => setSelectedTaskId(t.id)} />}
                             {activeTab === "backlog" && <BacklogPage projectId={project.id} myRole={roleLower} />}
+                            {activeTab === "calendar" && (
+                                <CalendarView 
+                                    projectId={project.id} 
+                                    onTaskClick={setSelectedTaskId} 
+                                    onViewChange={(v) => setActiveTab(v as Tab)}
+                                    currentUserRole={roleUpper}
+                                />
+                            )}
                             {activeTab === "members" && <TabMembers project={project} />}
                             {activeTab === "settings" && canManage && <TabSettings project={project} onBack={onBack} />}
                         </ErrorBoundary>
                     </motion.div>
                 </AnimatePresence>
             </div>
+
+            <TaskDetailPanel
+                taskId={selectedTaskId}
+                projectId={project.id}
+                projectMembers={projectMembers}
+                currentUser={mappedCurrentUser}
+                currentUserRole={panelRole}
+                onClose={() => setSelectedTaskId(null)}
+            />
         </div>
     );
 }
