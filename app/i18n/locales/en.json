@@ -907,5 +907,33 @@
     "addedSuccess": "Column \"{{name}}\" added",
     "deletedSuccess": "Column deleted. {{count}} tasks moved to {{column}}",
     "confirmDelete": "Delete column \"{{name}}\"? {{count}} tasks will move to To Do"
+  },
+  "header": {
+    "profile": "Profile"
+  },
+  "profile": {
+    "editBasicInfo": "Edit Basic Info",
+    "fullNameLabel": "Full Name",
+    "fullNamePlaceholder": "e.g. John Doe",
+    "jobTitle": "Job Title",
+    "jobTitlePlaceholder": "e.g. Senior Frontend Developer",
+    "nickname": "Nickname",
+    "nicknamePlaceholder": "@username",
+    "skillsTitle": "Professional Skills & AI Competency",
+    "skillsDesc": "Manage skills for accurate AI task allocation.",
+    "addSkillPlaceholder": "Add a skill...",
+    "loadingSkills": "Loading skills...",
+    "noSkills": "No skills yet. Add your first skill!",
+    "workCapacity": "Work Capacity:",
+    "hoursPerWeek": "(hours / week)",
+    "skillsCount": "skills",
+    "aiReady": "h/week → ready for AI allocation",
+    "aboutMe": "About Me",
+    "bioPlaceholder": "Describe yourself, your experience, and goals...",
+    "editBio": "Edit Bio",
+    "publicProjects": "Public Projects",
+    "participatedProjects": "(Participated Projects)",
+    "noProjects": "You haven't participated in any public projects yet.",
+    "noDescription": "No description."
   }
 }

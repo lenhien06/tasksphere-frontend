@@ -208,7 +208,7 @@ function ProjectHeader({ project, activeTab, onTabChange }: { project: Project; 
         { id: "members", label: t('common.members'), icon: <Users size={16} /> },
         ...(canManage ? [{ id: "settings", label: t('common.settings'), icon: <Settings size={16} /> } as const] : []),
     ];
-    
+
     const { label: statusLabel, cls: statusCls, dot: statusDot } = statusMap[project.status] || statusMap.active;
 
     return (
@@ -263,16 +263,16 @@ function ProjectHeader({ project, activeTab, onTabChange }: { project: Project; 
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="flex gap-1 overflow-x-auto hide-scrollbar">
                     {tabs.map((tab) => (
-                        <button 
-                            key={tab.id} 
-                            onClick={() => onTabChange(tab.id)} 
+                        <button
+                            key={tab.id}
+                            onClick={() => onTabChange(tab.id)}
                             className={cn(
-                                "relative flex items-center gap-1.5 px-4 pb-2.5 text-[14px] font-semibold tracking-tight transition-all outline-none whitespace-nowrap", 
-                                activeTab === tab.id 
-                                    ? "text-blue-600" 
+                                "relative flex items-center gap-1.5 px-4 pb-2.5 text-[14px] font-semibold tracking-tight transition-all outline-none whitespace-nowrap",
+                                activeTab === tab.id
+                                    ? "text-blue-600"
                                     : "text-slate-400 hover:text-slate-900"
                             )}
                         >
@@ -281,9 +281,9 @@ function ProjectHeader({ project, activeTab, onTabChange }: { project: Project; 
                             </span>
                             {tab.label}
                             {activeTab === tab.id && (
-                                <motion.div 
+                                <motion.div
                                     layoutId="activeTabUnderline"
-                                    className="absolute bottom-0 left-0 h-0.5 w-full bg-blue-600 rounded-t-full shadow-[0_-2px_6px_rgba(37,99,235,0.2)]" 
+                                    className="absolute bottom-0 left-0 h-0.5 w-full bg-blue-600 rounded-t-full shadow-[0_-2px_6px_rgba(37,99,235,0.2)]"
                                 />
                             )}
                         </button>
@@ -384,11 +384,11 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                         { id: "MEMBER" as const, label: "Thành viên", desc: "Tạo và sửa task, kéo thả Kanban, bình luận, tải tệp" },
                         { id: "VIEWER" as const, label: "Người xem", desc: "Chỉ xem dự án và task, không thực hiện thao tác ghi" },
                     ]).map((v) => (
-                        <button 
-                            key={v.id} 
-                            onClick={() => setRole(v.id)} 
+                        <button
+                            key={v.id}
+                            onClick={() => setRole(v.id)}
                             className={cn(
-                                "p-4 rounded-xl border-2 text-left transition-all flex flex-col gap-1", 
+                                "p-4 rounded-xl border-2 text-left transition-all flex flex-col gap-1",
                                 role === v.id ? "border-blue-500 bg-blue-50" : "border-slate-100 hover:border-slate-200 bg-white"
                             )}
                         >
@@ -472,7 +472,7 @@ function TabMembers({ project }: { project: Project }) {
     const [changeRoleTarget, setChangeRoleTarget] = useState<{ id: string; userId: string; fullName: string; currentRole: string } | null>(null);
     const queryClient = useQueryClient();
     const openSkillModal = useAISkillModalStore((s) => s.open);
-    
+
     // --- SKILL MOCK & STATE ---
     const [addingSkillToMemberId, setAddingSkillToMemberId] = useState<string | null>(null);
     const [newSkillText, setNewSkillText] = useState("");
@@ -506,10 +506,10 @@ function TabMembers({ project }: { project: Project }) {
     const currentUserId = useAuthStore((s) => String(s.user?.id ?? ""));
     const canManageMembers = canActAsProjectManager(project.myRole, project.isOwner);
 
-    const { data: members, isLoading: isMembersLoading } = useQuery({ 
-        queryKey: ["project-members", project.id], 
-        queryFn: () => ProjectMemberService.getMembers(project.id), 
-        enabled: !!project.id 
+    const { data: members, isLoading: isMembersLoading } = useQuery({
+        queryKey: ["project-members", project.id],
+        queryFn: () => ProjectMemberService.getMembers(project.id),
+        enabled: !!project.id
     });
 
     const { data: invitesData } = useQuery({
@@ -518,11 +518,11 @@ function TabMembers({ project }: { project: Project }) {
         enabled: !!project.id && canManageMembers
     });
 
-    const removeMutation = useMutation({ 
-        mutationFn: (userId: string) => ProjectMemberService.removeMember(project.id, userId), 
-        onSuccess: () => { 
-            toast.success("Đã xóa thành viên khỏi dự án"); 
-            queryClient.invalidateQueries({ queryKey: ["project-members", project.id] }); 
+    const removeMutation = useMutation({
+        mutationFn: (userId: string) => ProjectMemberService.removeMember(project.id, userId),
+        onSuccess: () => {
+            toast.success("Đã xóa thành viên khỏi dự án");
+            queryClient.invalidateQueries({ queryKey: ["project-members", project.id] });
         },
         onError: (error: any) => {
             const code = getStructuredErrorCode(error);
@@ -636,11 +636,11 @@ function TabMembers({ project }: { project: Project }) {
                             />
                         )}
                         {canManageMembers && (
-                            <button 
-                                onClick={() => setShowInviteModal(true)} 
+                            <button
+                                onClick={() => setShowInviteModal(true)}
                                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
                             >
-                                <Plus size={16} strokeWidth={3} /> 
+                                <Plus size={16} strokeWidth={3} />
                                 Mời thành viên
                             </button>
                         )}
@@ -661,13 +661,13 @@ function TabMembers({ project }: { project: Project }) {
                         <tbody className="divide-y divide-slate-100">
                             <AnimatePresence mode="popLayout">
                                 {members?.map((m: any, idx: number) => (
-                                    <motion.tr 
+                                    <motion.tr
                                         layout
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0 }}
                                         transition={{ duration: 0.2, delay: idx * 0.05 }}
-                                        key={m.id} 
+                                        key={m.id}
                                         className="group hover:bg-slate-50/50 transition-colors"
                                     >
                                         <td className="px-6 py-4">
@@ -691,13 +691,13 @@ function TabMembers({ project }: { project: Project }) {
                                         <td className="px-6 py-4 min-w-[200px]">
                                             <div className="flex flex-wrap items-center gap-1.5">
                                                 {(mockSkills[m.user.email] || m.user.skills || []).map((skill: string) => (
-                                                    <span 
-                                                        key={skill} 
+                                                    <span
+                                                        key={skill}
                                                         className={cn("px-2.5 py-1 text-[11px] font-bold rounded-full flex items-center gap-1.5 whitespace-nowrap", SKILL_COLORS[skill] || "bg-slate-500 text-white")}
                                                     >
                                                         {skill}
                                                         {canManageMembers && (
-                                                            <button 
+                                                            <button
                                                                 onClick={() => handleRemoveSkill(m.id, m.user.email, skill)}
                                                                 className="hover:bg-black/20 rounded-full p-0.5 transition-colors"
                                                             >
@@ -707,7 +707,7 @@ function TabMembers({ project }: { project: Project }) {
                                                     </span>
                                                 ))}
                                                 {canManageMembers && addingSkillToMemberId === m.id ? (
-                                                    <input 
+                                                    <input
                                                         autoFocus
                                                         value={newSkillText}
                                                         onChange={(e) => setNewSkillText(e.target.value)}
@@ -720,7 +720,7 @@ function TabMembers({ project }: { project: Project }) {
                                                         placeholder="Add..."
                                                     />
                                                 ) : canManageMembers ? (
-                                                    <button 
+                                                    <button
                                                         onClick={() => {
                                                             setAddingSkillToMemberId(m.id);
                                                             setNewSkillText("");
@@ -765,7 +765,7 @@ function TabMembers({ project }: { project: Project }) {
                                                     {m.user.id === currentUserId && project.ownerId !== currentUserId && (
                                                         <>
                                                             <div className="h-px bg-slate-100 my-1" />
-                                                            <DropdownMenuItem 
+                                                            <DropdownMenuItem
                                                                 onClick={() => {
                                                                     if (confirm(`Bạn có chắc muốn rời dự án ${project.name}? Tất cả task đang được giao cho bạn sẽ chuyển sang chưa phân công.`)) {
                                                                         leaveMutation.mutate();
@@ -779,17 +779,17 @@ function TabMembers({ project }: { project: Project }) {
                                                     )}
                                                     {canManageMembers && m.user.id !== project.ownerId && m.user.id !== currentUserId && (
                                                         <>
-        <div className="h-px bg-slate-100 my-1" />
-        <DropdownMenuItem 
-            onClick={() => {
-                if (confirm(`Xóa ${m.user.fullName} khỏi dự án?`)) {
-                    removeMutation.mutate(m.user.id);
-                }
-            }}
-            className="text-sm font-semibold text-red-600 py-2 rounded-lg cursor-pointer focus:bg-red-50 focus:text-red-600"
-        >
-            <Trash2 size={16} className="mr-2" /> Xóa khỏi dự án
-        </DropdownMenuItem>
+                                                            <div className="h-px bg-slate-100 my-1" />
+                                                            <DropdownMenuItem
+                                                                onClick={() => {
+                                                                    if (confirm(`Xóa ${m.user.fullName} khỏi dự án?`)) {
+                                                                        removeMutation.mutate(m.user.id);
+                                                                    }
+                                                                }}
+                                                                className="text-sm font-semibold text-red-600 py-2 rounded-lg cursor-pointer focus:bg-red-50 focus:text-red-600"
+                                                            >
+                                                                <Trash2 size={16} className="mr-2" /> Xóa khỏi dự án
+                                                            </DropdownMenuItem>
                                                         </>
                                                     )}
                                                 </DropdownMenuContent>
@@ -875,14 +875,14 @@ function TabMembers({ project }: { project: Project }) {
                                                 <div className="flex items-center justify-center gap-2">
                                                     {invite.status === 'PENDING' && (
                                                         <>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => resendMutation.mutate(invite.id)}
                                                                 disabled={resendMutation.isPending}
                                                                 className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all disabled:opacity-50"
                                                             >
                                                                 {resendMutation.isPending && resendMutation.variables === invite.id ? '...' : 'Gửi lại'}
                                                             </button>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => revokeMutation.mutate(invite.id)}
                                                                 disabled={revokeMutation.isPending}
                                                                 className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all disabled:opacity-50"
@@ -926,10 +926,10 @@ function TabMembers({ project }: { project: Project }) {
 
 function MemberStatCard({ title, value, icon, color }: { title: string; value: number | string; icon: React.ReactNode; color: "blue" | "amber" | "indigo" | "slate" }) {
     const colors = {
-        blue:   "bg-blue-50 text-blue-600 border-blue-100 shadow-blue-500/5",
-        amber:  "bg-amber-50 text-amber-600 border-amber-100 shadow-amber-500/5",
+        blue: "bg-blue-50 text-blue-600 border-blue-100 shadow-blue-500/5",
+        amber: "bg-amber-50 text-amber-600 border-amber-100 shadow-amber-500/5",
         indigo: "bg-indigo-50 text-indigo-600 border-indigo-100 shadow-indigo-500/5",
-        slate:  "bg-slate-50 text-slate-600 border-slate-100 shadow-slate-500/5"
+        slate: "bg-slate-50 text-slate-600 border-slate-100 shadow-slate-500/5"
     };
 
     return (
@@ -963,10 +963,10 @@ function TabSettings({ project }: { project: Project; onBack?: () => void }) {
     const roleLower = toLegacyMyRoleLower(project.myRole, project.isOwner)
 
     const menuItems: { id: SettingSection; label: string; icon: React.ElementType }[] = [
-        { id: "general",       label: t("common.general", { defaultValue: "General" }),           icon: Settings  },
-        { id: "custom-fields", label: t("common.customFields", { defaultValue: "Custom Fields" }), icon: Tag      },
-        { id: "versions",      label: t("common.versions", { defaultValue: "Versions" }),          icon: Rocket   },
-        { id: "webhooks",      label: t("common.webhooks", { defaultValue: "Webhooks" }),          icon: Webhook  },
+        { id: "general", label: t("common.general", { defaultValue: "General" }), icon: Settings },
+        { id: "custom-fields", label: t("common.customFields", { defaultValue: "Custom Fields" }), icon: Tag },
+        { id: "versions", label: t("common.versions", { defaultValue: "Versions" }), icon: Rocket },
+        { id: "webhooks", label: t("common.webhooks", { defaultValue: "Webhooks" }), icon: Webhook },
     ]
 
     return (
@@ -1084,9 +1084,9 @@ export default function ProjectDetailPage({ projectId: propProjectId, onBack }: 
                             {activeTab === "board" && <KanbanBoard currentUserRole={roleUpper} onTaskClick={(t) => setSelectedTaskId(t.id)} />}
                             {activeTab === "backlog" && <BacklogPage projectId={project.id} myRole={roleLower} />}
                             {activeTab === "calendar" && (
-                                <CalendarView 
-                                    projectId={project.id} 
-                                    onTaskClick={setSelectedTaskId} 
+                                <CalendarView
+                                    projectId={project.id}
+                                    onTaskClick={setSelectedTaskId}
                                     onViewChange={(v) => setActiveTab(v as Tab)}
                                     currentUserRole={roleUpper}
                                 />

@@ -907,5 +907,33 @@
     "addedSuccess": "Cột \"{{name}}\" đã được thêm",
     "deletedSuccess": "Cột đã xóa. {{count}} công việc chuyển sang {{column}}",
     "confirmDelete": "Xóa cột \"{{name}}\"? {{count}} công việc sẽ chuyển về To Do"
+  },
+  "header": {
+    "profile": "Hồ sơ cá nhân"
+  },
+  "profile": {
+    "editBasicInfo": "Chỉnh sửa thông tin cơ bản",
+    "fullNameLabel": "Tên hiển thị (Tên chính)",
+    "fullNamePlaceholder": "e.g. Nguyễn Văn A",
+    "jobTitle": "Chức danh",
+    "jobTitlePlaceholder": "e.g. Senior Frontend Developer",
+    "nickname": "Nickname",
+    "nicknamePlaceholder": "@username",
+    "skillsTitle": "Kỹ năng chuyên môn & Năng lực AI",
+    "skillsDesc": "Quản lý kỹ năng để AI phân công việc chính xác.",
+    "addSkillPlaceholder": "Thêm kỹ năng...",
+    "loadingSkills": "Đang tải kỹ năng...",
+    "noSkills": "Chưa có kỹ năng nào. Hãy thêm kỹ năng đầu tiên!",
+    "workCapacity": "Năng lực làm việc:",
+    "hoursPerWeek": "(giờ / tuần)",
+    "skillsCount": "kỹ năng",
+    "aiReady": "h/tuần → sẵn sàng cho AI phân công",
+    "aboutMe": "Giới thiệu",
+    "bioPlaceholder": "Mô tả bản thân, kinh nghiệm, mục tiêu...",
+    "editBio": "Chỉnh sửa Giới thiệu",
+    "publicProjects": "Public Projects",
+    "participatedProjects": "(Dự án tham gia)",
+    "noProjects": "Bạn chưa tham gia dự án công khai nào.",
+    "noDescription": "Không có mô tả."
   }
 }
