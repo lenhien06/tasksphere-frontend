@@ -14,7 +14,8 @@ import {
   Folder,
   Loader2,
   User,
-  Users
+  Users,
+  UserCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/app/services/auth.service";
@@ -395,6 +396,16 @@ export default function Header({ onMenuToggle, currentUser }: { onMenuToggle?: (
                   </div>
                 </div>
                 <div className="py-1.5">
+                  <div
+                    onClick={() => {
+                      setActiveDropdown(null);
+                      router.push("/profile");
+                    }}
+                    className="flex items-center gap-2.5 px-4 py-2 hover:bg-[#F5F5F5] cursor-pointer transition-colors group"
+                  >
+                    <UserCircle size={15} className="text-[#595959] group-hover:text-[#1677FF]" />
+                    <span className="text-sm text-[#595959] group-hover:text-[#1677FF]">{t("header.profile", { defaultValue: "Hồ sơ cá nhân" })}</span>
+                  </div>
                   <div
                     onClick={() => {
                       setActiveDropdown(null);
