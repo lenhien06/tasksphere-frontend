@@ -253,6 +253,14 @@ export interface SubTaskResponse {
     completedSubtaskCount: number
 }
 
+/** POST /v1/tasks/{subtaskId}/promote — fields optional; omitted = giữ nguyên */
+export interface PromoteSubTaskRequestBody {
+    title?: string
+    assigneeId?: string
+    dueDate?: string
+    description?: string | null
+}
+
 // ── Custom Columns ─────────────────────────────────────────────
 export interface CreateColumnRequest {
     name:          string

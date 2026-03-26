@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { TaskDetailService } from "@/app/services/TaskDetailService"
 import { TaskService } from "@/app/services/TaskService"
-import type { SubTaskResponse, TaskStatus } from "@/app/types/task.schema"
+import type { SubTaskResponse, TaskStatus, PromoteSubTaskRequestBody } from "@/app/types/task.schema"
 
 export function useSubTasks(taskId: string) {
     return useQuery({
@@ -56,6 +56,22 @@ export function useUpdateSubTaskStatus(projectId: string, parentTaskId: string) 
     })
 }
 
+export function usePromoteSubTask(projectId: string, parentTaskId: string) {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: (vars: { subtaskId: string; payload?: PromoteSubTaskRequestBody }) =>
+            TaskDetailService.promoteSubtask(vars.subtaskId, vars.payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["subtasks", parentTaskId] })
+            qc.invalidateQueries({ queryKey: ["task", projectId, parentTaskId] })
+            qc.invalidateQueries({ queryKey: ["tasks", projectId] })
+            toast.success("Đã chuyển thành task độc lập")
+        },
+        onError: (err: any) => {
+            toast.error(err?.response?.data?.message ?? "Không thể chuyển sub-task")
+        },
+    })
+}
 
 export function useDeleteSubTask(projectId: string, parentTaskId: string) {
     const qc = useQueryClient()

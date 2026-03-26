@@ -96,10 +96,7 @@ export function useProjectWebSocket(projectId: string, onEvent?: (event: Project
             }
         }
 
-        const handleEvent = (raw: ProjectWebSocketEvent & { data?: unknown }) => {
-            const payload = raw.payload !== undefined ? raw.payload : raw.data
-            const event = { ...raw, payload } as ProjectWebSocketEvent & { payload: any }
-
+        const handleEvent = (event: ProjectWebSocketEvent) => {
             switch (event.type) {
                 case "sprint.started":
                     qc.invalidateQueries({ queryKey: ["sprints", projectId] })
@@ -135,17 +132,18 @@ export function useProjectWebSocket(projectId: string, onEvent?: (event: Project
                         `File "${event.payload?.fileName ?? "unknown"}" bị từ chối — không an toàn (virus scan failed)`
                     )
                     break
-                case "subtask.promoted":
+                case "task.subtask_promoted": {
+                    const p = (event as unknown as { data?: typeof event.payload }).data ?? event.payload
                     qc.invalidateQueries({ queryKey: ["tasks", projectId] })
-                    qc.invalidateQueries({ queryKey: ["backlog", projectId] })
-                    if (event.payload?.oldParentTaskId) {
-                        qc.invalidateQueries({ queryKey: ["subtasks", event.payload.oldParentTaskId] })
-                        qc.invalidateQueries({ queryKey: ["task", projectId, event.payload.oldParentTaskId] })
+                    if (p?.previousParentTaskId) {
+                        qc.invalidateQueries({ queryKey: ["task", projectId, p.previousParentTaskId] })
+                        qc.invalidateQueries({ queryKey: ["subtasks", p.previousParentTaskId] })
                     }
-                    if (event.payload?.promotedTaskId) {
-                        qc.invalidateQueries({ queryKey: ["task", projectId, event.payload.promotedTaskId] })
+                    if (p?.promotedTaskId) {
+                        qc.invalidateQueries({ queryKey: ["task", projectId, p.promotedTaskId] })
                     }
                     break
+                }
             }
         }
 
