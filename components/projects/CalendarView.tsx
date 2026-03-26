@@ -15,6 +15,12 @@ import {
   AlertCircle,
   User,
   ListFilter,
+  Search,
+  Users,
+  Tag,
+  Layers,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserAvatar } from '@/components/common/UserAvatar'
@@ -101,6 +107,14 @@ export default function CalendarView({
   const [currentMonth, setCurrentMonth] = useState(now.getMonth() + 1)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [filters, setFilters] = useState({
+    search: '',
+    assigneeId: '',
+    priority: '' as '' | TaskPriority,
+    status: '' as '' | TaskStatus,
+    sprint: '',
+    onlyMy: false,
+  })
 
   const {
     data,
@@ -117,22 +131,46 @@ export default function CalendarView({
 
   const tasks: CalendarApiTask[] = data?.tasks ?? []
 
+  const derivedFilters = useMemo(() => {
+    const assignees = Array.from(
+      new Map(tasks.filter(t => t.assignee).map(t => [t.assignee!.id, t.assignee])).values()
+    )
+    const sprints = Array.from(new Set(tasks.map(t => t.sprint?.id).filter(Boolean))).map(id => ({
+      id: id as string,
+      name: tasks.find(t => t.sprint?.id === id)?.sprint?.name ?? 'Sprint'
+    }))
+    return { assignees, sprints }
+  }, [tasks])
+
+  const filteredTasks = useMemo(() => {
+    const keyword = filters.search.trim().toLowerCase()
+    return tasks.filter(t => {
+      if (filters.assigneeId && t.assignee?.id !== filters.assigneeId) return false
+      if (filters.priority && t.priority !== filters.priority) return false
+      if (filters.status && t.taskStatus !== filters.status) return false
+      if (filters.sprint && t.sprint?.id !== filters.sprint) return false
+      if (filters.onlyMy && t.assignee?.id !== undefined && t.assignee?.id !== filters.assigneeId && filters.assigneeId === '') return false
+      if (keyword && !(t.title.toLowerCase().includes(keyword) || t.taskCode.toLowerCase().includes(keyword))) return false
+      return true
+    })
+  }, [tasks, filters])
+
   const tasksByDate = useMemo(() => {
     const map: Record<string, CalendarApiTask[]> = {}
-    tasks.forEach(t => {
+    filteredTasks.forEach(t => {
       if (!map[t.dueDate]) map[t.dueDate] = []
       map[t.dueDate].push(t)
     })
     return map
-  }, [tasks])
+  }, [filteredTasks])
 
   const selectedTasks = useMemo(
     () => (selectedDate ? tasksByDate[selectedDate] ?? [] : []),
     [selectedDate, tasksByDate]
   )
 
-  const overdueCount   = tasks.filter(t => t.isOverdue).length
-  const completedCount = tasks.filter(t => t.taskStatus === 'DONE').length
+  const overdueCount   = filteredTasks.filter(t => t.isOverdue).length
+  const completedCount = filteredTasks.filter(t => t.taskStatus === 'DONE').length
 
   const days = useMemo(
     () => buildCalendarDays(currentYear, currentMonth),
@@ -188,9 +226,59 @@ export default function CalendarView({
             </button>
           </div>
 
-          <div className="flex items-center gap-3 md:gap-4 shrink-0">
-            <button className="p-2.5 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-all shadow-sm shrink-0">
-              <ListFilter className="w-5 h-5 text-gray-500" />
+          {/* Filters */}
+          <div className="flex items-center gap-2 md:gap-3 shrink-0 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
+            <Search size={16} className="text-gray-400" />
+            <input
+              value={filters.search}
+              onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+              placeholder={t('common.search')}
+              className="text-sm border-none outline-none bg-transparent placeholder:text-gray-400 w-40 md:w-56"
+            />
+            <div className="w-px h-6 bg-gray-200 mx-1" />
+            <select
+              value={filters.assigneeId}
+              onChange={e => setFilters(f => ({ ...f, assigneeId: e.target.value }))}
+              className="text-sm bg-transparent outline-none"
+            >
+              <option value="">{t('common.all')} {t('common.assignee')}</option>
+              {derivedFilters.assignees.map(a => (
+                <option key={a.id} value={a.id}>{a.fullName}</option>
+              ))}
+            </select>
+            <select
+              value={filters.priority}
+              onChange={e => setFilters(f => ({ ...f, priority: e.target.value as TaskPriority | '' }))}
+              className="text-sm bg-transparent outline-none"
+            >
+              <option value="">{t('common.all')} Priority</option>
+              <option value="CRITICAL">Critical</option>
+              <option value="HIGH">High</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="LOW">Low</option>
+            </select>
+            <select
+              value={filters.status}
+              onChange={e => setFilters(f => ({ ...f, status: e.target.value as TaskStatus | '' }))}
+              className="text-sm bg-transparent outline-none"
+            >
+              <option value="">{t('common.all')} Status</option>
+              {Object.entries(STATUS_LABEL).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <select
+              value={filters.sprint}
+              onChange={e => setFilters(f => ({ ...f, sprint: e.target.value }))}
+              className="text-sm bg-transparent outline-none"
+            >
+              <option value="">{t('common.all')} Sprint</option>
+              {derivedFilters.sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <button
+              onClick={() => setFilters(f => ({ ...f, onlyMy: !f.onlyMy }))}
+              className="flex items-center gap-1 text-sm text-gray-600"
+            >
+              {filters.onlyMy ? <ToggleRight size={18} className="text-blue-500" /> : <ToggleLeft size={18} className="text-gray-400" />}
+              {t('task.onlyMy')}
             </button>
           </div>
         </div>
@@ -308,52 +396,30 @@ export default function CalendarView({
                       </div>
 
                       <div className="flex-1 overflow-hidden">
-                        {isSidebarOpen ? (
-                          <div className="flex flex-col gap-0.5">
-                            {dayTasks.slice(0, 3).map(task => {
-                              const pc = PRIORITY_CONFIG[task.priority]
-                              return (
-                                <div
-                                  key={task.id}
-                                  className={cn(
-                                    'px-1 py-0.5 rounded-[3px] text-[9px] font-bold truncate border shadow-xs flex items-center gap-1',
-                                    pc.bg, pc.text,
-                                    task.isOverdue && 'border-red-400'
-                                  )}
-                                >
-                                  <div className={cn('w-1 h-1 rounded-full shrink-0', pc.text.replace('text', 'bg'))} />
-                                  {task.isOverdue && '⚠ '}
-                                  {task.taskCode}
-                                </div>
-                              )
-                            })}
-                            {dayTasks.length > 3 && (
-                              <div className="text-[8px] font-bold text-gray-400 ml-1">+{dayTasks.length - 3}</div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-1">
-                            {dayTasks.slice(0, 4).map(task => {
-                              const pc = PRIORITY_CONFIG[task.priority]
-                              return (
-                                <div
-                                  key={task.id}
-                                  className={cn(
-                                    'px-2 py-0.5 rounded-[4px] text-[10px] font-bold truncate border shadow-sm',
-                                    pc.bg, pc.text,
-                                    task.isOverdue && 'border-red-400'
-                                  )}
-                                >
-                                  {task.isOverdue && '⚠ '}
-                                  {task.title}
-                                </div>
-                              )
-                            })}
-                            {dayTasks.length > 4 && (
-                              <div className="text-[9px] font-bold text-gray-400 ml-1">+{dayTasks.length - 4} {t('nav.tasks').toLowerCase()}</div>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex flex-col gap-1">
+                          {dayTasks.slice(0, 3).map(task => {
+                            const pc = PRIORITY_CONFIG[task.priority]
+                            return (
+                              <button
+                                key={task.id}
+                                onClick={(e) => { e.stopPropagation(); onTaskClick(task.id) }}
+                                className={cn(
+                                  'w-full text-left px-2 py-0.5 rounded-[4px] text-[10px] font-semibold truncate border shadow-sm flex items-center gap-1.5 hover:shadow-md transition',
+                                  pc.bg, pc.text,
+                                  task.isOverdue && 'border border-red-400 ring-1 ring-red-200'
+                                )}
+                              >
+                                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', pc.text.replace('text', 'bg'))} />
+                                {task.isOverdue && <span className="text-red-600">⚠</span>}
+                                <span className="font-mono text-[9px]">{task.taskCode}</span>
+                                <span className="truncate">{task.title}</span>
+                              </button>
+                            )
+                          })}
+                          {dayTasks.length > 3 && (
+                            <div className="text-[9px] font-bold text-gray-500 ml-1">+{dayTasks.length - 3}</div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )
