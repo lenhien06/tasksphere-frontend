@@ -133,7 +133,11 @@ export default function CalendarView({
 
   const derivedFilters = useMemo(() => {
     const assignees = Array.from(
-      new Map(tasks.filter(t => t.assignee).map(t => [t.assignee!.id, t.assignee])).values()
+      new Map(
+        tasks
+          .filter((t): t is CalendarApiTask & { assignee: NonNullable<CalendarApiTask['assignee']> } => !!t.assignee)
+          .map(t => [t.assignee.id, t.assignee])
+      ).values()
     )
     const sprints = Array.from(new Set(tasks.map(t => t.sprint?.id).filter(Boolean))).map(id => ({
       id: id as string,
