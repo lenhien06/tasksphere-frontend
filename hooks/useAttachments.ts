@@ -10,7 +10,7 @@ const ALLOWED_EXTENSIONS = [
     ".png", ".jpg", ".jpeg", ".gif", ".zip", ".txt", ".csv", ".md",
 ]
 
-// Optimistic attachment shown immediately in UI while virus scan runs in background
+// Optimistic attachment shown immediately in UI while backend finalizes upload
 export type PendingAttachment = AttachmentResponse & { scanning: true; localUrl?: string }
 
 export function isPending(a: AttachmentResponse): a is PendingAttachment {
@@ -49,7 +49,7 @@ export function useUploadAttachment(projectId: string, taskId: string) {
         qc.invalidateQueries({ queryKey: ["activity", projectId, taskId] })
     }
 
-    // Silent polling — no toast while scanning, file already visible as pending
+    // Silent polling — no toast while backend finalizes, file already visible as pending
     const pollJob = async (jobId: string, tempId: string, attempt = 0): Promise<void> => {
         if (attempt > 40) {
             removePending(tempId)
@@ -64,7 +64,7 @@ export function useUploadAttachment(projectId: string, taskId: string) {
                 // No toast needed — file was already visible, just quietly finalize
             } else if (job.status === "FAILED") {
                 removePending(tempId)
-                toast.error(`"${job.fileName ?? "File"}" bị từ chối — phát hiện mã độc`)
+                toast.error(`"${job.fileName ?? "File"}" bị từ chối khi xử lý`)
             } else {
                 setTimeout(() => pollJob(jobId, tempId, attempt + 1), 1500)
             }
@@ -105,7 +105,7 @@ export function useUploadAttachment(projectId: string, taskId: string) {
             const tempId = context?.tempId ?? ""
 
             if (result?.jobId) {
-                // 202 async — virus scan running in background, file already visible as pending
+                // 202 async — backend still processing, file already visible as pending
                 pollJob(result.jobId, tempId)
             } else if (result?.id) {
                 // 201 sync path — replace optimistic with real data
@@ -128,7 +128,7 @@ export function useUploadAttachment(projectId: string, taskId: string) {
             const status = err?.response?.status
             if (status === 413) toast.error("File quá lớn (tối đa 25MB)")
             else if (status === 415) toast.error("Định dạng file không hỗ trợ")
-            else if (status === 422) toast.error("Phát hiện mã độc, file bị từ chối")
+            else if (status === 422) toast.error("File bị từ chối trong quá trình xử lý")
             else toast.error(err?.response?.data?.message ?? "Không thể upload file")
         },
     })

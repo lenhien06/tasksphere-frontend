@@ -390,7 +390,7 @@
     "uploadSuccess": "Tải lên thành công",
     "fileTooLarge": "File vượt quá giới hạn 25MB",
     "invalidFormat": "Định dạng file không được hỗ trợ",
-    "virusDetected": "Phát hiện mã độc, file bị từ chối",
+      "virusDetected": "File bị từ chối trong quá trình xử lý",
     "noAttachments": "Chưa có tệp đính kèm",
     "noPreview": "Không thể xem trước loại file này"
   },

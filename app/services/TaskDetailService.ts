@@ -58,7 +58,7 @@ export const TaskDetailService = {
     uploadAttachment: (projectId: string, taskId: string, file: File) => {
         const form = new FormData()
         form.append("file", file)
-        // BE returns 202 Accepted with { jobId } for async virus scan
+        // BE may return 202 Accepted with { jobId } for async processing
         return apiJava.post(`/v1/projects/${projectId}/tasks/${taskId}/attachments`, form, {
             headers: { "Content-Type": "multipart/form-data" },
         }).then(r => r.data.data as { jobId: string } | AttachmentResponse)

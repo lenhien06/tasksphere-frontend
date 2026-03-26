@@ -390,7 +390,7 @@
     "uploadSuccess": "Upload successful",
     "fileTooLarge": "File exceeds 25MB limit",
     "invalidFormat": "File format not supported",
-    "virusDetected": "Malware detected, file rejected",
+      "virusDetected": "File was rejected during processing",
     "noAttachments": "No attachments yet",
     "noPreview": "Preview not available for this file type"
   },

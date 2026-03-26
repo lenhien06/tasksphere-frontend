@@ -129,7 +129,7 @@ export function useProjectWebSocket(projectId: string, onEvent?: (event: Project
                     break
                 case "attachment.scan_failed":
                     toast.error(
-                        `File "${event.payload?.fileName ?? "unknown"}" bị từ chối — không an toàn (virus scan failed)`
+                        `File "${event.payload?.fileName ?? "unknown"}" bị từ chối trong quá trình xử lý`
                     )
                     break
                 case "task.subtask_promoted": {
