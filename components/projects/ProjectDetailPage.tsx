@@ -1013,7 +1013,7 @@ export default function ProjectDetailPage({ projectId: propProjectId, onBack }: 
     return (
         <div className="min-h-screen bg-slate-50/30">
             <ProjectHeader project={project} activeTab={activeTab} onTabChange={setActiveTab} />
-            <div className="px-2 md:px-4 pt-4 pb-8 max-w-[1600px] mx-auto">
+            <div className="px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 2xl:px-10 pt-4 pb-10 w-full max-w-none">
                 <AnimatePresence mode="wait">
                     <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
                         <ErrorBoundary>
