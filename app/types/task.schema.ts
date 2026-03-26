@@ -470,6 +470,7 @@ export interface CalendarApiTask {
     columnColor: string
     isOverdue:   boolean
     assignee:    UserSummary | null
+    sprint?:     SprintSummary | null
 }
 
 export interface CalendarResponse {
