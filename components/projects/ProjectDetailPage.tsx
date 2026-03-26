@@ -94,8 +94,8 @@ function mapToUIProject(be: any): Project {
         status: be.status as any,
         ownerId: be.ownerId,
         ownerName: be.ownerName,
-        createdAt: be.createdAt ? new Date(be.createdAt).toLocaleDateString("en-US") : "N/A",
-        deadline: be.endDate ? new Date(be.endDate).toLocaleDateString("en-US") : "Not set",
+        createdAt: be.createdAt ? new Date(be.createdAt).toLocaleDateString("vi-VN") : "Không có",
+        deadline: be.endDate ? new Date(be.endDate).toLocaleDateString("vi-VN") : "Chưa đặt",
         progress: be.progress || 0,
         memberCount: Math.max(be.memberCount || 0, 1),
         myRole: be.myRole,
@@ -114,12 +114,12 @@ function mapToUIProject(be: any): Project {
 
 function RoleBadge({ role }: { role: string }) {
     const map: Record<string, { label: string }> = {
-        project_manager: { label: "Project Manager" },
-        pm: { label: "Project Manager" },
-        member: { label: "Member" },
-        viewer: { label: "Viewer" },
-        owner: { label: "Owner" },
-        system_admin: { label: "Admin" },
+        project_manager: { label: "Quản lý dự án" },
+        pm: { label: "Quản lý dự án" },
+        member: { label: "Thành viên" },
+        viewer: { label: "Người xem" },
+        owner: { label: "Chủ sở hữu" },
+        system_admin: { label: "Quản trị hệ thống" },
     };
     const cfg = map[String(role || "").toLowerCase()] || map["viewer"];
     return (
@@ -181,6 +181,11 @@ function ProjectHeader({ project, activeTab, onTabChange }: { project: Project; 
     const { t } = useTranslation()
     const canManage = canActAsProjectManager(project.myRole, project.isOwner);
     const { data: members } = useQuery({ queryKey: ["project-members", project.id], queryFn: () => ProjectMemberService.getMembers(project.id), enabled: !!project.id });
+    const visibilityLabel = {
+        private: "Riêng tư",
+        internal: "Nội bộ",
+        public: "Công khai",
+    }[project.visibility] || project.visibility;
 
     const statusMap: Record<Project["status"], { label: string; cls: string; dot: string }> = {
         active: { label: t('project.status_active'), cls: "bg-emerald-50 text-emerald-700 border-emerald-100", dot: "bg-emerald-500" },
@@ -247,7 +252,7 @@ function ProjectHeader({ project, activeTab, onTabChange }: { project: Project; 
                             {project.visibility === "private" && <Lock size={12} className="text-slate-400" />}
                             {project.visibility === "internal" && <Users size={12} className="text-slate-400" />}
                             {project.visibility === "public" && <Globe size={12} className="text-slate-400" />}
-                            {project.visibility}
+                            {visibilityLabel}
                         </div>
                     </div>
                 </div>
@@ -351,7 +356,7 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
         },
     });
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={t('project.inviteMember')} description="Invite a teammate to join the project." maxWidth="max-w-md">
+        <Modal isOpen={isOpen} onClose={onClose} title={t('project.inviteMember')} description="Mời thành viên tham gia dự án." maxWidth="max-w-md">
             <div className="space-y-5">
                 <div>
                     <FieldLabel required>Email Address</FieldLabel>
@@ -369,8 +374,8 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                 </div>
                 <div><FieldLabel>Vai trò</FieldLabel><div className="grid grid-cols-1 gap-2">
                     {([
-                        { id: "MEMBER" as const, label: "Member", desc: "Tạo và sửa task, kéo thả Kanban, comment, upload file" },
-                        { id: "VIEWER" as const, label: "Viewer", desc: "Chỉ xem dự án và task, không thực hiện thao tác ghi" },
+                        { id: "MEMBER" as const, label: "Thành viên", desc: "Tạo và sửa task, kéo thả Kanban, bình luận, tải tệp" },
+                        { id: "VIEWER" as const, label: "Người xem", desc: "Chỉ xem dự án và task, không thực hiện thao tác ghi" },
                     ]).map((v) => (
                         <button 
                             key={v.id} 
@@ -400,9 +405,9 @@ function ChangeRoleModal({ isOpen, onClose, member, onSubmit, isLoading }: {
 }) {
     const [selectedRole, setSelectedRole] = useState<string>(member.currentRole);
     const ROLES = [
-        { id: "PROJECT_MANAGER", label: "Project Manager", desc: "Quản lý dự án, mời thành viên, đổi role" },
-        { id: "MEMBER", label: "Member", desc: "Tạo và sửa task, kéo thả Kanban, comment" },
-        { id: "VIEWER", label: "Viewer", desc: "Chỉ xem dự án và task" },
+        { id: "PROJECT_MANAGER", label: "Quản lý dự án", desc: "Quản lý dự án, mời thành viên, đổi quyền" },
+        { id: "MEMBER", label: "Thành viên", desc: "Tạo/sửa task, kéo thả Kanban, bình luận" },
+        { id: "VIEWER", label: "Người xem", desc: "Chỉ xem dự án và task" },
     ];
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Đổi vai trò" description={`Đổi vai trò cho ${member.fullName}`} maxWidth="max-w-sm">
@@ -738,17 +743,17 @@ function TabMembers({ project }: { project: Project }) {
                                                     )}
                                                     {canManageMembers && m.user.id !== project.ownerId && m.user.id !== currentUserId && (
                                                         <>
-                                                            <div className="h-px bg-slate-100 my-1" />
-                                                            <DropdownMenuItem 
-                                                                onClick={() => {
-                                                                    if (confirm(`Remove ${m.user.fullName} from project?`)) {
-                                                                        removeMutation.mutate(m.user.id);
-                                                                    }
-                                                                }}
-                                                                className="text-sm font-semibold text-red-600 py-2 rounded-lg cursor-pointer focus:bg-red-50 focus:text-red-600"
-                                                            >
-                                                                <Trash2 size={16} className="mr-2" /> Remove from project
-                                                            </DropdownMenuItem>
+        <div className="h-px bg-slate-100 my-1" />
+        <DropdownMenuItem 
+            onClick={() => {
+                if (confirm(`Xóa ${m.user.fullName} khỏi dự án?`)) {
+                    removeMutation.mutate(m.user.id);
+                }
+            }}
+            className="text-sm font-semibold text-red-600 py-2 rounded-lg cursor-pointer focus:bg-red-50 focus:text-red-600"
+        >
+            <Trash2 size={16} className="mr-2" /> Xóa khỏi dự án
+        </DropdownMenuItem>
                                                         </>
                                                     )}
                                                 </DropdownMenuContent>
