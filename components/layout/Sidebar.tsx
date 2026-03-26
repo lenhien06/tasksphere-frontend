@@ -306,38 +306,12 @@ export default function Sidebar({
               <MenuItem icon={Calendar} label={t('calendar.title')} path={`/projects/${currentProject.id}/calendar`} active={activeItem.includes("/calendar")} onClick={onNavigate} isCollapsed={isCollapsed} indent />
               <MenuItem icon={BarChart2} label={t('nav.reports')} path={`/projects/${currentProject.id}/reports`} active={activeItem.includes("/reports")} onClick={onNavigate} isCollapsed={isCollapsed} indent />
 
-              {!isCollapsed && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="mb-1 mt-4 px-2 text-[10px] font-medium uppercase tracking-widest text-[#475569]"
-                >
-                  {t('sidebar.projectManagement')}
-                </motion.div>
-              )}
-              <MenuItem icon={Users} label={t('common.members')} path={`/projects/${currentProject.id}/members`} active={activeItem.includes("/members")} onClick={onNavigate} isCollapsed={isCollapsed} indent />
-              <MenuItem icon={Settings} label={t('common.settings')} path={`/projects/${currentProject.id}/settings`} active={activeItem.includes("/settings")} onClick={onNavigate} isCollapsed={isCollapsed} indent />
+              {/* Members/Settings removed per request */}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* ADMIN PANEL */}
-        {sysRole === "ADMIN" && (
-          <>
-            {!isCollapsed && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mb-1 mt-4 px-2 text-[10px] font-medium uppercase tracking-widest text-[#475569]"
-              >
-                {t('sidebar.adminPanel')}
-              </motion.div>
-            )}
-            <MenuItem icon={LayoutDashboard} label={t('nav.dashboard')} path="/admin" active={activeItem === "/admin"} onClick={onNavigate} isCollapsed={isCollapsed} />
-            <MenuItem icon={UserCog} label={t('sidebar.users')} path="/admin/users" active={activeItem === "/admin/users"} onClick={onNavigate} isCollapsed={isCollapsed} />
-            <MenuItem icon={Settings2} label={t('common.settings')} path="/admin/settings" active={activeItem === "/admin/settings"} onClick={onNavigate} isCollapsed={isCollapsed} />
-          </>
-        )}
+        {/* ADMIN PANEL removed per request */}
       </div>
 
       {/* SECTION 3 — BOTTOM UTILITIES */}
