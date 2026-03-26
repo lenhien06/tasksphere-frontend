@@ -21,6 +21,7 @@ import { AnimatePresence } from "framer-motion";
 import ProjectOverviewPage, { type ProjectOverviewPageProps } from "@/components/project-overview/ProjectOverviewPage";
 import { FullCreateTask, type CreateTaskPayload } from "./TaskFormModals";
 import { toKanbanUserRole } from "@/lib/projectRole";
+import { useAISkillModalStore } from "@/stores/useAISkillModalStore";
 
 interface ProjectOverviewProps {
   projectId: string;
@@ -45,6 +46,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   const [showCreateTask, setShowCreateTask] = useState(false);
 
   const currentUserId = useAuthStore((s) => String(s.user?.id ?? ""));
+  const openSkillModal = useAISkillModalStore((s) => s.open);
 
   const { data: projectData, isLoading: isProjectLoading } = useQuery({
     queryKey: ["project-detail", projectId],
@@ -108,6 +110,22 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
           },
         ]
       : [];
+  // ── Compute member list before props so onOpenAISkillModal can reference it ──
+  const projectMembers = (() => {
+    const raw = membersData as unknown;
+    const list = (
+      raw && typeof raw === "object" && "data" in raw
+        ? (raw as { data?: Array<{ user?: { id: string; fullName: string; avatarUrl?: string | null }; id?: string; fullName?: string; avatarUrl?: string | null }> }).data
+        : raw
+    ) as Array<{ user?: { id: string; fullName: string; avatarUrl?: string | null }; id?: string; fullName?: string; avatarUrl?: string | null }> | undefined;
+    if (!Array.isArray(list)) return [];
+    return list.map((m) => ({
+      id: m.user?.id ?? m.id ?? "",
+      name: m.user?.fullName ?? m.fullName ?? "",
+      email: "",
+      avatarUrl: m.user?.avatarUrl ?? m.avatarUrl ?? undefined,
+    }));
+  })();
 
   const props: ProjectOverviewPageProps = {
     project: {
@@ -189,23 +207,29 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     onNavigateToMembers: () => router.push(`/projects/${projectId}/members`),
     onNavigateToBoard: () => router.push(`/projects/${projectId}/board`),
     onNavigateToBacklog: () => router.push(`/projects/${projectId}/backlog`),
+    onOpenAISkillModal: userRole === "PROJECT_MANAGER"
+      ? () => {
+          const rawList = Array.isArray(projectMembers) ? projectMembers : [];
+          openSkillModal({
+            members: rawList.map((m) => ({
+              memberId: m.id,
+              userId: m.id,
+              fullName: m.name,
+              email: "",
+              avatarUrl: m.avatarUrl ?? undefined,
+              roleLabel: undefined,
+              profileSkills: [],
+              projectSkills: [],
+            })),
+            canEdit: true,
+            onConfirm: (updated) => {
+              console.log("[AI Skill Allocation] project overview confirmed:", updated);
+            },
+          });
+        }
+      : undefined,
   };
 
-  const projectMembers = (() => {
-    const raw = membersData as unknown;
-    const list = (
-      raw && typeof raw === "object" && "data" in raw
-        ? (raw as { data?: Array<{ user?: { id: string; fullName: string; avatarUrl?: string | null }; id?: string; fullName?: string; avatarUrl?: string | null }> }).data
-        : raw
-    ) as Array<{ user?: { id: string; fullName: string; avatarUrl?: string | null }; id?: string; fullName?: string; avatarUrl?: string | null }> | undefined;
-    if (!Array.isArray(list)) return [];
-    return list.map((m) => ({
-      id: m.user?.id ?? m.id ?? "",
-      name: m.user?.fullName ?? m.fullName ?? "",
-      email: "",
-      avatarUrl: m.user?.avatarUrl ?? m.avatarUrl ?? undefined,
-    }));
-  })();
 
   const createColumns = (columnsData ?? []).map((c) => ({ id: c.id, name: c.name, color: c.colorHex ?? "#94A3B8" }));
 

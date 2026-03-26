@@ -42,6 +42,7 @@ export default function ProjectOverviewPage(props: ProjectOverviewPageProps) {
           overview={props.overview}
           userRole={props.userRole}
           onCreateTask={props.onCreateTask}
+          onOpenAISkillModal={props.onOpenAISkillModal}
         />
         <SprintCard
           className="lg:col-span-5 xl:col-span-3"
