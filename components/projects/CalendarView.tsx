@@ -274,13 +274,44 @@ export default function CalendarView({
   const updateTaskMutation = useMutation({
     mutationFn: ({ taskId, dueDate }: { taskId: string; dueDate: string }) => 
       TaskService.updateTask(projectId!, taskId, { dueDate }),
-    onSuccess: () => {
+    onMutate: async ({ taskId, dueDate }) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['calendar', projectId, currentYear, currentMonth] })
+
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData(['calendar', projectId, currentYear, currentMonth])
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(['calendar', projectId, currentYear, currentMonth], (old: any) => {
+        if (!old) return old
+        return {
+          ...old,
+          tasks: old.tasks.map((t: any) => 
+            t.id === taskId ? { ...t, dueDate } : t
+          )
+        }
+      })
+
+      // Return a context object with the snapshotted value
+      return { previousData }
+    },
+    onError: (err: any, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousData) {
+        queryClient.setQueryData(
+          ['calendar', projectId, currentYear, currentMonth],
+          context.previousData
+        )
+      }
+      toast.error(err?.response?.data?.message || t('calendar.taskMovedError'))
+    },
+    onSettled: () => {
+      // Always refetch after error or success to guarantee we are in sync with the server
       queryClient.invalidateQueries({ queryKey: ['calendar', projectId] })
+    },
+    onSuccess: () => {
       toast.success(t('calendar.taskMovedSuccess'))
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || t('calendar.taskMovedError'))
-    }
   })
 
   const tasks: CalendarApiTask[] = data?.tasks ?? []
