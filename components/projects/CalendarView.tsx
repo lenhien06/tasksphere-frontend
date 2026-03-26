@@ -18,9 +18,8 @@ import {
   Users,
   Tag,
   Layers,
-  ToggleLeft,
-  ToggleRight,
   MoreHorizontal,
+  ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserAvatar } from '@/components/common/UserAvatar'
@@ -40,6 +39,11 @@ import {
   defaultDropAnimationSideEffects,
 } from '@dnd-kit/core'
 import { toast } from 'sonner'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 // ════════════════════════════════════════
 // CONFIGS
@@ -63,6 +67,57 @@ const STATUS_DOT: Record<TaskStatus, string> = {
 // ════════════════════════════════════════
 // COMPONENTS
 // ════════════════════════════════════════
+
+function Chip({ active, label, icon, onClick }: { active?: boolean; label: string; icon?: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "h-9 rounded-xl px-3 text-xs border transition-all whitespace-nowrap inline-flex items-center gap-1.5 font-bold tracking-tight shadow-sm",
+        active
+          ? "border-blue-200 bg-blue-50 text-blue-700"
+          : "border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300"
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function FilterMenu({
+  label,
+  active,
+  children,
+  icon
+}: {
+  label: string;
+  active?: boolean;
+  children: React.ReactNode;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            "h-9 rounded-xl px-3 text-xs border inline-flex items-center gap-1.5 transition-all outline-none font-bold tracking-tight shadow-sm",
+            active
+              ? "border-blue-200 bg-blue-50 text-blue-700"
+              : "border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300"
+          )}
+        >
+          {icon}
+          {label}
+          <ChevronDown size={13} className="opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[180px] p-2 rounded-xl shadow-xl border-gray-200 bg-white z-[9999]">
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function DraggableTaskCard({
   task,
@@ -137,6 +192,8 @@ function DroppableDay({
     data: { type: 'day', dateStr }
   })
 
+  const { t } = useTranslation()
+
   return (
     <div
       ref={setNodeRef}
@@ -202,9 +259,6 @@ function toDateStr(date: Date): string {
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
-
-// Mock t function for components outside main
-const t = (key: string) => key
 
 // ════════════════════════════════════════
 // MAIN COMPONENT
@@ -275,13 +329,8 @@ export default function CalendarView({
     mutationFn: ({ taskId, dueDate }: { taskId: string; dueDate: string }) => 
       TaskService.updateTask(projectId!, taskId, { dueDate }),
     onMutate: async ({ taskId, dueDate }) => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
       await queryClient.cancelQueries({ queryKey: ['calendar', projectId, currentYear, currentMonth] })
-
-      // Snapshot the previous value
       const previousData = queryClient.getQueryData(['calendar', projectId, currentYear, currentMonth])
-
-      // Optimistically update to the new value
       queryClient.setQueryData(['calendar', projectId, currentYear, currentMonth], (old: any) => {
         if (!old) return old
         return {
@@ -291,12 +340,9 @@ export default function CalendarView({
           )
         }
       })
-
-      // Return a context object with the snapshotted value
       return { previousData }
     },
     onError: (err: any, variables, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousData) {
         queryClient.setQueryData(
           ['calendar', projectId, currentYear, currentMonth],
@@ -306,7 +352,6 @@ export default function CalendarView({
       toast.error(err?.response?.data?.message || t('calendar.taskMovedError'))
     },
     onSettled: () => {
-      // Always refetch after error or success to guarantee we are in sync with the server
       queryClient.invalidateQueries({ queryKey: ['calendar', projectId] })
     },
     onSuccess: () => {
@@ -338,10 +383,6 @@ export default function CalendarView({
       if (filters.priority && t.priority !== filters.priority) return false
       if (filters.status && t.taskStatus !== filters.status) return false
       if (filters.sprint && t.sprint?.id !== filters.sprint) return false
-      // For onlyMy, we assume there's a current user context or the filter is handled upstream, 
-      // but here we can at least filter if we know the user's ID. 
-      // Simplified: if onlyMy is true and no assigneeId filter, it's probably handled by BE or we need currentUserId.
-      // Let's assume it works with what we have.
       if (keyword && !(t.title.toLowerCase().includes(keyword) || t.taskCode.toLowerCase().includes(keyword))) return false
       return true
     })
@@ -395,19 +436,13 @@ export default function CalendarView({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     setActiveTask(null)
-
     if (!over) return
-
     const activeData = active.data.current as { type?: string; task?: CalendarApiTask } | undefined
     const overData = over.data.current as { type?: string; dateStr?: string } | undefined
-
     if (activeData?.type === 'task' && overData?.type === 'day') {
       const taskId = activeData.task?.id
       const newDate = overData.dateStr
-
       if (taskId && newDate && activeData.task?.dueDate !== newDate) {
-        // Warning if moving outside sprint range (if we had sprint dates)
-        // For now, just perform the update
         updateTaskMutation.mutate({ taskId, dueDate: newDate })
       }
     }
@@ -423,104 +458,190 @@ export default function CalendarView({
 
         {/* ── TOOLBAR ── */}
         <div className="px-5 md:px-8 py-4 flex flex-col gap-4 shrink-0 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <h1 className="text-[20px] md:text-[24px] font-bold text-gray-900 tracking-tight whitespace-nowrap">
-              {t('calendar.title')}
-            </h1>
-          </div>
+          <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible rounded-2xl border border-gray-200 bg-white p-2 shadow-sm hide-scrollbar">
+            
+            {/* Search */}
+            <div className="relative min-w-[240px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={filters.search}
+                onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+                placeholder={t('common.search')}
+                className="h-9 w-full rounded-xl border border-gray-100 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-medium"
+              />
+            </div>
 
-          <div className="flex items-center gap-4 md:gap-6 overflow-x-auto hide-scrollbar pb-1">
-            {/* Month Navigation */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200">
+            {/* Navigation */}
+            <div className="flex items-center gap-1.5 px-1.5 border-r border-gray-100 mr-1.5">
+              <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-100">
                 <button onClick={goPrev} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-gray-600 transition-all">
-                  <ChevronLeft size={18} />
+                  <ChevronLeft size={16} />
                 </button>
-                <div className="px-3 font-bold text-[14px] min-w-[140px] text-center text-gray-900">
-                  {new Date(currentYear, currentMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                <div className="px-3 font-bold text-xs min-w-[120px] text-center text-gray-900 uppercase tracking-tight">
+                  {new Date(currentYear, currentMonth - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                 </div>
                 <button onClick={goNext} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-gray-600 transition-all">
-                  <ChevronRight size={18} />
+                  <ChevronRight size={16} />
                 </button>
               </div>
               <button
                 onClick={goToday}
-                className="px-4 py-1.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
+                className="h-9 px-4 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
               >
                 {t('calendar.today')}
               </button>
             </div>
 
-            <div className="flex-1" />
+            {/* Filters */}
+            <Chip
+              active={filters.onlyMy}
+              icon={<User size={13} />}
+              label={t('task.onlyMy')}
+              onClick={() => setFilters(f => ({ ...f, onlyMy: !f.onlyMy }))}
+            />
 
-            {/* View Toggle */}
-            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 mr-2">
+            <FilterMenu
+              label={t('common.assignee')}
+              active={!!filters.assigneeId}
+              icon={<Users size={13} />}
+            >
+              <button
+                onClick={() => setFilters(f => ({ ...f, assigneeId: '' }))}
+                className={cn(
+                  "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                  !filters.assigneeId ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                )}
+              >
+                {t('common.all')} {t('common.assignee')}
+              </button>
+              {derivedFilters.assignees.map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => setFilters(f => ({ ...f, assigneeId: a.id }))}
+                  className={cn(
+                    "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    filters.assigneeId === a.id ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  {a.fullName}
+                </button>
+              ))}
+            </FilterMenu>
+
+            <FilterMenu
+              label="Priority"
+              active={!!filters.priority}
+              icon={<Tag size={13} />}
+            >
+              <button
+                onClick={() => setFilters(f => ({ ...f, priority: '' }))}
+                className={cn(
+                  "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                  !filters.priority ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                )}
+              >
+                All Priorities
+              </button>
+              {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setFilters(f => ({ ...f, priority: p }))}
+                  className={cn(
+                    "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    filters.priority === p ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
+            </FilterMenu>
+
+            <FilterMenu
+              label="Status"
+              active={!!filters.status}
+              icon={<ListFilter size={13} />}
+            >
+              <button
+                onClick={() => setFilters(f => ({ ...f, status: '' }))}
+                className={cn(
+                  "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                  !filters.status ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                )}
+              >
+                All Statuses
+              </button>
+              {Object.entries(STATUS_LABEL).map(([k, v]) => (
+                <button
+                  key={k}
+                  onClick={() => setFilters(f => ({ ...f, status: k as TaskStatus }))}
+                  className={cn(
+                    "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    filters.status === k ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  {v}
+                </button>
+              ))}
+            </FilterMenu>
+
+            <FilterMenu
+              label="Sprint"
+              active={!!filters.sprint}
+              icon={<Layers size={13} />}
+            >
+              <button
+                onClick={() => setFilters(f => ({ ...f, sprint: '' }))}
+                className={cn(
+                  "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                  !filters.sprint ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                )}
+              >
+                All Sprints
+              </button>
+              {derivedFilters.sprints.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => setFilters(f => ({ ...f, sprint: s.id }))}
+                  className={cn(
+                    "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    filters.sprint === s.id ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </FilterMenu>
+
+            <div className="ml-auto flex items-center gap-1 rounded-xl border border-gray-100 bg-gray-50 p-1 shrink-0 shadow-inner">
               <button
                 onClick={() => onViewChange('board')}
-                className={cn('p-1.5 rounded-lg transition-all', currentView === 'board' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600')}
+                className={cn(
+                  "h-7 rounded-lg px-3 text-xs inline-flex items-center gap-1.5 transition-all font-bold tracking-tight",
+                  currentView === 'board' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                )}
               >
-                <LayoutGrid size={18} />
+                <LayoutGrid size={14} />
+                {t('kanban.board')}
               </button>
-              <button className={cn('p-1.5 rounded-lg transition-all', currentView === 'calendar' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600')}>
-                <CalendarIcon size={18} />
+              <button
+                className={cn(
+                  "h-7 rounded-lg px-3 text-xs inline-flex items-center gap-1.5 transition-all font-bold tracking-tight",
+                  currentView === 'calendar' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                )}
+              >
+                <CalendarIcon size={14} />
+                {t('calendar.title')}
               </button>
             </div>
 
-            {/* Filters */}
-            <div className="flex items-center gap-2 md:gap-3 shrink-0 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
-              <Search size={16} className="text-gray-400" />
-              <input
-                value={filters.search}
-                onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-                placeholder={t('common.search')}
-                className="text-sm border-none outline-none bg-transparent placeholder:text-gray-400 w-40 md:w-56"
-              />
-              <div className="w-px h-6 bg-gray-200 mx-1" />
-              <select
-                value={filters.assigneeId}
-                onChange={e => setFilters(f => ({ ...f, assigneeId: e.target.value }))}
-                className="text-sm bg-transparent outline-none"
-              >
-                <option value="">{t('common.all')} {t('common.assignee')}</option>
-                {derivedFilters.assignees.map(a => (
-                  <option key={a.id} value={a.id}>{a.fullName}</option>
-                ))}
-              </select>
-              <select
-                value={filters.priority}
-                onChange={e => setFilters(f => ({ ...f, priority: e.target.value as TaskPriority | '' }))}
-                className="text-sm bg-transparent outline-none"
-              >
-                <option value="">{t('common.all')} Priority</option>
-                <option value="CRITICAL">Critical</option>
-                <option value="HIGH">High</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="LOW">Low</option>
-              </select>
-              <select
-                value={filters.status}
-                onChange={e => setFilters(f => ({ ...f, status: e.target.value as TaskStatus | '' }))}
-                className="text-sm bg-transparent outline-none"
-              >
-                <option value="">{t('common.all')} Status</option>
-                {Object.entries(STATUS_LABEL).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-              <select
-                value={filters.sprint}
-                onChange={e => setFilters(f => ({ ...f, sprint: e.target.value }))}
-                className="text-sm bg-transparent outline-none"
-              >
-                <option value="">{t('common.all')} Sprint</option>
-                {derivedFilters.sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+            {!isReadOnly && (
               <button
-                onClick={() => setFilters(f => ({ ...f, onlyMy: !f.onlyMy }))}
-                className="flex items-center gap-1 text-sm text-gray-600"
+                className="h-9 px-4 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 inline-flex items-center gap-2 shrink-0 active:scale-95 ml-1"
               >
-                {filters.onlyMy ? <ToggleRight size={18} className="text-blue-500" /> : <ToggleLeft size={18} className="text-gray-400" />}
-                {t('task.onlyMy')}
+                <Plus size={14} strokeWidth={3} />
+                {t('kanban.addTask')}
               </button>
-            </div>
+            )}
           </div>
         </div>
 
