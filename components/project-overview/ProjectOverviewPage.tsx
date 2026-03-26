@@ -28,7 +28,7 @@ export default function ProjectOverviewPage(props: ProjectOverviewPageProps) {
 
   return (
     <div className="min-h-screen">
-      <div className="w-full max-w-[1400px] mx-auto px-2 sm:px-3 md:px-4 py-3 space-y-3">
+      <div className="w-full px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 2xl:px-10 py-3 space-y-3">
       <StatCardsRow
         overview={props.overview}
         onNavigateToMembers={props.onNavigateToMembers}
