@@ -258,7 +258,7 @@ export interface PromoteSubTaskRequestBody {
     title?: string
     assigneeId?: string
     dueDate?: string
-    description?: string | null
+    description?: string
 }
 
 // ── Custom Columns ─────────────────────────────────────────────

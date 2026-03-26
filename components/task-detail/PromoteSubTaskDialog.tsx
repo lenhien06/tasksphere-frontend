@@ -137,9 +137,9 @@ export default function PromoteSubTaskDialog({
             if (!t) throw new Error("Tiêu đề không được để trống")
             return TaskDetailService.promoteSubtask(source.id, {
                 title: t,
-                assigneeId: assigneeId ? assigneeId : null,
-                dueDate: dueYmd || null,
-                description: descHtml || null,
+                assigneeId: assigneeId ? assigneeId : undefined,
+                dueDate: dueYmd || undefined,
+                description: descHtml || undefined,
             })
         },
         onSuccess: (data: any) => {

@@ -46,9 +46,9 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package.json ./package.json
 
-# Copy Next.js build output (distDir in next.config.js is "dist", not ".next")
-COPY --from=builder --chown=nextjs:nodejs /app/dist/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/dist/static ./dist/static
+# Copy Next.js build output (standalone)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Switch to non-root user
 USER nextjs

@@ -2,7 +2,6 @@
 const nextConfig = {
   // output: 'export',
   output: 'standalone',
-  distDir: 'dist',
   eslint: {
     ignoreDuringBuilds: true
   },
