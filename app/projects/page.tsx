@@ -45,6 +45,8 @@ import {
     DeleteProjectModal,
     RestoreProjectModal,
 } from "@/components/projects/ProjectModals";
+import { AIProjectTriggerButton } from "@/components/projects/AIProjectCreationModal";
+import { useAIModalStore } from "@/stores/useAIModalStore";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { toast } from "sonner";
 import { ProjectService } from "@/app/services/ProjectService";
@@ -274,6 +276,7 @@ export default function ProjectsPage() {
     
     // UI state
     const [showCreate, setShowCreate] = useState(false);
+    const openAIModal = useAIModalStore((s) => s.open);
     const [activeProject, setActiveProject] = useState<any>(null);
     const [modalType, setModalType] = useState<"edit" | "archive" | "delete" | "restore" | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -528,14 +531,17 @@ export default function ProjectsPage() {
         <div className="flex flex-col h-full bg-transparent">
             {/* Header */}
             <div className="px-2 md:px-4 py-2 flex flex-col gap-4 flex-shrink-0 mb-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
                         <h1 className="text-[24px] md:text-[28px] font-extrabold text-gray-900 tracking-tight">{t('project.myProjects')}</h1>
                         <p className="text-[13px] text-gray-500 font-medium">{t('project.trackProgress')}</p>
                     </div>
-                    <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 h-[38px] px-4 bg-[#111827] text-white rounded-xl text-[13px] font-bold hover:bg-gray-800 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)] active:scale-95">
-                        <Plus className="w-4 h-4 stroke-[3px]" /> <span>{t('project.newProject')}</span>
-                    </button>
+                    <div className="flex items-start gap-3">
+                        <AIProjectTriggerButton onClick={openAIModal} />
+                        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 h-[38px] px-4 bg-[#111827] text-white rounded-xl text-[13px] font-bold hover:bg-gray-800 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)] active:scale-95">
+                            <Plus className="w-4 h-4 stroke-[3px]" /> <span>{t('project.newProject')}</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Toolbar */}
@@ -931,6 +937,8 @@ export default function ProjectsPage() {
                     <RestoreProjectModal isOpen={modalType === "restore"} onClose={closeModal} project={activeProject} onConfirm={() => restoreMutation.mutate(activeProject.id)} loading={restoreMutation.isPending} />
                 </>
             )}
+            {/* AI modal is mounted globally in layoutClient.tsx via useAIModalStore */}
         </div>
     );
 }
+

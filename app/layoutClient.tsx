@@ -14,6 +14,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { cn } from '@/lib/utils'
 import { ProjectService } from '@/app/services/ProjectService'
 import I18nProvider from '@/components/providers/I18nProvider'
+import { AIProjectCreationModal } from '@/components/projects/AIProjectCreationModal'
+import { useAIModalStore } from '@/stores/useAIModalStore'
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -71,14 +73,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   if (isAuthPage) {
     return (
-      <main className="w-full">
+      <main className="w-full" suppressHydrationWarning>
         {children}
       </main>
     )
   }
 
   return (
-    <div className="flex h-screen bg-[#F9FAFB] font-sans overflow-hidden">
+    <div className="flex h-screen bg-[#F9FAFB] font-sans overflow-hidden" suppressHydrationWarning>
       <Sidebar
         currentUser={currentUser || undefined}
         currentProject={currentProject}
@@ -116,8 +118,25 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           )}
         </main>
       </div>
+
+      {/* Global AI Project Creation Modal — accessible from anywhere via useAIModalStore */}
+      <AIModalGlobal />
     </div>
   )
+}
+
+function AIModalGlobal() {
+  const { isOpen, close } = useAIModalStore();
+  return (
+    <AIProjectCreationModal
+      isOpen={isOpen}
+      onClose={close}
+      onGenerate={async (data) => {
+        // TODO: wire to backend AI project generation API
+        console.log('[AI Project Generation] payload:', data);
+      }}
+    />
+  );
 }
 
 export default function LayoutClient({ children }: Readonly<{ children: React.ReactNode }>) {
