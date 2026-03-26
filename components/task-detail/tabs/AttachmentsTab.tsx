@@ -164,7 +164,7 @@ function FilePreviewOverlay({ attachments, initialIndex, onClose }: FilePreviewO
                             {attachment && formatDate(attachment.uploadedAt)}
                             {attachment?.uploadedBy && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-white/80">
-                                    <UserAvatar user={attachment.uploadedBy} size="xs" />
+                                    <UserAvatar user={attachment.uploadedBy} size="sm" />
                                     <span className="truncate max-w-[140px]">{attachment.uploadedBy.fullName}</span>
                                 </span>
                             )}
