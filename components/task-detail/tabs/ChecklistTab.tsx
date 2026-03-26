@@ -26,6 +26,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { useQueryClient } from "@tanstack/react-query"
 
 interface ChecklistTabProps {
+    projectId: string
     taskId: string
 }
 
@@ -34,15 +35,17 @@ interface ChecklistTabProps {
 function SortableChecklistItem({
     item,
     taskId,
+    projectId,
 }: {
     item: ChecklistItemResponse
     taskId: string
+    projectId: string
 }) {
     const [editing, setEditing] = useState(false)
     const [editTitle, setEditTitle] = useState(item.title)
     const [localDone, setLocalDone] = useState(item.isDone)
-    const updateItem = useUpdateChecklistItem(taskId)
-    const deleteItem = useDeleteChecklistItem(taskId)
+    const updateItem = useUpdateChecklistItem(projectId, taskId)
+    const deleteItem = useDeleteChecklistItem(projectId, taskId)
 
     // Sync local state when server data changes externally (e.g. websocket)
     useEffect(() => {
@@ -133,10 +136,10 @@ function SortableChecklistItem({
 
 // ── Main tab ─────────────────────────────────────────────
 
-export default function ChecklistTab({ taskId }: ChecklistTabProps) {
+export default function ChecklistTab({ projectId, taskId }: ChecklistTabProps) {
     const { data, isLoading } = useChecklists(taskId)
-    const addItem = useAddChecklistItem(taskId)
-    const reorderItems = useReorderChecklist(taskId)
+    const addItem = useAddChecklistItem(projectId, taskId)
+    const reorderItems = useReorderChecklist(projectId, taskId)
     const qc = useQueryClient()
     const [newTitle, setNewTitle] = useState("")
     const [showInput, setShowInput] = useState(false)
@@ -200,7 +203,7 @@ export default function ChecklistTab({ taskId }: ChecklistTabProps) {
                 <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-0.5">
                         {items.map(item => (
-                            <SortableChecklistItem key={item.id} item={item} taskId={taskId} />
+                            <SortableChecklistItem key={item.id} item={item} taskId={taskId} projectId={projectId} />
                         ))}
                     </div>
                 </SortableContext>

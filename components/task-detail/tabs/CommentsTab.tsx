@@ -410,9 +410,13 @@ function CommentEditor({
     const hasSubmittableContent = useCallback(() => {
         if (!editor) return false
         if (pendingFiles.length > 0) return true
-        if (editor.getText().trim().length > 0) return true
+        const plain = editor.getText().trim()
+        if (plain.length > 0) return true
+        const html = editor.getHTML()
+        const textFromHtml = html.replace(/<[^>]+>/g, "").trim()
+        if (textFromHtml.length > 0) return true
         // Mention nodes don't contribute to getText() — check HTML directly
-        return /data-mention-id/i.test(editor.getHTML())
+        return /data-mention-id/i.test(html)
     }, [editor, pendingFiles])
 
     const handleSubmit = useCallback(() => {

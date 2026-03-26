@@ -14,7 +14,7 @@ export function useChecklists(taskId: string) {
     })
 }
 
-export function useAddChecklistItem(taskId: string) {
+export function useAddChecklistItem(projectId: string, taskId: string) {
     const qc = useQueryClient()
     return useMutation({
         mutationFn: (title: string) => TaskDetailService.addChecklistItem(taskId, title),
@@ -23,6 +23,7 @@ export function useAddChecklistItem(taskId: string) {
                 if (!old) return { total: 1, completed: 0, items: [newItem] }
                 return { ...old, total: old.total + 1, items: [...old.items, newItem] }
             })
+            qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
         },
         onError: (err: any) => {
             toast.error(err?.response?.data?.message ?? "Unable to add checklist item")
@@ -30,7 +31,7 @@ export function useAddChecklistItem(taskId: string) {
     })
 }
 
-export function useUpdateChecklistItem(taskId: string) {
+export function useUpdateChecklistItem(projectId: string, taskId: string) {
     const qc = useQueryClient()
     return useMutation({
         mutationFn: ({ itemId, data }: { itemId: string; data: { title?: string; isDone?: boolean } }) =>
@@ -67,7 +68,7 @@ export function useUpdateChecklistItem(taskId: string) {
             })
             // Also invalidate task detail to keep total counts/badges in sync, 
             // but we don't invalidate checklist itself immediately to avoid flash
-            qc.invalidateQueries({ queryKey: ["task"] })
+            qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
         },
         onError: (_err, _vars, ctx) => {
             // Roll back to the previous value if mutation fails
@@ -78,7 +79,7 @@ export function useUpdateChecklistItem(taskId: string) {
     })
 }
 
-export function useDeleteChecklistItem(taskId: string) {
+export function useDeleteChecklistItem(projectId: string, taskId: string) {
     const qc = useQueryClient()
     return useMutation({
         mutationFn: (itemId: string) => TaskDetailService.deleteChecklistItem(itemId),
@@ -89,6 +90,7 @@ export function useDeleteChecklistItem(taskId: string) {
                 const completed = updated.filter((i: ChecklistItemResponse) => i.isDone).length
                 return { ...old, total: updated.length, completed, items: updated }
             })
+            qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
         },
         onError: (err: any) => {
             toast.error(err?.response?.data?.message ?? "Unable to delete checklist item")
@@ -96,7 +98,7 @@ export function useDeleteChecklistItem(taskId: string) {
     })
 }
 
-export function useReorderChecklist(taskId: string) {
+export function useReorderChecklist(projectId: string, taskId: string) {
     const qc = useQueryClient()
     return useMutation({
         mutationFn: (orderedIds: string[]) => TaskDetailService.reorderChecklist(taskId, orderedIds),
@@ -104,5 +106,6 @@ export function useReorderChecklist(taskId: string) {
             qc.invalidateQueries({ queryKey: ["checklist", taskId] })
             toast.error("Unable to reorder checklist")
         },
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["task", projectId, taskId] }),
     })
 }

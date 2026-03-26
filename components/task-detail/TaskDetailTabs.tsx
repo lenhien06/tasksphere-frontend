@@ -128,11 +128,11 @@ export default function TaskDetailTabs({ task, projectId, currentUserRole }: Tas
                             <CommentsTab projectId={projectId} taskId={task.id} />
                         )}
                     </div>
-                    <div className={active === "checklist" ? "block" : "hidden"}>
-                        {mounted["checklist"] && (
-                            <ChecklistTab taskId={task.id} />
-                        )}
-                    </div>
+                        <div className={active === "checklist" ? "block" : "hidden"}>
+                            {mounted["checklist"] && (
+                                <ChecklistTab projectId={task.projectId ?? projectId} taskId={task.id} />
+                            )}
+                        </div>
                     <div className={active === "attachments" ? "block" : "hidden"}>
                         {mounted["attachments"] && (
                             <AttachmentsTab projectId={projectId} taskId={task.id} />
