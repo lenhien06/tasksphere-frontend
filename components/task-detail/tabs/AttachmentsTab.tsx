@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
+import { createPortal } from "react-dom"
 import { Download, Trash2, Upload, X, FileText, ImageIcon, FileCode, FileArchive, FileSpreadsheet, FilePieChart, File, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCw, Maximize2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/common/UserAvatar"
@@ -60,6 +61,7 @@ function FilePreviewOverlay({ attachments, initialIndex, onClose }: FilePreviewO
     const [zoom, setZoom] = useState(1)
     const [rotation, setRotation] = useState(0)
     const [visible, setVisible] = useState(false)
+    const [mounted, setMounted] = useState(false)
 
     const attachment = attachments[index]
     const total = attachments.length
@@ -72,6 +74,15 @@ function FilePreviewOverlay({ attachments, initialIndex, onClose }: FilePreviewO
     useEffect(() => {
         const t = setTimeout(() => setVisible(true), 10)
         return () => clearTimeout(t)
+    }, [])
+
+    useEffect(() => {
+        setMounted(true)
+        const original = document.body.style.overflow
+        document.body.style.overflow = "hidden"
+        return () => {
+            document.body.style.overflow = original
+        }
     }, [])
 
     // Load preview URL when attachment changes
@@ -124,7 +135,9 @@ function FilePreviewOverlay({ attachments, initialIndex, onClose }: FilePreviewO
         setTimeout(onClose, 200)
     }
 
-    return (
+    if (!mounted) return null
+
+    return createPortal(
         <div
             className={cn(
                 "fixed inset-0 z-[9999] flex flex-col transition-all duration-200",
@@ -145,10 +158,16 @@ function FilePreviewOverlay({ attachments, initialIndex, onClose }: FilePreviewO
                         <p className="text-sm font-semibold text-white truncate max-w-[320px] md:max-w-[500px]">
                             {attachment?.fileName}
                         </p>
-                        <p className="text-xs text-white/50 mt-0.5">
+                        <p className="text-xs text-white/50 mt-0.5 flex items-center gap-2">
                             {attachment && formatFileSize(attachment.fileSize)}
                             {attachment && " · "}
                             {attachment && formatDate(attachment.uploadedAt)}
+                            {attachment?.uploadedBy && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-white/80">
+                                    <UserAvatar user={attachment.uploadedBy} size="xs" />
+                                    <span className="truncate max-w-[140px]">{attachment.uploadedBy.fullName}</span>
+                                </span>
+                            )}
                         </p>
                     </div>
                 </div>
@@ -362,6 +381,7 @@ function FilePreviewOverlay({ attachments, initialIndex, onClose }: FilePreviewO
                 </div>
             )}
         </div>
+        , document.body
     )
 }
 
