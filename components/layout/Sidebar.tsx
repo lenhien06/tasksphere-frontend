@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { AuthService } from "@/app/services/auth.service";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useAIModalStore } from "@/stores/useAIModalStore";
+import { useNotificationStore } from "@/stores/useNotificationStore";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -172,6 +173,7 @@ export default function Sidebar({
   const { t } = useTranslation()
   const { logout } = useAuthStore()
   const openAIModal = useAIModalStore((s) => s.open);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
 
   const handleLogout = async () => {
     try {
@@ -280,7 +282,7 @@ export default function Sidebar({
         )}
         <MenuItem icon={Home} label={t('nav.dashboard')} path="/dashboard" active={activeItem === "/dashboard"} onClick={onNavigate} isCollapsed={isCollapsed} />
         <MenuItem icon={FolderKanban} label={t('project.myProjects')} path="/projects" active={activeItem === "/projects" || activeItem === "/projects/all"} badge={{ count: 3, variant: "count" }} onClick={onNavigate} isCollapsed={isCollapsed} />
-        <MenuItem icon={Bell} label={t('nav.notifications')} path="/notifications" active={activeItem === "/notifications"} badge={{ count: 5, variant: "alert" }} onClick={onNavigate} isCollapsed={isCollapsed} />
+        <MenuItem icon={Bell} label={t('nav.notifications')} path="/notifications" active={activeItem === "/notifications"} badge={{ count: unreadCount, variant: "alert" }} onClick={onNavigate} isCollapsed={isCollapsed} />
         <MenuItem icon={Inbox} label={t('nav.inbox')} path="/inbox" active={activeItem === "/inbox"} onClick={onNavigate} isCollapsed={isCollapsed} />
 
         {/* CURRENT PROJECT (ANIMATED) */}

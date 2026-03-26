@@ -18,6 +18,7 @@ import { AIProjectCreationModal } from '@/components/projects/AIProjectCreationM
 import { useAIModalStore } from '@/stores/useAIModalStore'
 import { AISkillAllocationModal } from '@/components/projects/AISkillAllocationModal'
 import { useAISkillModalStore } from '@/stores/useAISkillModalStore'
+import { NotificationRealtimeBootstrap } from '@/components/notifications/NotificationRealtimeBootstrap'
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -189,6 +190,7 @@ export default function LayoutClient({ children }: Readonly<{ children: React.Re
         />
 
         <LayoutContent>{children}</LayoutContent>
+        <NotificationRealtimeBootstrap />
 
         <Toaster position='top-right' />
       </ThemeProvider>

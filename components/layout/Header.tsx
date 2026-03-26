@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Search,
-  Bell,
-  Settings,
   ChevronDown,
   Menu,
   LogOut,
@@ -14,7 +12,6 @@ import {
   Folder,
   Loader2,
   User,
-  Users,
   UserCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,68 +21,86 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { UserType } from "@/app/types/user.schema";
 import { toast } from "sonner";
 import { LanguageToggle } from "@/components/common/LanguageToggle";
-
-// UPDATE THE IMPORT PATH HERE TO MATCH THE CORRECT FILE NAME:
 import { ProjectService } from "@/app/services/ProjectService";
-import { ProjectMemberService } from "@/app/services/project-member.service";
-import { getBeErrorMessage } from "@/lib/axios";
-
-// ——————————————————————————————————————————————————————————————————————————————————
-// MOCK DATA
-// ——————————————————————————————————————————————————————————————————————————————————
-
-const NOTIFICATIONS = [
-  { id: 1, type: 'task', actor: 'Tran Dev', action: 'assigned task', target: 'WRD-021', sub: 'Website Redesign', time: '2 hours ago', unread: true },
-  { id: 2, type: 'mention', actor: 'Momenhan', action: 'mentioned you in', target: 'WRD-019', sub: 'Website Redesign', time: '3 hours ago', unread: true },
-  { id: 3, type: 'deadline', actor: 'System', action: 'reminder', target: 'Sprint 2 ending soon', sub: 'on 15/03', time: 'Yesterday', unread: true },
-  { id: 4, type: 'invite', actor: 'Admin User', action: 'invited you to', target: 'Mobile App Launch', sub: '', time: 'Yesterday', unread: false },
-  { id: 5, type: 'task', actor: 'System', action: 'updated', target: 'WRD-018', sub: 'has been marked Done', time: '2 days ago', unread: false },
-];
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const RECENT_SEARCHES = ["WRD-021", "Mobile design", "Meeting notes"];
 
-// ——————————————————————————————————————————————————————————————————————————————————
-// HELPERS & CUSTOM HOOKS
-// ——————————————————————————————————————————————————————————————————————————————————
-
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedValue(value);
     }, delay);
     return () => clearTimeout(handler);
   }, [value, delay]);
+
   return debouncedValue;
 }
 
-// ——————————————————————————————————————————————————————————————————————————————————
-// MAIN COMPONENT
-// ——————————————————————————————————————————————————————————————————————————————————
-
-export default function Header({ onMenuToggle, currentUser }: { onMenuToggle?: () => void; currentUser?: UserType }) {
-  const { t } = useTranslation()
-  const pathname = usePathname();
+export default function Header({
+  onMenuToggle,
+  currentUser,
+}: {
+  onMenuToggle?: () => void;
+  currentUser?: UserType;
+}) {
+  const { t } = useTranslation();
   const router = useRouter();
-  const { logout, accessToken } = useAuthStore();
+  const { logout } = useAuthStore();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [activeDropdown, setActiveDropdown] = useState<null | "notif" | "avatar" | "search">(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 400);
+  const displayName = currentUser?.fullName || currentUser?.displayName || "User";
+  const email = currentUser?.email || "";
+  const avatarUrl = currentUser?.avatar?.imageUrl;
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
-  const [activeDropdown, setActiveDropdown] = useState<null | 'notif' | 'avatar' | 'search'>(null);
 
-  const displayName = currentUser?.fullName || currentUser?.displayName || "User";
-  const email = currentUser?.email || "";
-  const avatarUrl = currentUser?.avatar?.imageUrl;
-  const initials = displayName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setActiveDropdown(null);
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      if (!debouncedSearchTerm.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const response = await ProjectService.search({
+          q: debouncedSearchTerm,
+          page: 0,
+          size: 5,
+        });
+        setSearchResults(response.data?.content || []);
+      } catch (error) {
+        console.error("Error searching projects:", error);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    void fetchProjects();
+  }, [debouncedSearchTerm]);
 
   const handleLogout = async () => {
     try {
@@ -99,184 +114,111 @@ export default function Header({ onMenuToggle, currentUser }: { onMenuToggle?: (
     }
   };
 
-  // SEARCH STATE
-  const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearchTerm = useDebounce(searchTerm, 400);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-
-  const [myInvites, setMyInvites] = useState<any[]>([]);
-  const [isInvitesLoading, setIsInvitesLoading] = useState(false);
-
-  useEffect(() => {
-    if (!accessToken) return;
-    const controller = new AbortController();
-    const fetchInvites = async () => {
-      setIsInvitesLoading(true);
-      try {
-        const res = await ProjectMemberService.getMyInvites(controller.signal);
-        setMyInvites(res || []);
-      } catch (error: any) {
-        if (error?.code !== "ERR_CANCELED" && error?.name !== "AbortError") {
-          console.error("Error fetching invites:", error);
-        }
-      } finally {
-        setIsInvitesLoading(false);
-      }
-    };
-    fetchInvites();
-    return () => controller.abort();
-  }, [accessToken]);
-
-  const handleAcceptInvite = async (token: string) => {
-    try {
-      const res = await ProjectMemberService.acceptInvite(token);
-      toast.success("Đã chấp nhận lời mời");
-      setMyInvites(prev => prev.filter(i => i.token !== token));
-      router.push(`/projects/${res.projectId}`);
-    } catch (error: any) {
-      toast.error(getBeErrorMessage(error) || "Không thể chấp nhận lời mời");
-    }
-  };
-
-  const handleDeclineInvite = async (token: string) => {
-    try {
-      await ProjectMemberService.declineInvite(token);
-      toast.success("Đã từ chối lời mời");
-      setMyInvites(prev => prev.filter(i => i.token !== token));
-    } catch (error: any) {
-      toast.error(getBeErrorMessage(error) || "Không thể từ chối lời mời");
-    }
-  };
-
   const formatDateTime = (date: Date) => {
-    const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(date);
+    const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(date);
     const day = date.getDate();
     const month = date.getMonth() + 1;
     const year = date.getFullYear();
-    const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const time = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
     return `${weekday}, ${month}/${day}/${year} • ${time}`;
   };
 
-  // Close dropdowns on click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setActiveDropdown(null);
-      }
-    };
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    const fetchProjects = async () => {
-      if (!debouncedSearchTerm.trim()) {
-        setSearchResults([]);
-        return;
-      }
-      setIsSearching(true);
-      try {
-        const res = await ProjectService.search({
-          q: debouncedSearchTerm,
-          page: 0,
-          size: 5
-        });
-        setSearchResults(res.data?.content || []);
-      } catch (error) {
-        console.error("Error searching projects:", error);
-      } finally {
-        setIsSearching(false);
-      }
-    };
-    fetchProjects();
-  }, [debouncedSearchTerm]);
-
   return (
     <header
-      className="sticky top-0 z-[100] h-14 w-full bg-white border-b border-[#E8E8E8] px-6 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+      className="sticky top-0 z-[100] flex h-14 w-full items-center justify-between border-b border-[#E8E8E8] bg-white px-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
       ref={dropdownRef}
     >
-      {/* LEFT AREA: Date Time + Hamburger */}
-      <div className="flex items-center gap-4 shrink-0">
+      <div className="flex shrink-0 items-center gap-4">
         <button
           onClick={onMenuToggle}
-          className="w-9 h-9 flex items-center justify-center rounded-[10px] text-[#595959] hover:bg-[#F5F5F5] transition-colors"
+          className="flex h-9 w-9 items-center justify-center rounded-[10px] text-[#595959] transition-colors hover:bg-[#F5F5F5]"
           aria-label="Open menu"
         >
           <Menu size={20} />
         </button>
-        
-        <div className="hidden lg:flex flex-col">
-          <div className="text-[13px] font-bold text-[#141414] flex items-center gap-2">
+
+        <div className="hidden flex-col lg:flex">
+          <div className="flex items-center gap-2 text-[13px] font-bold text-[#141414]">
             <Clock size={14} className="text-[#1677FF]" />
             {formatDateTime(currentTime)}
           </div>
         </div>
 
-        <div className="lg:hidden flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-sm">
+        <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 shadow-sm">
             <span className="text-[14px] font-bold text-white">T</span>
           </div>
           <span className="text-[15px] font-semibold text-[#1677FF]">TaskSphere</span>
         </div>
       </div>
 
-      {/* RIGHT AREA: Search + Actions */}
-      <div className="flex items-center gap-4 flex-1 justify-end">
-        {/* Search Bar */}
-        <div className="hidden sm:flex flex-1 justify-end max-w-[400px] relative">
-          <div className="w-full relative group">
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+      <div className="flex flex-1 items-center justify-end gap-4">
+        <div className="relative hidden max-w-[400px] flex-1 justify-end sm:flex">
+          <div className="group relative w-full">
+            <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
               {isSearching ? (
-                <Loader2 size={14} className="text-[#1677FF] animate-spin" />
+                <Loader2 size={14} className="animate-spin text-[#1677FF]" />
               ) : (
                 <Search size={14} className="text-[#8C8C8C]" />
               )}
             </div>
+
             <input
               type="text"
-              placeholder={t('common.search')}
+              placeholder={t("common.search")}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={() => setActiveDropdown('search')}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              onFocus={() => setActiveDropdown("search")}
               className={cn(
-                "h-9 w-full bg-[#F5F5F5] border border-[#E8E8E8] rounded-[10px] pl-9 pr-12 text-sm text-[#141414] outline-none transition-all",
-                "placeholder:text-[#8C8C8C] focus:bg-white focus:border-[#1677FF] focus:shadow-[0_0_0_3px_rgba(22,119,255,0.1)]"
+                "h-9 w-full rounded-[10px] border border-[#E8E8E8] bg-[#F5F5F5] pl-9 pr-12 text-sm text-[#141414] outline-none transition-all",
+                "placeholder:text-[#8C8C8C] focus:border-[#1677FF] focus:bg-white focus:shadow-[0_0_0_3px_rgba(22,119,255,0.1)]"
               )}
             />
-            <div className="absolute inset-y-0 right-2.5 flex items-center pointer-events-none">
-              <kbd className="bg-white border border-[#E8E8E8] rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold text-[#8C8C8C]">⌘K</kbd>
+
+            <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">
+              <kbd className="rounded-[4px] border border-[#E8E8E8] bg-white px-1.5 py-0.5 text-[10px] font-bold text-[#8C8C8C]">
+                ⌘K
+              </kbd>
             </div>
 
-            {/* SEARCH DROPDOWN */}
-            {activeDropdown === 'search' && (
-              <div className="absolute top-[44px] left-0 right-0 bg-white border border-[#E8E8E8] rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.1)] p-2 animate-in fade-in slide-in-from-top-2 z-50">
+            {activeDropdown === "search" && (
+              <div className="absolute left-0 right-0 top-[44px] z-50 animate-in rounded-xl border border-[#E8E8E8] bg-white p-2 shadow-[0_8px_24px_rgba(0,0,0,0.1)] fade-in slide-in-from-top-2">
                 {searchTerm.trim() ? (
                   <div>
-                    <div className="px-2 py-1.5 text-[10px] font-bold text-[#8C8C8C] uppercase tracking-wider">
+                    <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8C8C8C]">
                       {isSearching ? "Searching..." : "Project Results"}
                     </div>
                     {!isSearching && searchResults.length === 0 && (
-                      <div className="px-2.5 py-3 text-sm text-[#8C8C8C] text-center">No matching projects found</div>
-                    )}
-                    {!isSearching && searchResults.map((project: any) => (
-                      <div key={project.id} className="flex items-center gap-2.5 px-2.5 py-2 hover:bg-[#F5F5F5] rounded-lg cursor-pointer transition-colors text-[#141414]">
-                        <Folder size={13} className="text-[#1677FF] shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{project.name}</div>
-                        </div>
-                        <span className="text-[10px] bg-[#F0F7FF] border border-[#BAE7FF] text-[#0958D9] px-1.5 py-0.5 rounded font-semibold shrink-0">
-                          {project.projectKey}
-                        </span>
+                      <div className="px-2.5 py-3 text-center text-sm text-[#8C8C8C]">
+                        No matching projects found
                       </div>
-                    ))}
+                    )}
+                    {!isSearching &&
+                      searchResults.map((project: any) => (
+                        <div
+                          key={project.id}
+                          className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[#141414] transition-colors hover:bg-[#F5F5F5]"
+                        >
+                          <Folder size={13} className="shrink-0 text-[#1677FF]" />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-medium">{project.name}</div>
+                          </div>
+                          <span className="shrink-0 rounded border border-[#BAE7FF] bg-[#F0F7FF] px-1.5 py-0.5 text-[10px] font-semibold text-[#0958D9]">
+                            {project.projectKey}
+                          </span>
+                        </div>
+                      ))}
                   </div>
                 ) : (
                   <>
-                    <div className="px-2 py-1.5 text-[10px] font-bold text-[#8C8C8C] uppercase tracking-wider">Recent</div>
-                    {RECENT_SEARCHES.map((item, i) => (
-                      <div key={i} className="flex items-center gap-2.5 px-2.5 py-2 hover:bg-[#F5F5F5] rounded-lg cursor-pointer transition-colors">
+                    <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8C8C8C]">
+                      Recent
+                    </div>
+                    {RECENT_SEARCHES.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-[#F5F5F5]"
+                      >
                         <Clock size={13} className="text-[#8C8C8C]" />
                         <span className="text-sm text-[#141414]">{item}</span>
                       </div>
@@ -288,89 +230,21 @@ export default function Header({ onMenuToggle, currentUser }: { onMenuToggle?: (
           </div>
         </div>
 
-        {/* Actions & Avatar */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex shrink-0 items-center gap-1">
           <LanguageToggle className="hidden sm:flex" />
-          <div className="relative">
-            <button
-              onClick={() => setActiveDropdown(activeDropdown === 'notif' ? null : 'notif')}
-              className={cn(
-                "w-9 h-9 flex items-center justify-center rounded-[10px] text-[#595959] transition-colors hover:bg-[#F5F5F5]",
-                activeDropdown === 'notif' && "bg-[#F5F5F5] text-[#1677FF]"
-              )}
-            >
-              <Bell size={16} />
-              {(NOTIFICATIONS.filter(n => n.unread).length + myInvites.length) > 0 && (
-                <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#FF4D4F] rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold shadow-sm animate-in zoom-in">
-                  {NOTIFICATIONS.filter(n => n.unread).length + myInvites.length}
-                </div>
-              )}
-            </button>
-
-            {activeDropdown === 'notif' && (
-              <div className="absolute top-[52px] right-0 w-[min(380px,calc(100vw-1rem))] max-h-[520px] bg-white border border-[#E8E8E8] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2">
-                <div className="px-4 py-3 border-b border-[#E8E8E8] flex justify-between items-center bg-white">
-                  <span className="font-semibold text-[15px] text-[#141414]">{t('notification.title')}</span>
-                  <button className="text-xs text-[#1677FF] hover:underline font-medium">{t('notification.markAllRead')}</button>
-                </div>
-                <div className="overflow-y-auto custom-scrollbar flex-1 bg-white">
-                  {/* PROJECT INVITES */}
-                  {myInvites.map((invite) => (
-                    <div key={invite.id} className="px-4 py-4 border-b border-[#F5F5F5] bg-blue-50/30 hover:bg-blue-50/50 transition-colors">
-                      <div className="flex gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                          <Users size={18} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[13px] text-[#141414] leading-snug mb-2">
-                            <span className="font-bold">{invite.inviterName}</span> mời bạn tham gia dự án <span className="font-bold text-blue-600">"{invite.projectName}"</span> với vai trò <span className="font-semibold">{invite.role}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => handleAcceptInvite(invite.token)}
-                              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-sm shadow-blue-200"
-                            >
-                              Chấp nhận
-                            </button>
-                            <button 
-                              onClick={() => handleDeclineInvite(invite.token)}
-                              className="px-3 py-1.5 border border-slate-200 bg-white text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all"
-                            >
-                              Từ chối
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* OTHER NOTIFICATIONS */}
-                  {NOTIFICATIONS.map((n) => (
-                    <div key={n.id} className={cn("px-4 py-3 flex gap-3 border-b border-[#F5F5F5] transition-colors cursor-pointer", n.unread ? "bg-[#F0F7FF] hover:bg-[#E1F0FF]" : "bg-white hover:bg-[#FAFAFA]")}>
-                      <div className="relative shrink-0">
-                        <UserAvatar name={n.actor} size={36} className="border-none" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13px] text-[#141414] leading-snug">
-                          <span className="font-bold">{n.actor}</span> {n.action} <span className="font-bold text-[#1677FF]">{n.target}</span>
-                        </div>
-                        <div className="text-[11px] text-[#8C8C8C] mt-1 font-medium">{n.time}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <NotificationBell
+            open={activeDropdown === "notif"}
+            onOpenChange={(open) => setActiveDropdown(open ? "notif" : null)}
+          />
 
           <div className="mx-1.5 h-5 w-[1px] bg-[#E8E8E8]" />
 
           <div className="relative">
             <div
-              onClick={() => setActiveDropdown(activeDropdown === 'avatar' ? null : 'avatar')}
+              onClick={() => setActiveDropdown(activeDropdown === "avatar" ? null : "avatar")}
               className={cn(
-                "flex items-center gap-2 px-2 py-1 rounded-[10px] cursor-pointer transition-all hover:bg-[#F5F5F5]",
-                activeDropdown === 'avatar' && "bg-[#F5F5F5]"
+                "flex cursor-pointer items-center gap-2 rounded-[10px] px-2 py-1 transition-all hover:bg-[#F5F5F5]",
+                activeDropdown === "avatar" && "bg-[#F5F5F5]"
               )}
             >
               <UserAvatar
@@ -380,21 +254,30 @@ export default function Header({ onMenuToggle, currentUser }: { onMenuToggle?: (
                 className="ring-2 ring-white"
               />
               <div className="hidden sm:block">
-                <div className="text-sm font-medium text-[#141414] leading-none mb-0.5">{displayName}</div>
-                <div className="text-[11px] text-[#8C8C8C] leading-none">{email}</div>
+                <div className="mb-0.5 text-sm font-medium leading-none text-[#141414]">
+                  {displayName}
+                </div>
+                <div className="text-[11px] leading-none text-[#8C8C8C]">{email}</div>
               </div>
-              <ChevronDown size={12} className={cn("text-[#8C8C8C] transition-transform", activeDropdown === 'avatar' && "rotate-180")} />
+              <ChevronDown
+                size={12}
+                className={cn(
+                  "text-[#8C8C8C] transition-transform",
+                  activeDropdown === "avatar" && "rotate-180"
+                )}
+              />
             </div>
 
-            {activeDropdown === 'avatar' && (
-              <div className="absolute top-[52px] right-0 w-[min(240px,calc(100vw-1rem))] bg-white border border-[#E8E8E8] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden animate-in fade-in slide-in-from-top-2">
-                <div className="px-4 py-3 bg-[#FAFAFA] border-b border-[#E8E8E8] flex items-center gap-3">
+            {activeDropdown === "avatar" && (
+              <div className="absolute right-0 top-[52px] w-[min(240px,calc(100vw-1rem))] animate-in overflow-hidden rounded-2xl border border-[#E8E8E8] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-3 border-b border-[#E8E8E8] bg-[#FAFAFA] px-4 py-3">
                   <UserAvatar src={avatarUrl ?? undefined} name={displayName} size={36} />
                   <div className="min-w-0">
-                    <div className="text-sm font-bold text-[#141414] truncate">{displayName}</div>
-                    <div className="text-[11px] text-[#8C8C8C] truncate mb-1">{email}</div>
+                    <div className="truncate text-sm font-bold text-[#141414]">{displayName}</div>
+                    <div className="mb-1 truncate text-[11px] text-[#8C8C8C]">{email}</div>
                   </div>
                 </div>
+
                 <div className="py-1.5">
                   <div
                     onClick={() => {
@@ -411,18 +294,22 @@ export default function Header({ onMenuToggle, currentUser }: { onMenuToggle?: (
                       setActiveDropdown(null);
                       router.push("/settings");
                     }}
-                    className="flex items-center gap-2.5 px-4 py-2 hover:bg-[#F5F5F5] cursor-pointer transition-colors group"
+                    className="group flex cursor-pointer items-center gap-2.5 px-4 py-2 transition-colors hover:bg-[#F5F5F5]"
                   >
                     <User size={15} className="text-[#595959] group-hover:text-[#1677FF]" />
-                    <span className="text-sm text-[#595959] group-hover:text-[#1677FF]">{t('settings.personal')}</span>
+                    <span className="text-sm text-[#595959] group-hover:text-[#1677FF]">
+                      {t("settings.personal")}
+                    </span>
                   </div>
+
                   <div className="mx-4 my-1 border-t border-[#F5F5F5]" />
+
                   <div
                     onClick={handleLogout}
-                    className="flex items-center gap-2.5 px-4 py-2 hover:bg-[#FFF1F0] cursor-pointer transition-colors group"
+                    className="group flex cursor-pointer items-center gap-2.5 px-4 py-2 transition-colors hover:bg-[#FFF1F0]"
                   >
                     <LogOut size={15} className="text-[#FF4D4F]" />
-                    <span className="text-sm text-[#FF4D4F] font-semibold">{t('nav.logout')}</span>
+                    <span className="text-sm font-semibold text-[#FF4D4F]">{t("nav.logout")}</span>
                   </div>
                 </div>
               </div>
