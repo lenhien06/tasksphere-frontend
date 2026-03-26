@@ -147,8 +147,8 @@ export default function PromoteSubTaskDialog({
             toast.success("Đã chuyển thành task độc lập")
             qc.invalidateQueries({ queryKey: ["subtasks", subtasksListParentId] })
             qc.invalidateQueries({ queryKey: ["task", projectId, subtasksListParentId] })
-            qc.invalidateQueries({ queryKey: ["tasks", projectId] })
-            qc.invalidateQueries({ queryKey: ["backlog", projectId] })
+            qc.invalidateQueries({ queryKey: ["tasks", projectId], exact: false })
+            qc.invalidateQueries({ queryKey: ["backlog", projectId], exact: false })
             onOpenChange(false)
             if (newId) {
                 router.push(`/projects/${projectId}/tasks/${newId}`)

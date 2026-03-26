@@ -1,6 +1,14 @@
-import { TaskStatus, VALID_TRANSITIONS, canTransitionTo } from "@/app/types/task.schema"
+import { TaskStatus } from "@/app/types/task.schema"
 
-export { VALID_TRANSITIONS, canTransitionTo }
+export const VALID_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
+    TODO:        ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"],
+    IN_PROGRESS: ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"],
+    IN_REVIEW:   ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"],
+    DONE:        ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"],
+    CANCELLED:   ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"],
+}
+
+export const canTransitionTo = (_current: TaskStatus, _next: TaskStatus): boolean => true
 
 export const getAvailableTransitions = (current: TaskStatus): TaskStatus[] =>
     VALID_TRANSITIONS[current] ?? []

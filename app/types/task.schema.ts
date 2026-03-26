@@ -173,16 +173,16 @@ export interface ColumnResponse {
 
 // ── Status transition validation ──────────────────────────────
 // BR-14: strict workflow — IN_PROGRESS → IN_REVIEW only (not directly to DONE)
+const ANY_STATUS: TaskStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"]
 export const VALID_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-    TODO:        ["IN_PROGRESS"],
-    IN_PROGRESS: ["IN_REVIEW"],
-    IN_REVIEW:   ["DONE", "IN_PROGRESS"],
-    DONE:        [],
-    CANCELLED:   [],
+    TODO: ANY_STATUS,
+    IN_PROGRESS: ANY_STATUS,
+    IN_REVIEW: ANY_STATUS,
+    DONE: ANY_STATUS,
+    CANCELLED: ANY_STATUS,
 }
 
-export const canTransitionTo = (current: TaskStatus, next: TaskStatus): boolean =>
-    VALID_TRANSITIONS[current]?.includes(next) ?? false
+export const canTransitionTo = (_current: TaskStatus, _next: TaskStatus): boolean => true
 
 // ── TaskDetailService response types ──────────────────────────
 
