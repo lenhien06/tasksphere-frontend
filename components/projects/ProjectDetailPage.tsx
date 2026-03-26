@@ -7,7 +7,7 @@ import {
     Search, Lock, Users, Globe, Check, Mail, Crown, Shield, Eye, Settings, Bell,
     AlertTriangle, MessageCircle, Plus, CheckCircle2, BarChart2, Sparkles,
     ShieldOff, ArrowLeft, X, Calendar, Clock, Trash2, Loader2, ChevronDown, ChevronRight, Archive, RefreshCw, Filter,
-    Layout, Kanban, ListTodo, MoreHorizontal, Tag, Rocket, Webhook, GitBranch
+    Layout, Kanban, ListTodo, MoreHorizontal, Tag, Rocket, Webhook, GitBranch, GanttChart
 } from "lucide-react";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import VersionManagement from "@/components/projects/VersionManagement";
@@ -43,6 +43,7 @@ import ProjectOverview from "@/components/projects/ProjectOverview";
 import KanbanBoard from "@/components/projects/KanbanBoard";
 import BacklogPage from "@/components/projects/BacklogPage";
 import CalendarView from "@/components/projects/CalendarView";
+import TimelineView from "@/components/projects/timeline/TimelineView";
 import TaskDetailPanel, { type Member } from "@/components/projects/TaskDetailPanel";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import ForbiddenPage from "@/components/common/ForbiddenPage";
@@ -55,7 +56,7 @@ import { canActAsProjectManager, toKanbanUserRole, toLegacyMyRoleLower, toTaskPa
 // ═══════════════════════════════════════════════════════════════════
 
 type Visibility = "private" | "internal" | "public";
-type Tab = "overview" | "board" | "backlog" | "calendar" | "members" | "settings";
+type Tab = "overview" | "board" | "backlog" | "calendar" | "timeline" | "members" | "settings";
 
 interface Project {
     id: string;
@@ -203,6 +204,7 @@ function ProjectHeader({ project, activeTab, onTabChange }: { project: Project; 
         { id: "board", label: t('kanban.board'), icon: <Kanban size={16} /> },
         { id: "backlog", label: t('common.backlog'), icon: <ListTodo size={16} /> },
         { id: "calendar", label: t('calendar.title'), icon: <Calendar size={16} /> },
+        { id: "timeline", label: "Timeline", icon: <GanttChart size={16} /> },
         { id: "members", label: t('common.members'), icon: <Users size={16} /> },
         ...(canManage ? [{ id: "settings", label: t('common.settings'), icon: <Settings size={16} /> } as const] : []),
     ];
@@ -1087,6 +1089,12 @@ export default function ProjectDetailPage({ projectId: propProjectId, onBack }: 
                                     onTaskClick={setSelectedTaskId} 
                                     onViewChange={(v) => setActiveTab(v as Tab)}
                                     currentUserRole={roleUpper}
+                                />
+                            )}
+                            {activeTab === "timeline" && (
+                                <TimelineView 
+                                    projectId={project.id} 
+                                    onTaskClick={setSelectedTaskId} 
                                 />
                             )}
                             {activeTab === "members" && <TabMembers project={project} />}

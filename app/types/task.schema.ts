@@ -480,6 +480,44 @@ export interface CalendarResponse {
     tasks:      CalendarApiTask[]
 }
 
+// ── Timeline / Gantt ──────────────────────────────────────────
+
+export type TimelineDate = [number, number, number] | null; // [year, month, day]
+
+export interface TimelineTask {
+    id: string;
+    taskCode: string;
+    title: string;
+    status: TaskStatus;
+    priority: TaskPriority;
+    assignee: UserSummary | null;
+    startDate: TimelineDate;
+    dueDate: TimelineDate;
+    parentTaskId: string | null;
+    blockedBy: Array<{
+        taskId: string;
+        taskCode: string;
+        title: string;
+    }>;
+    blocking: Array<{
+        taskId: string;
+        taskCode: string;
+        title: string;
+    }>;
+}
+
+export interface TimelineDependency {
+    sourceTaskId: string;
+    targetTaskId: string;
+    linkType: "BLOCKS";
+}
+
+export interface TimelineResponse {
+    projectId: string;
+    tasks: TimelineTask[];
+    dependencies: TimelineDependency[];
+}
+
 // ── Phase 6 — Custom Fields ────────────────────────────────────
 
 export type CustomFieldType = "TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "SELECT" | "MULTI_SELECT" | "URL"

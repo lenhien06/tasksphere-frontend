@@ -73,7 +73,7 @@ function Chip({ active, label, icon, onClick }: { active?: boolean; label: strin
     <button
       onClick={onClick}
       className={cn(
-        "h-9 rounded-xl px-3 text-xs border transition-all whitespace-nowrap inline-flex items-center gap-1.5 font-bold tracking-tight shadow-sm",
+        "h-9 rounded-lg px-3 text-xs border transition-all whitespace-nowrap inline-flex items-center gap-1.5 font-bold tracking-tight shadow-sm",
         active
           ? "border-blue-200 bg-blue-50 text-blue-700"
           : "border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300"
@@ -101,7 +101,7 @@ function FilterMenu({
       <PopoverTrigger asChild>
         <button
           className={cn(
-            "h-9 rounded-xl px-3 text-xs border inline-flex items-center gap-1.5 transition-all outline-none font-bold tracking-tight shadow-sm",
+            "h-9 rounded-lg px-3 text-xs border inline-flex items-center gap-1.5 transition-all outline-none font-bold tracking-tight shadow-sm",
             active
               ? "border-blue-200 bg-blue-50 text-blue-700"
               : "border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300"
@@ -454,11 +454,11 @@ export default function CalendarView({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex flex-col min-h-full bg-[#F9FAFB]">
+      <div className="flex flex-col min-h-full bg-slate-50/30">
 
         {/* ── TOOLBAR ── */}
-        <div className="px-5 md:px-8 py-4 flex flex-col gap-4 shrink-0 border-b border-gray-100">
-          <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible rounded-2xl border border-gray-200 bg-white p-2 shadow-sm hide-scrollbar">
+        <div className="mb-4 sticky top-14 z-20">
+          <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible rounded-xl border border-gray-200 bg-white p-2 shadow-sm hide-scrollbar">
             
             {/* Search */}
             <div className="relative min-w-[240px]">
@@ -466,8 +466,8 @@ export default function CalendarView({
               <input
                 value={filters.search}
                 onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-                placeholder={t('common.search')}
-                className="h-9 w-full rounded-xl border border-gray-100 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-medium"
+                placeholder={t('kanban.searchTasks', { defaultValue: "Tìm kiếm task..." })}
+                className="h-8 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
               />
             </div>
 
@@ -486,7 +486,7 @@ export default function CalendarView({
               </div>
               <button
                 onClick={goToday}
-                className="h-9 px-4 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
+                className="h-9 px-4 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
               >
                 {t('calendar.today')}
               </button>
@@ -496,7 +496,7 @@ export default function CalendarView({
             <Chip
               active={filters.onlyMy}
               icon={<User size={13} />}
-              label={t('task.onlyMy')}
+              label={t('backlog.me', { defaultValue: "Tôi" })}
               onClick={() => setFilters(f => ({ ...f, onlyMy: !f.onlyMy }))}
             />
 
@@ -508,7 +508,7 @@ export default function CalendarView({
               <button
                 onClick={() => setFilters(f => ({ ...f, assigneeId: '' }))}
                 className={cn(
-                  "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                  "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
                   !filters.assigneeId ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
                 )}
               >
@@ -519,7 +519,7 @@ export default function CalendarView({
                   key={a.id}
                   onClick={() => setFilters(f => ({ ...f, assigneeId: a.id }))}
                   className={cn(
-                    "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
                     filters.assigneeId === a.id ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
                   )}
                 >
@@ -536,7 +536,7 @@ export default function CalendarView({
               <button
                 onClick={() => setFilters(f => ({ ...f, priority: '' }))}
                 className={cn(
-                  "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                  "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
                   !filters.priority ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
                 )}
               >
@@ -547,7 +547,7 @@ export default function CalendarView({
                   key={p}
                   onClick={() => setFilters(f => ({ ...f, priority: p }))}
                   className={cn(
-                    "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
                     filters.priority === p ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
                   )}
                 >
@@ -564,7 +564,7 @@ export default function CalendarView({
               <button
                 onClick={() => setFilters(f => ({ ...f, status: '' }))}
                 className={cn(
-                  "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                  "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
                   !filters.status ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
                 )}
               >
@@ -575,7 +575,7 @@ export default function CalendarView({
                   key={k}
                   onClick={() => setFilters(f => ({ ...f, status: k as TaskStatus }))}
                   className={cn(
-                    "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
                     filters.status === k ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
                   )}
                 >
@@ -592,7 +592,7 @@ export default function CalendarView({
               <button
                 onClick={() => setFilters(f => ({ ...f, sprint: '' }))}
                 className={cn(
-                  "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                  "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
                   !filters.sprint ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
                 )}
               >
@@ -603,7 +603,7 @@ export default function CalendarView({
                   key={s.id}
                   onClick={() => setFilters(f => ({ ...f, sprint: s.id }))}
                   className={cn(
-                    "w-full rounded-lg px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
                     filters.sprint === s.id ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
                   )}
                 >
@@ -612,82 +612,62 @@ export default function CalendarView({
               ))}
             </FilterMenu>
 
-            <div className="ml-auto flex items-center gap-1 rounded-xl border border-gray-100 bg-gray-50 p-1 shrink-0 shadow-inner">
-              <button
-                onClick={() => onViewChange('board')}
-                className={cn(
-                  "h-7 rounded-lg px-3 text-xs inline-flex items-center gap-1.5 transition-all font-bold tracking-tight",
-                  currentView === 'board' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                )}
-              >
-                <LayoutGrid size={14} />
-                {t('kanban.board')}
-              </button>
-              <button
-                className={cn(
-                  "h-7 rounded-lg px-3 text-xs inline-flex items-center gap-1.5 transition-all font-bold tracking-tight",
-                  currentView === 'calendar' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                )}
-              >
-                <CalendarIcon size={14} />
-                {t('calendar.title')}
-              </button>
+            <div className="ml-auto flex items-center gap-2">
+              {!isReadOnly && (
+                <button
+                  className="h-8 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/20 inline-flex items-center gap-2 shrink-0 active:scale-95"
+                >
+                  <Plus size={14} strokeWidth={3} />
+                  {t('kanban.addTask', { defaultValue: "Thêm công việc" })}
+                </button>
+              )}
             </div>
-
-            {!isReadOnly && (
-              <button
-                className="h-9 px-4 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 inline-flex items-center gap-2 shrink-0 active:scale-95 ml-1"
-              >
-                <Plus size={14} strokeWidth={3} />
-                {t('kanban.addTask')}
-              </button>
-            )}
           </div>
         </div>
 
         {/* ── SUMMARY ROW ── */}
-        <div className="px-5 md:px-8 py-4 border-b border-gray-100 flex items-center justify-between gap-4 md:gap-8 overflow-x-auto hide-scrollbar shrink-0">
-          <div className="flex-1 min-w-[180px] bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm border border-blue-100">
-              <ClipboardList size={22} />
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4 md:gap-6 overflow-x-auto hide-scrollbar shrink-0">
+          <div className="flex-1 min-w-[180px] bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm border border-blue-100 shrink-0">
+              <ClipboardList size={20} />
             </div>
             <div>
-              <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1.5">{t('report.totalTasks')}</div>
-              <div className="text-[18px] font-bold text-gray-900 leading-tight">
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">{t('report.totalTasks')}</div>
+              <div className="text-[16px] font-bold text-gray-900 leading-tight">
                 {isLoading ? '...' : (data?.totalTasks ?? 0)} {t('nav.tasks').toLowerCase()}
               </div>
             </div>
           </div>
 
-          <div className="flex-1 min-w-[180px] bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-600 shadow-sm border border-red-100">
-              <AlertCircle size={22} />
+          <div className="flex-1 min-w-[180px] bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center text-red-600 shadow-sm border border-red-100 shrink-0">
+              <AlertCircle size={20} />
             </div>
             <div>
-              <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1.5">{t('task.overdue')}</div>
-              <div className="text-[18px] font-bold text-gray-900 leading-tight">
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">{t('task.overdue')}</div>
+              <div className="text-[16px] font-bold text-gray-900 leading-tight">
                 {isLoading ? '...' : overdueCount} {t('nav.tasks').toLowerCase()}
               </div>
             </div>
           </div>
 
-          <div className="flex-1 min-w-[180px] bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100">
-              <CheckCircle2 size={22} />
+          <div className="flex-1 min-w-[180px] bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100 shrink-0">
+              <CheckCircle2 size={20} />
             </div>
             <div>
-              <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1.5">{t('sprint.status_COMPLETED')}</div>
-              <div className="text-[18px] font-bold text-gray-900 leading-tight">
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">{t('sprint.status_COMPLETED')}</div>
+              <div className="text-[16px] font-bold text-gray-900 leading-tight">
                 {isLoading ? '...' : completedCount} {t('nav.tasks').toLowerCase()}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex p-5 gap-5 items-start">
+        <div className="flex gap-4 items-start pb-6">
 
           {/* ── CALENDAR GRID ── */}
-          <div className="flex-1 min-w-0 rounded-2xl border border-gray-200 shadow-sm bg-white overflow-hidden">
+          <div className="flex-1 min-w-0 rounded-xl border border-gray-200 shadow-sm bg-white overflow-hidden">
 
             {/* Loading skeleton */}
             {isLoading && (

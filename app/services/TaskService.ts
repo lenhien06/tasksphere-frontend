@@ -18,6 +18,7 @@ import {
     TaskDependenciesResponse,
     CalendarApiTask,
     CalendarResponse,
+    TimelineResponse,
     SprintDetail,
     CreateSprintRequest,
     CompleteSprintRequest,
@@ -497,6 +498,15 @@ export const TaskService = {
     updateNotifPreferences: async (data: Partial<NotificationPreferences>): Promise<NotificationPreferences> => {
         const res = await apiJava.put<ApiResponse<NotificationPreferences>>(
             `/v1/users/me/notification-preferences`, data
+        );
+        return res.data.data;
+    },
+
+    // ── TIMELINE / GANTT ───────────────────────────────────────
+
+    getTimeline: async (projectId: string): Promise<TimelineResponse> => {
+        const res = await apiJava.get<ApiResponse<TimelineResponse>>(
+            `${BASE}/${projectId}/tasks/timeline`
         );
         return res.data.data;
     },
