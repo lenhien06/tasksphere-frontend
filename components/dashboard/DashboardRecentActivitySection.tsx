@@ -22,12 +22,14 @@ export function DashboardRecentActivitySection({
   activities,
   onActivityClick,
 }: DashboardRecentActivitySectionProps) {
+  const visibleActivities = activities.slice(0, 5);
+
   return (
     <Card className="border-slate-200 shadow-sm">
       <CardHeader>
         <CardTitle className="text-xl font-semibold text-slate-950">Recent Activity</CardTitle>
         <p className="text-sm text-slate-500">
-          Workspace activity visible to you right now.
+          Latest workspace updates relevant to you.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -36,14 +38,15 @@ export function DashboardRecentActivitySection({
             No recent activity yet. Fresh project changes will show up here.
           </div>
         ) : (
-          activities.map((activity) => {
+          <div className="space-y-3">
+            {visibleActivities.map((activity) => {
             const changeSummary = getActivityChangeSummary(activity);
             return (
               <button
                 key={activity.id}
                 type="button"
                 onClick={() => onActivityClick(activity)}
-                className="flex w-full items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                className="flex w-full items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
               >
                 <Avatar className="h-10 w-10 border border-slate-200">
                   <AvatarImage src={activity.actorAvatarUrl ?? undefined} alt={activity.actorName} />
@@ -73,7 +76,14 @@ export function DashboardRecentActivitySection({
                 <Activity className={cn("mt-1 h-4 w-4 shrink-0 text-slate-300")} />
               </button>
             );
-          })
+            })}
+
+            {activities.length > visibleActivities.length && (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500">
+                Showing the latest {visibleActivities.length} updates. Open the related project to see older activity.
+              </div>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>
