@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, FolderPlus, PlayCircle, Sparkles, SquareKanban } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface DashboardEmptyStateProps {
   userName: string;
@@ -15,6 +16,7 @@ export function DashboardEmptyState({
   onCreateProject,
   onOpenProjects,
 }: DashboardEmptyStateProps) {
+  const { t } = useTranslation();
   return (
     <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
       <CardContent className="relative p-8 md:p-12">
@@ -24,11 +26,10 @@ export function DashboardEmptyState({
             <Sparkles className="h-9 w-9" />
           </div>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
-            Welcome to TaskSphere, {userName}
+            {t("dashboard.emptyState.title", { name: userName })}
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
-            Your workspace is ready. Start with a project, add your first tasks, and invite the
-            team when you are ready to collaborate.
+            {t("dashboard.emptyState.desc")}
           </p>
 
           <div className="mt-8 grid w-full gap-4 md:grid-cols-3">
@@ -38,9 +39,9 @@ export function DashboardEmptyState({
               className="rounded-3xl border border-sky-200 bg-sky-600 p-6 text-left text-white shadow-sm transition-transform hover:-translate-y-0.5 hover:bg-sky-700"
             >
               <FolderPlus className="h-6 w-6" />
-              <div className="mt-6 text-xl font-semibold">Create Project</div>
+              <div className="mt-6 text-xl font-semibold">{t("dashboard.emptyState.createProject")}</div>
               <p className="mt-2 text-sm text-sky-100">
-                Set up the first space for your tasks, milestones, and team.
+                {t("dashboard.emptyState.createProjectDesc")}
               </p>
             </button>
 
@@ -50,9 +51,9 @@ export function DashboardEmptyState({
               className="rounded-3xl border border-slate-200 bg-white p-6 text-left text-slate-950 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-slate-300"
             >
               <SquareKanban className="h-6 w-6 text-violet-600" />
-              <div className="mt-6 text-xl font-semibold">Join Project</div>
+              <div className="mt-6 text-xl font-semibold">{t("dashboard.emptyState.joinProject")}</div>
               <p className="mt-2 text-sm text-slate-600">
-                Open the project area to accept invites or jump into an existing workspace.
+                {t("dashboard.emptyState.joinProjectDesc")}
               </p>
             </button>
 
@@ -62,19 +63,19 @@ export function DashboardEmptyState({
               className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-left text-slate-950 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-slate-300"
             >
               <PlayCircle className="h-6 w-6 text-emerald-600" />
-              <div className="mt-6 text-xl font-semibold">Create First Task</div>
+              <div className="mt-6 text-xl font-semibold">{t("dashboard.emptyState.createTask")}</div>
               <p className="mt-2 text-sm text-slate-600">
-                Once you are inside a project, create your first task and start assigning work.
+                {t("dashboard.emptyState.createTaskDesc")}
               </p>
             </button>
           </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm text-slate-600 shadow-sm">
-            <span>1. Create project</span>
+            <span>{t("dashboard.emptyState.step1")}</span>
             <ArrowRight className="h-4 w-4 text-slate-300" />
-            <span>2. Add tasks</span>
+            <span>{t("dashboard.emptyState.step2")}</span>
             <ArrowRight className="h-4 w-4 text-slate-300" />
-            <span>3. Assign team</span>
+            <span>{t("dashboard.emptyState.step3")}</span>
           </div>
 
           <div className="mt-8">
@@ -85,7 +86,7 @@ export function DashboardEmptyState({
               className="border-slate-200 bg-white"
               onClick={onOpenProjects}
             >
-              Open workspace
+              {t("dashboard.emptyState.openWorkspace")}
             </Button>
           </div>
         </div>

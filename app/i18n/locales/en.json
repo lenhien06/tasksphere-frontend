@@ -940,5 +940,101 @@
     "participatedProjects": "(Participated Projects)",
     "noProjects": "You haven't participated in any public projects yet.",
     "noDescription": "No description."
+  },
+  "dashboard": {
+    "header": {
+      "pill": "Personalized workspace overview",
+      "greeting": {
+        "morning": "Good morning",
+        "afternoon": "Good afternoon",
+        "evening": "Good evening"
+      },
+      "summaryBusy": "You have {{assigned}} open assignments and {{overdue}} urgent deadlines to review.",
+      "summaryClear": "Your dashboard is clear right now. Check projects and upcoming work.",
+      "exploreProjects": "Explore projects",
+      "createProject": "Create project"
+    },
+    "kpis": {
+      "overdueTasks": "Overdue Tasks",
+      "overdueHelper": "Needs attention first",
+      "dueTodayTasks": "Due Today",
+      "dueTodayHelper": "Should be closed today",
+      "assignedOpenTasks": "Assigned to Me",
+      "assignedOpenHelper": "Open personal workload",
+      "completedToday": "Completed Today",
+      "completedHelper": "Week total shown below",
+      "completedWeek": "{{count}} completed this week",
+      "unreadNotifications": "Unread Notifications",
+      "notificationsHelper": "Secondary to task urgency"
+    },
+    "sections": {
+      "myTasks": "My Tasks",
+      "myTasksDesc": "Personal work queue with urgency surfaced first.",
+      "upcoming": "Upcoming Deadlines",
+      "upcomingDesc": "Tasks due in the next {{count}} days.",
+      "recentActivity": "Recent Activity",
+      "recentActivityDesc": "Latest updates.",
+      "activeProjects": "Active Projects",
+      "activeProjectsDesc": "Your projects."
+    },
+    "projects": {
+      "progress": "Progress",
+      "taskCount": "{{count}} tasks",
+      "memberCount": "{{count}} members",
+      "overdueCount": "{{count}} overdue"
+    },
+    "activity": {
+      "someone": "Someone",
+      "inProject": "in {{project}}",
+      "showingLatest": "Showing the latest {{count}} updates.",
+      "actions": {
+        "STATUS_CHANGED": "changed status",
+        "COMMENTED": "commented",
+        "CREATED": "created",
+        "UPDATED": "updated",
+        "ASSIGNED": "assigned work",
+        "MENTIONED": "mentioned you"
+      }
+    },
+    "common": {
+      "visibleCount": "{{count}} visible",
+      "noDueDate": "No due date",
+      "dueToday": "Due today",
+      "dueTomorrow": "Due tomorrow",
+      "dueInDays": "Due in {{count}} days",
+      "overdueAt": "Overdue • {{date}}",
+      "unknown": "Unknown"
+    },
+    "empty": {
+      "noAssignedTitle": "You currently have no assigned open tasks.",
+      "noAssignedDesc": "Your projects are still available on the right. Open a project to review work, or create a new task if your role allows it.",
+      "sectionTitle": "Your dashboard data is available, but this section is empty.",
+      "sectionDesc": "No open assignments matched the current dashboard response.",
+      "noUpcoming": "No upcoming deadlines in the selected range.",
+      "noRecentActivity": "No recent activity yet. Fresh project changes will show up here.",
+      "noProjects": "No active projects yet. Create or join a project to build your workspace."
+    },
+    "emptyState": {
+      "title": "Welcome to TaskSphere, {{name}}",
+      "desc": "Your workspace is ready. Start with a project, add your first tasks, and invite the team when you are ready to collaborate.",
+      "createProject": "Create Project",
+      "createProjectDesc": "Set up the first space for your tasks, milestones, and team.",
+      "joinProject": "Join Project",
+      "joinProjectDesc": "Open the project area to accept invites or jump into an existing workspace.",
+      "createTask": "Create First Task",
+      "createTaskDesc": "Once you are inside a project, create your first task and start assigning work.",
+      "step1": "1. Create project",
+      "step2": "2. Add tasks",
+      "step3": "3. Assign team",
+      "openWorkspace": "Open workspace"
+    },
+    "error": {
+      "title": "Unable to load your dashboard",
+      "desc": "The personalized overview could not be fetched right now. Retry once and keep working from your existing projects if the issue persists."
+    },
+    "toast": {
+      "createSuccess": "Project \"{{name}}\" created successfully.",
+      "createError": "Unable to create project."
+    }
   }
 }

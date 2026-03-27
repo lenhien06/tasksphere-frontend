@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarClock, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 import { formatDashboardDate, getTaskDueTone, getStatusClass, getStatusLabel } from "./dashboard-utils";
 
 interface DashboardUpcomingDeadlinesSectionProps {
@@ -25,14 +26,15 @@ export function DashboardUpcomingDeadlinesSection({
   onUpcomingDaysChange,
   onTaskClick,
 }: DashboardUpcomingDeadlinesSectionProps) {
+  const { t } = useTranslation();
   return (
     <Card className="border-slate-200 shadow-sm">
       <CardHeader className="space-y-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <CardTitle className="text-xl font-semibold text-slate-950">Upcoming Deadlines</CardTitle>
+            <CardTitle className="text-xl font-semibold text-slate-950">{t("dashboard.sections.upcoming")}</CardTitle>
             <p className="mt-1 text-sm text-slate-500">
-              Tasks due in the next {upcomingDays} days.
+              {t("dashboard.sections.upcomingDesc", { count: upcomingDays })}
             </p>
           </div>
           <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
@@ -59,7 +61,7 @@ export function DashboardUpcomingDeadlinesSection({
       <CardContent className="space-y-3">
         {tasks.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-sm text-slate-600">
-            No upcoming deadlines in the selected range.
+            {t("dashboard.empty.noUpcoming")}
           </div>
         ) : (
           tasks.map((task) => {
@@ -77,7 +79,7 @@ export function DashboardUpcomingDeadlinesSection({
                       {task.taskCode}
                     </span>
                     <Badge className={cn("border", getStatusClass(task.status))}>
-                      {getStatusLabel(task.status)}
+                      {getStatusLabel(task.status, t)}
                     </Badge>
                   </div>
                   <div className="line-clamp-2 text-sm font-semibold text-slate-950">{task.title}</div>
@@ -86,9 +88,15 @@ export function DashboardUpcomingDeadlinesSection({
                 <div className="ml-4 flex shrink-0 flex-col items-end gap-2">
                   <div className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700">
                     <CalendarClock className="h-4 w-4 text-slate-400" />
-                    {formatDashboardDate(task.dueDate)}
+                    {formatDashboardDate(task.dueDate, t)}
                   </div>
-                  <Badge className={cn("border", dueTone.chipClass)}>{dueTone.label}</Badge>
+                  <Badge className={cn("border", dueTone.chipClass)}>
+                    {dueTone.kind === "none" && t("dashboard.common.noDueDate")}
+                    {dueTone.kind === "overdue" && t("dashboard.common.overdueAt", { date: formatDashboardDate(task.dueDate, t, "short") })}
+                    {dueTone.kind === "today" && t("dashboard.common.dueToday")}
+                    {dueTone.kind === "tomorrow" && t("dashboard.common.dueTomorrow")}
+                    {dueTone.kind === "upcoming" && t("dashboard.common.dueInDays", { count: dueTone.days })}
+                  </Badge>
                   <ChevronRight className="h-4 w-4 text-slate-400" />
                 </div>
               </button>

@@ -4,19 +4,16 @@ import {
   DashboardTaskPriority,
   DashboardTaskStatus,
 } from "@/app/types/dashboard.schema";
-import {
-  differenceInCalendarDays,
-  format,
-  formatDistanceToNowStrict,
-  isPast,
-  isToday,
-  parseISO,
-} from "date-fns";
+import { differenceInCalendarDays, format, isPast, isToday, parseISO } from "date-fns";
+import type { TFunction } from "i18next";
 
-export function formatDashboardDate(date: string | null, pattern = "MMM d, yyyy") {
-  if (!date) return "No due date";
+export function formatDashboardDate(date: string | null, t: TFunction, variant: "full" | "short" = "full") {
+  if (!date) return t("dashboard.common.noDueDate");
   try {
-    return format(parseISO(date), pattern);
+    return new Intl.DateTimeFormat(undefined, variant === "short"
+      ? { month: "short", day: "numeric" }
+      : { month: "short", day: "numeric", year: "numeric" }
+    ).format(parseISO(date));
   } catch {
     return date;
   }
@@ -24,7 +21,22 @@ export function formatDashboardDate(date: string | null, pattern = "MMM d, yyyy"
 
 export function formatRelativeTimestamp(date: string) {
   try {
-    return formatDistanceToNowStrict(parseISO(date), { addSuffix: true });
+    const target = parseISO(date).getTime();
+    const diffMs = target - Date.now();
+    const diffMinutes = Math.round(diffMs / 60000);
+    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+    if (Math.abs(diffMinutes) < 60) {
+      return rtf.format(diffMinutes, "minute");
+    }
+
+    const diffHours = Math.round(diffMinutes / 60);
+    if (Math.abs(diffHours) < 24) {
+      return rtf.format(diffHours, "hour");
+    }
+
+    const diffDays = Math.round(diffHours / 24);
+    return rtf.format(diffDays, "day");
   } catch {
     return date;
   }
@@ -33,7 +45,9 @@ export function formatRelativeTimestamp(date: string) {
 export function getTaskDueTone(task: DashboardTaskItem) {
   if (!task.dueDate) {
     return {
-      label: "No due date",
+      kind: "none" as const,
+      days: null,
+      dateText: null,
       chipClass: "border-slate-200 bg-slate-100 text-slate-600",
       rowClass: "",
     };
@@ -42,7 +56,9 @@ export function getTaskDueTone(task: DashboardTaskItem) {
   const dueDate = parseISO(task.dueDate);
   if (task.overdue || (isPast(dueDate) && !isToday(dueDate))) {
     return {
-      label: `Overdue • ${formatDashboardDate(task.dueDate, "MMM d")}`,
+      kind: "overdue" as const,
+      days: null,
+      dateText: format(task.dueDate ? parseISO(task.dueDate) : dueDate, "MMM d"),
       chipClass: "border-rose-200 bg-rose-50 text-rose-700",
       rowClass: "border-rose-200/80 bg-rose-50/70",
     };
@@ -50,7 +66,9 @@ export function getTaskDueTone(task: DashboardTaskItem) {
 
   if (isToday(dueDate)) {
     return {
-      label: "Due today",
+      kind: "today" as const,
+      days: 0,
+      dateText: null,
       chipClass: "border-amber-200 bg-amber-50 text-amber-700",
       rowClass: "border-amber-200/80 bg-amber-50/70",
     };
@@ -58,7 +76,9 @@ export function getTaskDueTone(task: DashboardTaskItem) {
 
   const days = differenceInCalendarDays(dueDate, new Date());
   return {
-    label: days <= 1 ? "Due tomorrow" : `Due in ${days} days`,
+    kind: days <= 1 ? ("tomorrow" as const) : ("upcoming" as const),
+    days,
+    dateText: null,
     chipClass: "border-sky-200 bg-sky-50 text-sky-700",
     rowClass: "",
   };
@@ -76,15 +96,8 @@ export function sortTasksByUrgency(tasks: DashboardTaskItem[]) {
   });
 }
 
-export function getStatusLabel(status: DashboardTaskStatus) {
-  switch (status) {
-    case "IN_PROGRESS":
-      return "In Progress";
-    case "IN_REVIEW":
-      return "In Review";
-    default:
-      return status.replaceAll("_", " ");
-  }
+export function getStatusLabel(status: DashboardTaskStatus, t: TFunction) {
+  return t(`task.status_${status}`, { defaultValue: status.replaceAll("_", " ") });
 }
 
 export function getStatusClass(status: DashboardTaskStatus) {
@@ -115,22 +128,24 @@ export function getPriorityClass(priority: DashboardTaskPriority) {
   }
 }
 
-export function formatActivityAction(activity: DashboardRecentActivityItem) {
-  const actor = activity.actorName || "Someone";
-  const action = activity.action.replaceAll("_", " ").toLowerCase();
+export function formatActivityAction(activity: DashboardRecentActivityItem, t: TFunction) {
+  const actor = activity.actorName || t("dashboard.activity.someone");
+  const action = t(`dashboard.activity.actions.${activity.action}`, {
+    defaultValue: activity.action.replaceAll("_", " ").toLowerCase(),
+  });
   return `${actor} ${action}`;
 }
 
-export function getActivityChangeSummary(activity: DashboardRecentActivityItem) {
+export function getActivityChangeSummary(activity: DashboardRecentActivityItem, t: TFunction) {
   const oldValue = parseJsonRecord(activity.oldValues);
   const newValue = parseJsonRecord(activity.newValues);
 
   if (oldValue?.status || newValue?.status) {
-    return `${oldValue?.status ?? "Unknown"} -> ${newValue?.status ?? "Unknown"}`;
+    return `${t(`task.status_${oldValue?.status ?? ""}`, { defaultValue: oldValue?.status ?? t("dashboard.common.unknown") })} -> ${t(`task.status_${newValue?.status ?? ""}`, { defaultValue: newValue?.status ?? t("dashboard.common.unknown") })}`;
   }
 
   if (oldValue?.priority || newValue?.priority) {
-    return `${oldValue?.priority ?? "Unknown"} -> ${newValue?.priority ?? "Unknown"}`;
+    return `${t(`task.priority_${oldValue?.priority ?? ""}`, { defaultValue: oldValue?.priority ?? t("dashboard.common.unknown") })} -> ${t(`task.priority_${newValue?.priority ?? ""}`, { defaultValue: newValue?.priority ?? t("dashboard.common.unknown") })}`;
   }
 
   return null;

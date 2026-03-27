@@ -4,7 +4,7 @@ import { DashboardResponse } from "@/app/types/dashboard.schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles, CalendarDays, Plus, ArrowRight } from "lucide-react";
-import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
 
 interface DashboardHeaderProps {
   userName: string;
@@ -15,9 +15,9 @@ interface DashboardHeaderProps {
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return "morning";
+  if (hour < 18) return "afternoon";
+  return "evening";
 }
 
 export function DashboardHeader({
@@ -26,6 +26,14 @@ export function DashboardHeader({
   onCreateProject,
   onOpenProjects,
 }: DashboardHeaderProps) {
+  const { t, i18n } = useTranslation();
+  const dateText = new Intl.DateTimeFormat(i18n.language === "vi" ? "vi-VN" : "en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date());
+
   return (
     <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
       <CardContent className="relative flex flex-col gap-6 p-6 md:flex-row md:items-end md:justify-between">
@@ -33,22 +41,25 @@ export function DashboardHeader({
         <div className="relative space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
             <Sparkles className="h-3.5 w-3.5" />
-            Personalized workspace overview
+            {t("dashboard.header.pill")}
           </div>
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
-              {getGreeting()}, {userName}
+              {t(`dashboard.header.greeting.${getGreeting()}`)}, {userName}
             </h1>
             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
               <span className="inline-flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-slate-400" />
-                {format(new Date(), "EEEE, MMM d, yyyy")}
+                {dateText}
               </span>
               <span className="hidden text-slate-300 md:inline">•</span>
               <span>
                 {dashboard.kpis.assignedOpenTasks > 0
-                  ? `You have ${dashboard.kpis.assignedOpenTasks} open assignments and ${dashboard.kpis.overdueTasks} urgent deadlines to review.`
-                  : "Your dashboard is clear right now. Check projects and upcoming work."}
+                  ? t("dashboard.header.summaryBusy", {
+                      assigned: dashboard.kpis.assignedOpenTasks,
+                      overdue: dashboard.kpis.overdueTasks,
+                    })
+                  : t("dashboard.header.summaryClear")}
               </span>
             </div>
           </div>
@@ -62,7 +73,7 @@ export function DashboardHeader({
             className="border-slate-200 bg-white"
             onClick={onOpenProjects}
           >
-            Explore projects
+            {t("dashboard.header.exploreProjects")}
             <ArrowRight className="h-4 w-4" />
           </Button>
           <Button
@@ -73,7 +84,7 @@ export function DashboardHeader({
             onClick={onCreateProject}
           >
             <Plus className="h-4 w-4" />
-            Create project
+            {t("dashboard.header.createProject")}
           </Button>
         </div>
       </CardContent>

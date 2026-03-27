@@ -24,11 +24,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 const DEFAULT_UPCOMING_DAYS = 5;
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
@@ -45,7 +47,7 @@ export default function DashboardPage() {
   const createProjectMutation = useMutation({
     mutationFn: ProjectService.create,
     onSuccess: (response) => {
-      toast.success(`Project "${response.data.name}" created successfully.`);
+      toast.success(t("dashboard.toast.createSuccess", { name: response.data.name }));
       setShowCreateProject(false);
       queryClient.invalidateQueries({ queryKey: ["dashboard", "me"] });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -53,7 +55,7 @@ export default function DashboardPage() {
     },
     onError: (error: unknown) => {
       const message =
-        error instanceof Error ? error.message : "Unable to create project.";
+        error instanceof Error ? error.message : t("dashboard.toast.createError");
       toast.error(message);
     },
   });
@@ -114,11 +116,10 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             <h1 className="text-2xl font-semibold text-slate-950">
-              Unable to load your dashboard
+              {t("dashboard.error.title")}
             </h1>
             <p className="max-w-xl text-sm text-slate-600">
-              The personalized overview could not be fetched right now. Retry once and keep
-              working from your existing projects if the issue persists.
+              {t("dashboard.error.desc")}
             </p>
           </div>
           <Button
@@ -129,7 +130,7 @@ export default function DashboardPage() {
             onClick={() => dashboardQuery.refetch()}
           >
             <RefreshCcw className="h-4 w-4" />
-            Retry
+            {t("common.retry")}
           </Button>
         </CardContent>
       </Card>

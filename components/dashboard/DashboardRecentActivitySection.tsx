@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 import {
   formatActivityAction,
   formatRelativeTimestamp,
@@ -22,51 +23,54 @@ export function DashboardRecentActivitySection({
   activities,
   onActivityClick,
 }: DashboardRecentActivitySectionProps) {
+  const { t } = useTranslation();
   const visibleActivities = activities.slice(0, 5);
 
   return (
     <Card className="border-slate-200 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-xl font-semibold text-slate-950">Recent Activity</CardTitle>
-        <p className="text-sm text-slate-500">
-          Latest workspace updates relevant to you.
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-semibold text-slate-950">{t("dashboard.sections.recentActivity")}</CardTitle>
+        <p className="text-xs leading-5 text-slate-500">
+          {t("dashboard.sections.recentActivityDesc")}
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {activities.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-sm text-slate-600">
-            No recent activity yet. Fresh project changes will show up here.
+            {t("dashboard.empty.noRecentActivity")}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {visibleActivities.map((activity) => {
-            const changeSummary = getActivityChangeSummary(activity);
+            const changeSummary = getActivityChangeSummary(activity, t);
             return (
               <button
                 key={activity.id}
                 type="button"
                 onClick={() => onActivityClick(activity)}
-                className="flex w-full items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                className="flex w-full items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
               >
-                <Avatar className="h-10 w-10 border border-slate-200">
+                <Avatar className="h-9 w-9 border border-slate-200">
                   <AvatarImage src={activity.actorAvatarUrl ?? undefined} alt={activity.actorName} />
                   <AvatarFallback className="bg-slate-100 text-xs font-semibold text-slate-700">
                     {getInitials(activity.actorName)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="text-sm text-slate-950">
-                    <span className="font-semibold">{formatActivityAction(activity)}</span>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="text-[13px] leading-5 text-slate-950">
+                    <span className="font-semibold">{formatActivityAction(activity, t)}</span>
                     {activity.projectName && (
-                      <span className="text-slate-500"> in {activity.projectName}</span>
+                      <span className="text-slate-500"> {t("dashboard.activity.inProject", { project: activity.projectName })}</span>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="border border-slate-200 bg-slate-50 text-slate-700">
-                      {activity.action.replaceAll("_", " ")}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge className="border border-slate-200 bg-slate-50 text-[10px] text-slate-700">
+                      {t(`dashboard.activity.actions.${activity.action}`, {
+                        defaultValue: activity.action.replaceAll("_", " "),
+                      })}
                     </Badge>
                     {changeSummary && (
-                      <Badge className="border border-sky-200 bg-sky-50 text-sky-700">
+                      <Badge className="border border-sky-200 bg-sky-50 text-[10px] text-sky-700">
                         {changeSummary}
                       </Badge>
                     )}
@@ -80,7 +84,7 @@ export function DashboardRecentActivitySection({
 
             {activities.length > visibleActivities.length && (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500">
-                Showing the latest {visibleActivities.length} updates. Open the related project to see older activity.
+                {t("dashboard.activity.showingLatest", { count: visibleActivities.length })}
               </div>
             )}
           </div>

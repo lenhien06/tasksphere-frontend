@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { FolderKanban, Users, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface DashboardActiveProjectsSectionProps {
   projects: DashboardProjectSummaryItem[];
@@ -27,27 +28,28 @@ export function DashboardActiveProjectsSection({
   projects,
   onProjectClick,
 }: DashboardActiveProjectsSectionProps) {
+  const { t } = useTranslation();
   return (
     <Card className="border-slate-200 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-xl font-semibold text-slate-950">Active Projects</CardTitle>
-        <p className="text-sm text-slate-500">
-          Only projects you own or belong to are shown here.
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-semibold text-slate-950">{t("dashboard.sections.activeProjects")}</CardTitle>
+        <p className="text-xs leading-5 text-slate-500">
+          {t("dashboard.sections.activeProjectsDesc")}
         </p>
       </CardHeader>
       <CardContent>
         {projects.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-sm text-slate-600">
-            No active projects yet. Create or join a project to build your workspace.
+            {t("dashboard.empty.noProjects")}
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {projects.map((project) => (
               <button
                 key={project.id}
                 type="button"
                 onClick={() => onProjectClick(project.id)}
-                className="rounded-2xl border border-slate-200 bg-white p-5 text-left transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                className="rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -56,10 +58,10 @@ export function DashboardActiveProjectsSection({
                         {project.projectKey}
                       </span>
                       <Badge className={cn("border", getProjectStatusClass(project.status))}>
-                        {project.status}
+                        {t(`project.status_${project.status.toLowerCase()}`, { defaultValue: project.status })}
                       </Badge>
                     </div>
-                    <div className="mt-3 line-clamp-2 text-lg font-semibold text-slate-950">
+                    <div className="mt-2.5 line-clamp-2 text-base font-semibold text-slate-950">
                       {project.name}
                     </div>
                   </div>
@@ -70,9 +72,9 @@ export function DashboardActiveProjectsSection({
                   )}
                 </div>
 
-                <div className="mt-5 space-y-2">
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>Progress</span>
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-600">
+                    <span>{t("dashboard.projects.progress")}</span>
                     <span className="font-semibold text-slate-900">
                       {Math.round(project.progress)}%
                     </span>
@@ -80,14 +82,14 @@ export function DashboardActiveProjectsSection({
                   <Progress value={Math.max(0, Math.min(100, project.progress))} className="h-2 bg-slate-100" />
                 </div>
 
-                <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-slate-600">
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
                   <span className="inline-flex items-center gap-1.5">
                     <FolderKanban className="h-4 w-4 text-slate-400" />
-                    {project.taskCount} tasks
+                    {t("dashboard.projects.taskCount", { count: project.taskCount })}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <Users className="h-4 w-4 text-slate-400" />
-                    {project.memberCount} members
+                    {t("dashboard.projects.memberCount", { count: project.memberCount })}
                   </span>
                   <span
                     className={cn(
@@ -96,7 +98,7 @@ export function DashboardActiveProjectsSection({
                     )}
                   >
                     <AlertTriangle className="h-4 w-4" />
-                    {project.overdueCount} overdue
+                    {t("dashboard.projects.overdueCount", { count: project.overdueCount })}
                   </span>
                 </div>
               </button>
