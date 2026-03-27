@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next";
 import {
   Home,
   FolderKanban,
-  Bell,
   Inbox,
   Columns4,
   Zap,
@@ -280,7 +279,6 @@ export default function Sidebar({
         )}
         <MenuItem icon={Home} label={t('nav.dashboard')} path="/dashboard" active={activeItem === "/dashboard"} onClick={onNavigate} isCollapsed={isCollapsed} />
         <MenuItem icon={FolderKanban} label={t('project.myProjects')} path="/projects" active={activeItem === "/projects" || activeItem === "/projects/all"} badge={{ count: 3, variant: "count" }} onClick={onNavigate} isCollapsed={isCollapsed} />
-        <MenuItem icon={Bell} label={t('nav.notifications')} path="/notifications" active={activeItem === "/notifications"} onClick={onNavigate} isCollapsed={isCollapsed} />
         <MenuItem icon={Inbox} label={t('nav.inbox')} path="/inbox" active={activeItem === "/inbox"} onClick={onNavigate} isCollapsed={isCollapsed} />
 
         {/* CURRENT PROJECT (ANIMATED) */}

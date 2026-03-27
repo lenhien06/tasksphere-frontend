@@ -6,6 +6,10 @@ const PUBLIC_PATHS = ['/', '/signin', '/signup', '/forgot-password', '/invites']
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
+
+  if (pathname === '/notifications' || pathname.startsWith('/notifications/')) {
+    return NextResponse.redirect(new URL('/dashboard', req.url))
+  }
   
   // Check all possible cookie names
   const accessToken = req.cookies.get('accessToken')?.value
