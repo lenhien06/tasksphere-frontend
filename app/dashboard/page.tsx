@@ -142,7 +142,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-[1680px] space-y-6 px-4 pb-6 sm:px-6 lg:px-8 2xl:px-10">
+      <div className="mx-auto w-full max-w-[1680px] space-y-6 px-4 pb-6 pt-4 sm:px-6 sm:pt-5 lg:px-8 lg:pt-6 2xl:px-10">
         {showFullOnboarding ? (
           <DashboardEmptyState
             userName={userName}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Loader2 } from "lucide-react";
+import { Bell } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
@@ -111,9 +111,7 @@ export function NotificationBell({ open, onOpenChange }: NotificationBellProps) 
           </div>
         )}
         {connectionState === "connecting" && (
-          <span className="absolute bottom-0 right-0 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white bg-amber-50 text-amber-500">
-            <Loader2 size={9} className="animate-spin" />
-          </span>
+          <span className="absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full border border-white bg-amber-400/90" />
         )}
       </button>
 
