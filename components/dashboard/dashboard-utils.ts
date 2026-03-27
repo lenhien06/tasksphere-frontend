@@ -136,33 +136,8 @@ export function formatActivityAction(activity: DashboardRecentActivityItem, t: T
   return `${actor} ${action}`;
 }
 
-export function getActivityChangeSummary(activity: DashboardRecentActivityItem, t: TFunction) {
-  const oldValue = parseJsonRecord(activity.oldValues);
-  const newValue = parseJsonRecord(activity.newValues);
-
-  if (oldValue?.status || newValue?.status) {
-    return `${t(`task.status_${oldValue?.status ?? ""}`, { defaultValue: oldValue?.status ?? t("dashboard.common.unknown") })} -> ${t(`task.status_${newValue?.status ?? ""}`, { defaultValue: newValue?.status ?? t("dashboard.common.unknown") })}`;
-  }
-
-  if (oldValue?.priority || newValue?.priority) {
-    return `${t(`task.priority_${oldValue?.priority ?? ""}`, { defaultValue: oldValue?.priority ?? t("dashboard.common.unknown") })} -> ${t(`task.priority_${newValue?.priority ?? ""}`, { defaultValue: newValue?.priority ?? t("dashboard.common.unknown") })}`;
-  }
-
-  return null;
-}
-
 export function getInitials(name: string | null | undefined) {
   if (!name) return "TS";
   const parts = name.trim().split(/\s+/).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "TS";
-}
-
-function parseJsonRecord(value: string | null) {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value);
-    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, string>) : null;
-  } catch {
-    return null;
-  }
 }
