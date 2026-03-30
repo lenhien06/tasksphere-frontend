@@ -379,7 +379,8 @@ export default function ProjectsPage() {
     });
 
     const archiveMutation = useMutation({
-        mutationFn: (id: string) => ProjectService.delete(id),
+        mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) =>
+            ProjectService.deleteWithConfirmation(id, confirmName),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
             toast.success("Đã lưu trữ dự án");
@@ -451,9 +452,9 @@ export default function ProjectsPage() {
         });
     }
 
-    function handleArchive() {
+    function handleArchive(confirmName: string) {
         if (!activeProject) return;
-        archiveMutation.mutate(activeProject.id);
+        archiveMutation.mutate({ id: activeProject.id, confirmName });
     }
 
     function handleDelete(confirmName: string) {
@@ -750,7 +751,7 @@ export default function ProjectsPage() {
                                                     </>
                                                 )}
 
-                                                {isAdmin && (
+                                                {(isAdmin || canArchiveProject(p)) && (
                                                     <>
                                                         <DropdownMenuSeparator className="my-1" />
                                                         <DropdownMenuItem onClick={() => openModal(p, "delete")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer text-red-600 hover:bg-red-50"><Trash2 size={14} className="mr-2" /> {t('project.deletePermanently')}</DropdownMenuItem>
@@ -911,7 +912,7 @@ export default function ProjectsPage() {
                                                             </>
                                                         )}
 
-                                                        {isAdmin && (
+                                                        {(isAdmin || canArchiveProject(p)) && (
                                                             <>
                                                                 <DropdownMenuSeparator className="my-1" />
                                                                 <DropdownMenuItem onClick={() => openModal(p, "delete")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer text-red-600 hover:bg-red-50">

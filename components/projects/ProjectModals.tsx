@@ -537,7 +537,7 @@ export const ArchiveProjectModal = ({
   isOpen: boolean;
   onClose: () => void;
   project: any;
-  onConfirm: () => void;
+  onConfirm: (confirmName: string) => void;
 }) => {
   const { t } = useTranslation()
   const [confirmText, setConfirmText] = useState("");
@@ -570,7 +570,7 @@ export const ArchiveProjectModal = ({
         <PrimaryButton
           className="flex-1 bg-amber-600 hover:bg-amber-700 shadow-none border border-amber-700/10"
           disabled={confirmText !== project?.name}
-          onClick={() => { onConfirm(); onClose(); }}
+          onClick={() => { onConfirm(confirmText); onClose(); }}
         >
           {t('common.archive')}
         </PrimaryButton>
