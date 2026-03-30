@@ -28,7 +28,8 @@ import {
     CheckCircle2,
     RotateCcw,
     X,
-    Loader2
+    Loader2,
+    Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -284,6 +285,19 @@ export default function ProjectsPage() {
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [isResettingFilters, setIsResettingFilters] = useState(false);
     const isArchiveView = statusFilter === "Archived";
+
+    async function handleCopyProjectLink(projectId: string) {
+        if (typeof window === "undefined") return;
+
+        const projectUrl = `${window.location.origin}/projects/${projectId}`;
+
+        try {
+            await navigator.clipboard.writeText(projectUrl);
+            toast.success(t('project.copyLinkSuccess', { defaultValue: 'Đã sao chép liên kết dự án' }));
+        } catch {
+            toast.error(t('project.copyLinkError', { defaultValue: 'Không thể sao chép liên kết dự án' }));
+        }
+    }
 
     // Debounce search
     useEffect(() => {
@@ -711,6 +725,9 @@ export default function ProjectsPage() {
                                                 <DropdownMenuItem onClick={() => router.push(`/projects/${p.id}`)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
                                                     <Folder size={14} className="mr-2" /> {t('project.viewDetails', { defaultValue: 'Xem chi tiết' })}
                                                 </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleCopyProjectLink(p.id)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
+                                                    <Link2 size={14} className="mr-2" /> {t('project.copyLink', { defaultValue: 'Sao chép liên kết' })}
+                                                </DropdownMenuItem>
                                                 
                                                 {p.status === "Archived" ? (
                                                     // Menu for archived
@@ -864,6 +881,9 @@ export default function ProjectsPage() {
                                                     <DropdownMenuContent align="end" className="w-44 rounded-xl border-gray-200 p-1 shadow-xl bg-white z-[100]">
                                                         <DropdownMenuItem onClick={() => router.push(`/projects/${p.id}`)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
                                                             <Folder size={14} className="mr-2" /> {t('project.viewDetails', { defaultValue: 'Xem chi tiết' })}
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleCopyProjectLink(p.id)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
+                                                            <Link2 size={14} className="mr-2" /> {t('project.copyLink', { defaultValue: 'Sao chép liên kết' })}
                                                         </DropdownMenuItem>
                                                         
                                                         {p.status === "Archived" ? (
