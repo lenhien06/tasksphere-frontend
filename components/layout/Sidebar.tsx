@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import React, { useState, useEffect } from "react";
+import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import {
   Home,
   FolderKanban,
@@ -13,22 +14,19 @@ import {
   Archive,
   Calendar,
   BarChart2,
-  Users,
-  Settings,
   LayoutDashboard,
-  UserCog,
-  Settings2,
-  ChevronDown,
   LogOut,
   LucideIcon,
   ChevronLeft,
   ChevronRight,
   HelpCircle,
   Sparkles,
-  Share2
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/app/services/auth.service";
+import { ProjectService } from "@/app/services/ProjectService";
+import { Project as ApiProject } from "@/app/types/project..schema";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useAIModalStore } from "@/stores/useAIModalStore";
 import { toast } from "sonner";
@@ -66,6 +64,11 @@ interface SidebarProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }
+
+const getProjectBadgeLabel = (name?: string, key?: string) => {
+  const badgeSource = key?.trim() || name?.trim() || "PR";
+  return badgeSource.slice(0, 2).toUpperCase();
+};
 
 // ——————————————————————————————————————————————————————————————————————————————————
 // UTILS & SUB-COMPONENTS
@@ -154,12 +157,71 @@ const MenuItem = ({
   );
 };
 
+const ProjectListItem = ({
+  project,
+  active,
+  onClick,
+  isCollapsed,
+}: {
+  project: ApiProject;
+  active: boolean;
+  onClick: (path: string) => void;
+  isCollapsed?: boolean;
+}) => {
+  const projectBadge = getProjectBadgeLabel(project.name, project.projectKey);
+
+  return (
+    <motion.button
+      type="button"
+      whileHover={{ x: isCollapsed ? 0 : 4 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      onClick={() => onClick(`/projects/${project.id}`)}
+      title={isCollapsed ? `${project.name} (${project.projectKey})` : ""}
+      className={cn(
+        "group mx-1 flex items-center rounded-xl border transition-all",
+        isCollapsed ? "mx-auto mb-1 h-10 w-10 justify-center px-0" : "mb-1 w-[calc(100%-8px)] gap-3 px-2.5 py-2 text-left",
+        active
+          ? "border-blue-500/30 bg-gradient-to-r from-blue-500/15 via-sky-500/10 to-violet-500/10 text-[#E2E8F0]"
+          : "border-transparent text-[#94A3B8] hover:border-[#1E293B] hover:bg-[#111827]"
+      )}
+    >
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-lg text-[10px] font-black tracking-wide text-white shadow-sm",
+          isCollapsed ? "h-7 w-7" : "h-8 w-8",
+          active
+            ? "bg-gradient-to-br from-blue-500 to-cyan-500"
+            : "bg-gradient-to-br from-slate-600 to-slate-700 group-hover:from-blue-500/80 group-hover:to-violet-500/80"
+        )}
+      >
+        {projectBadge}
+      </div>
+
+      {!isCollapsed && (
+        <>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[12px] font-semibold text-[#E2E8F0]">
+              {project.name}
+            </div>
+            <div className="mt-0.5 flex items-center gap-2 text-[10px] text-[#64748B]">
+              <span className="font-bold uppercase tracking-wider">{project.projectKey}</span>
+              <span className="h-1 w-1 rounded-full bg-[#334155]" />
+              <span>{project.progress ?? 0}%</span>
+            </div>
+          </div>
+
+          {active && <div className="h-6 w-1 rounded-full bg-blue-400/80" />}
+        </>
+      )}
+    </motion.button>
+  );
+};
+
 // ——————————————————————————————————————————————————————————————————————————————————
 // MAIN COMPONENT
 // ——————————————————————————————————————————————————————————————————————————————————
 
 export default function Sidebar({
-  currentUser,
   currentProject,
   activeItem = "",
   onNavigate = () => {},
@@ -171,6 +233,22 @@ export default function Sidebar({
   const { t } = useTranslation()
   const { logout } = useAuthStore()
   const openAIModal = useAIModalStore((s) => s.open);
+  const { data: sidebarProjects = [], isLoading: isProjectsLoading } = useQuery({
+    queryKey: ["sidebar-projects"],
+    queryFn: async () => {
+      const response = await ProjectService.search({
+        page: 0,
+        size: 8,
+        sort: "createdAt,desc",
+      });
+
+      return (response.data?.content ?? []).filter((project) => {
+        const normalizedStatus = String(project.status ?? "").toLowerCase();
+        return normalizedStatus !== "archived" && normalizedStatus !== "deleted";
+      });
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   const handleLogout = async () => {
     try {
@@ -184,7 +262,23 @@ export default function Sidebar({
     }
   };
 
-  const sysRole = currentUser?.systemRole || "USER";
+  const visibleProjects = useMemo(() => {
+    if (!sidebarProjects.length) return [];
+
+    if (!currentProject?.id) {
+      return sidebarProjects.slice(0, 6);
+    }
+
+    const prioritizedProjects = [
+      ...sidebarProjects.filter((project) => project.id === currentProject.id),
+      ...sidebarProjects.filter((project) => project.id !== currentProject.id),
+    ];
+
+    return prioritizedProjects.slice(0, 6);
+  }, [currentProject?.id, sidebarProjects]);
+
+  const remainingProjects = Math.max(sidebarProjects.length - visibleProjects.length, 0);
+  const currentProjectBadge = getProjectBadgeLabel(currentProject?.name, currentProject?.key);
 
   return (
     <>
@@ -278,8 +372,62 @@ export default function Sidebar({
           </motion.div>
         )}
         <MenuItem icon={Home} label={t('nav.dashboard')} path="/dashboard" active={activeItem === "/dashboard"} onClick={onNavigate} isCollapsed={isCollapsed} />
-        <MenuItem icon={FolderKanban} label={t('project.myProjects')} path="/projects" active={activeItem === "/projects" || activeItem === "/projects/all"} badge={{ count: 3, variant: "count" }} onClick={onNavigate} isCollapsed={isCollapsed} />
+        <MenuItem icon={FolderKanban} label={t('project.myProjects')} path="/projects" active={activeItem === "/projects" || activeItem === "/projects/all"} badge={{ count: sidebarProjects.length, variant: "count" }} onClick={onNavigate} isCollapsed={isCollapsed} />
         <MenuItem icon={Inbox} label={t('nav.inbox')} path="/inbox" active={activeItem === "/inbox"} onClick={onNavigate} isCollapsed={isCollapsed} />
+
+        {!isCollapsed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mb-1 mt-5 px-2"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-medium uppercase tracking-widest text-[#475569]">
+                {t('nav.projects')}
+              </span>
+              {sidebarProjects.length > 0 && (
+                <span className="rounded-full border border-[#1E293B] bg-[#111827] px-1.5 py-0.5 text-[10px] font-semibold text-[#64748B]">
+                  {sidebarProjects.length}
+                </span>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        <div className="mt-1">
+          {isProjectsLoading && !isCollapsed && (
+            <div className="mx-3 mb-3 flex items-center gap-2 rounded-xl border border-[#1E293B] bg-[#111827] px-3 py-3 text-[12px] text-[#64748B]">
+              <Loader2 size={14} className="animate-spin text-[#60A5FA]" />
+              <span>{t('common.loading')}</span>
+            </div>
+          )}
+
+          {!isProjectsLoading && visibleProjects.map((project) => (
+            <ProjectListItem
+              key={project.id}
+              project={project}
+              active={currentProject?.id === project.id || activeItem.startsWith(`/projects/${project.id}`)}
+              onClick={onNavigate}
+              isCollapsed={isCollapsed}
+            />
+          ))}
+
+          {!isProjectsLoading && visibleProjects.length === 0 && !isCollapsed && (
+            <div className="mx-3 mb-3 rounded-xl border border-dashed border-[#1E293B] bg-[#111827]/60 px-3 py-3 text-[12px] leading-relaxed text-[#64748B]">
+              {t('project.noProjects')}
+            </div>
+          )}
+
+          {!isProjectsLoading && remainingProjects > 0 && !isCollapsed && (
+            <button
+              type="button"
+              onClick={() => onNavigate("/projects")}
+              className="mx-3 mb-2 flex w-[calc(100%-24px)] items-center justify-center rounded-xl border border-[#1E293B] bg-[#111827] px-3 py-2 text-[11px] font-semibold text-[#94A3B8] transition-colors hover:border-blue-500/30 hover:text-[#E2E8F0]"
+            >
+              +{remainingProjects} {t('common.more')} {t('nav.projects').toLowerCase()}
+            </button>
+          )}
+        </div>
 
         {/* CURRENT PROJECT (ANIMATED) */}
         <AnimatePresence>
@@ -292,12 +440,24 @@ export default function Sidebar({
               className="overflow-hidden"
             >
               {!isCollapsed ? (
-                <div className="mb-1 mt-4 flex items-center gap-2 px-2">
-                  <div className="flex h-4 w-4 items-center justify-center rounded bg-gradient-to-br from-blue-500 to-violet-600 text-[8px] font-bold text-white">{currentProject.key[0]}</div>
-                  <span className="truncate text-[10px] uppercase text-[#64748B] font-bold tracking-wider">{currentProject.name}</span>
+                <div className="mb-2 mt-4 px-2">
+                  <div className="flex items-center gap-2 rounded-xl border border-[#1E293B] bg-[#111827]/80 px-2.5 py-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 text-[10px] font-black text-white">
+                      {currentProjectBadge}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-[#64748B]">
+                        {t('sidebar.projectManagement')}
+                      </div>
+                      <div className="truncate text-[13px] font-semibold text-[#E2E8F0]">
+                        {currentProject.name}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : <div className="mx-auto my-3 w-6 border-t border-[#1E293B]" />}
               
+              <MenuItem icon={LayoutDashboard} label={t('common.overview')} path={`/projects/${currentProject.id}`} active={activeItem === `/projects/${currentProject.id}`} onClick={onNavigate} isCollapsed={isCollapsed} indent />
               <MenuItem icon={Columns4} label={t('kanban.board')} path={`/projects/${currentProject.id}/board`} active={activeItem.includes("/board")} onClick={onNavigate} isCollapsed={isCollapsed} indent />
               <MenuItem icon={Zap} label={t('sprint.management')} path={`/projects/${currentProject.id}/sprints`} active={activeItem.includes("/sprints")} onClick={onNavigate} isCollapsed={isCollapsed} indent />
               <MenuItem icon={Archive} label={t('common.backlog')} path={`/projects/${currentProject.id}/backlog`} active={activeItem.includes("/backlog")} onClick={onNavigate} isCollapsed={isCollapsed} indent />
