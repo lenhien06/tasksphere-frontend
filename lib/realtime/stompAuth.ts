@@ -6,7 +6,7 @@ export function getRealtimeAccessToken(): string | null {
   return useAuthStore.getState().accessToken;
 }
 
-export function getStompConnectHeaders(): Record<string, string> {
-  const token = getRealtimeAccessToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+export function getStompConnectHeaders(token?: string | null): Record<string, string> {
+  const resolvedToken = token ?? getRealtimeAccessToken();
+  return resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {};
 }

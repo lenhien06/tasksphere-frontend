@@ -59,6 +59,7 @@ export const ProjectService = {
       `/v1/projects/${id}`
       ,
       {
+        params: { confirmName },
         data: { confirmName }
       }
     );
@@ -70,6 +71,7 @@ export const ProjectService = {
     const response = await apiJava.delete<ApiResponse<null>>(
       `/v1/projects/${id}/permanent`,
       {
+        params: { confirmName },
         data: { confirmName }
       }
     );

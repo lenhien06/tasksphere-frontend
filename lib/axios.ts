@@ -2,13 +2,21 @@ import axios, { AxiosError } from "axios";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
-const PUBLIC_PATHS = ["/", "/projects"];
 
-const isPublicPath = () => {
+function isAuthFreePath() {
     if (typeof window === "undefined") return false;
     const pathname = window.location.pathname;
-    return PUBLIC_PATHS.some((p) => pathname === p);
-};
+    const isPublicInvitePreview =
+        pathname.startsWith("/invites/") && !pathname.startsWith("/invites/accept");
+
+    return (
+        pathname === "/" ||
+        pathname.startsWith("/signin") ||
+        pathname.startsWith("/signup") ||
+        pathname.startsWith("/forgot-password") ||
+        isPublicInvitePreview
+    );
+}
 
 // 1. Instance calling Backend directly (Java)
 export const apiJava = axios.create({
@@ -153,7 +161,7 @@ apiJava.interceptors.response.use(
             !url.includes("/auth/signup") &&
             !url.includes("/auth/refresh")
         ) {
-            if (isPublicPath()) return Promise.reject(error);
+            if (isAuthFreePath()) return Promise.reject(error);
             originalRequest._retry = true;
             return handleRefreshToken(originalRequest, apiJava);
         }
@@ -179,7 +187,7 @@ apiNext.interceptors.response.use(
             !url.includes("/auth/signup") &&
             !url.includes("/auth/refresh")
         ) {
-            if (isPublicPath()) return Promise.reject(error);
+            if (isAuthFreePath()) return Promise.reject(error);
             originalRequest._retry = true;
             return handleRefreshToken(originalRequest, apiNext);
         }

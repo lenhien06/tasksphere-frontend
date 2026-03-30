@@ -26,6 +26,11 @@ let activeHandlers: Handlers | null = null;
 let notificationSubscription: StompSubscription | null = null;
 let unreadCountSubscription: StompSubscription | null = null;
 
+function isUnauthorizedRealtimeError(message: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes("unauthorized") || normalized.includes("invalid token");
+}
+
 function getWebSocketEndpoint(): string {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
   const normalized = apiBase.replace(/\/+$/, "");
@@ -68,7 +73,7 @@ export function connectNotificationRealtime(token: string, handlers: Handlers) {
   handlers.onStateChange("connecting");
 
   client = new Client({
-    connectHeaders: getStompConnectHeaders(),
+    connectHeaders: getStompConnectHeaders(token),
     reconnectDelay: 5000,
     heartbeatIncoming: 20000,
     heartbeatOutgoing: 20000,
@@ -87,8 +92,16 @@ export function connectNotificationRealtime(token: string, handlers: Handlers) {
       }) ?? null;
     },
     onStompError: (frame) => {
-      handlers.onStateChange("error");
-      handlers.onError?.(new Error(frame.headers.message || frame.body || "Realtime STOMP error"));
+      const message = frame.headers.message || frame.body || "Realtime STOMP error";
+
+      if (isUnauthorizedRealtimeError(message)) {
+        disconnectNotificationRealtime(false);
+        handlers.onStateChange("disconnected");
+      } else {
+        handlers.onStateChange("error");
+      }
+
+      handlers.onError?.(new Error(message));
     },
     onWebSocketError: (event) => {
       handlers.onStateChange("error");
