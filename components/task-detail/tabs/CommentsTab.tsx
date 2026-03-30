@@ -32,6 +32,7 @@ import { ProjectMemberService } from "@/app/services/project-member.service"
 import { TaskDetailService } from "@/app/services/TaskDetailService"
 import { toast } from "sonner"
 import { createPortal } from "react-dom"
+import { getRealtimeAccessToken, getStompConnectHeaders } from "@/lib/realtime/stompAuth"
 
 // ── Custom Mention node ────────────────────────────────────
 
@@ -923,12 +924,16 @@ export default function CommentsTab({ projectId, taskId }: CommentsTabProps) {
 
         const connect = async () => {
             try {
+                const token = getRealtimeAccessToken()
+                if (!token) return
+
                 const [{ Client }, { default: SockJS }] = await Promise.all([
                     import("@stomp/stompjs"),
                     import("sockjs-client"),
                 ])
                 const wsUrl = `${(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api").replace(/\/api\/?$/, "")}/ws`
                 client = new Client({
+                    connectHeaders: getStompConnectHeaders(),
                     webSocketFactory: () => new SockJS(wsUrl),
                     reconnectDelay: 5000,
                     onConnect: () => {

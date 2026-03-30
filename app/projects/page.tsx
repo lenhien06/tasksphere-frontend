@@ -56,6 +56,7 @@ import { ProjectRequest } from "@/app/types/project..schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { canActAsProjectManager, normalizeProjectMyRole } from "@/lib/projectRole";
+import { getRealtimeAccessToken, getStompConnectHeaders } from "@/lib/realtime/stompAuth";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & MOCK DATA (Fallback/Types)
@@ -496,12 +497,16 @@ export default function ProjectsPage() {
 
         const connect = async () => {
             try {
+                const token = getRealtimeAccessToken();
+                if (!token) return;
+
                 const [{ Client }, { default: SockJS }] = await Promise.all([
                     import("@stomp/stompjs"),
                     import("sockjs-client"),
                 ]);
                 const wsUrl = `${(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api").replace(/\/api\/?$/, "")}/ws`;
                 client = new Client({
+                    connectHeaders: getStompConnectHeaders(),
                     webSocketFactory: () => new SockJS(wsUrl),
                     reconnectDelay: 5000,
                     onConnect: () => {

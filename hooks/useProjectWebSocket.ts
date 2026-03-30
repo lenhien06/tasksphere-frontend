@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { getRealtimeAccessToken, getStompConnectHeaders } from "@/lib/realtime/stompAuth"
 
 interface ProjectWebSocketEvent {
     type: string
@@ -54,6 +55,9 @@ export function useProjectWebSocket(projectId: string, onEvent?: (event: Project
 
         const connect = async () => {
             try {
+                const token = getRealtimeAccessToken()
+                if (!token) return
+
                 const [{ Client }, { default: SockJS }] = await Promise.all([
                     import("@stomp/stompjs"),
                     import("sockjs-client"),
@@ -62,6 +66,7 @@ export function useProjectWebSocket(projectId: string, onEvent?: (event: Project
                 const wsUrl = `${(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api").replace(/\/api\/?$/, "")}/ws`
 
                 client = new Client({
+                    connectHeaders: getStompConnectHeaders(),
                     webSocketFactory: () => new SockJS(wsUrl),
                     reconnectDelay: 5000,
                     onConnect: () => {

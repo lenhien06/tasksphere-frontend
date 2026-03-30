@@ -6,6 +6,7 @@ import {
   NotificationRealtimeEvent,
   UnreadCountRealtimeEvent,
 } from "@/app/types/notification.schema";
+import { getStompConnectHeaders } from "@/lib/realtime/stompAuth";
 
 export type RealtimeConnectionState = "disconnected" | "connecting" | "connected" | "error";
 
@@ -67,9 +68,7 @@ export function connectNotificationRealtime(token: string, handlers: Handlers) {
   handlers.onStateChange("connecting");
 
   client = new Client({
-    connectHeaders: {
-      Authorization: `Bearer ${token}`,
-    },
+    connectHeaders: getStompConnectHeaders(),
     reconnectDelay: 5000,
     heartbeatIncoming: 20000,
     heartbeatOutgoing: 20000,
