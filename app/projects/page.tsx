@@ -380,7 +380,7 @@ export default function ProjectsPage() {
 
     const archiveMutation = useMutation({
         mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) =>
-            ProjectService.deleteWithConfirmation(id, confirmName),
+            ProjectService.archiveWithConfirmation(id, confirmName),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
             toast.success("Đã lưu trữ dự án");
@@ -395,7 +395,7 @@ export default function ProjectsPage() {
         mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) => ProjectService.deleteWithConfirmation(id, confirmName),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
-            toast.success("Đã xóa dự án");
+            toast.success("Đã xóa vĩnh viễn dự án");
             closeModal();
         },
         onError: (error: any) => {

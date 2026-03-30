@@ -53,18 +53,22 @@ export const ProjectService = {
     return response.data;
   },
 
-  // Delete a project (Soft Delete / Archive)
-  delete: async (id: string) => {
-    const response = await apiJava.delete<ApiResponse<{ message: string; archivedAt: string }>>(
+  // Archive a project (Soft Delete)
+  archiveWithConfirmation: async (id: string, confirmName: string) => {
+    const response = await apiJava.delete<ApiResponse<null>>(
       `/v1/projects/${id}`
+      ,
+      {
+        data: { confirmName }
+      }
     );
     return response.data;
   },
 
-  // Delete a project with name confirmation (Double Confirmation)
+  // Permanently delete a project with name confirmation
   deleteWithConfirmation: async (id: string, confirmName: string) => {
     const response = await apiJava.delete<ApiResponse<null>>(
-      `/v1/projects/${id}`,
+      `/v1/projects/${id}/permanent`,
       {
         data: { confirmName }
       }
