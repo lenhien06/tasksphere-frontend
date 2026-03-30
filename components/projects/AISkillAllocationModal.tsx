@@ -361,7 +361,7 @@ interface AISkillTriggerButtonProps {
 
 export function AISkillTriggerButton({ onClick, className }: AISkillTriggerButtonProps) {
   return (
-    <div className={cn("flex flex-col items-start gap-0.5", className)}>
+    <div className={className}>
       <button
         id="ai-skill-allocation-trigger"
         onClick={onClick}
@@ -370,9 +370,6 @@ export function AISkillTriggerButton({ onClick, className }: AISkillTriggerButto
         <Sparkles size={15} className="text-purple-500" />
         Tạo dự án mới với AI
       </button>
-      <span className="pl-1 text-[11px] text-slate-400 font-medium">
-        Automatically assign tasks to your project
-      </span>
     </div>
   );
 }

@@ -383,7 +383,7 @@ interface AIProjectTriggerButtonProps {
 
 export function AIProjectTriggerButton({ onClick, className }: AIProjectTriggerButtonProps) {
     return (
-        <div className={cn("flex flex-col items-start gap-0.5", className)}>
+        <div className={className}>
             <button
                 id="ai-create-project-trigger"
                 onClick={onClick}
@@ -392,9 +392,6 @@ export function AIProjectTriggerButton({ onClick, className }: AIProjectTriggerB
                 <Sparkles size={15} className="text-purple-500" />
                 Tạo dự án mới với AI
             </button>
-            <span className="pl-1 text-[11px] text-slate-400 font-medium">
-                Automatically assign tasks to your project
-            </span>
         </div>
     );
 }
