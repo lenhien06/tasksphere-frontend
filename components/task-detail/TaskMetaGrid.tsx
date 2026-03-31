@@ -62,8 +62,10 @@ function StatusField({ task, projectId, canEdit, etag, onBlockedBySubtask }: { t
     const updateStatus = useMutation({
         mutationFn: ({ status }: { status: TaskStatus }) =>
             TaskService.updateStatus(projectId, task.id, { status }, etag),
-        onSuccess: (_, { status }) => {
-            patchTaskCollections(qc, projectId, task.id, { taskStatus: status })
+        onSuccess: (data, { status }) => {
+            const patch: Record<string, unknown> = { taskStatus: status }
+            if (data?.columnId) patch.columnId = data.columnId
+            patchTaskCollections(qc, projectId, task.id, patch)
             qc.invalidateQueries({ queryKey: ["task", projectId, task.id] })
             qc.invalidateQueries({ queryKey: ["activity", projectId, task.id] })
             invalidateTaskCollections(qc, projectId)

@@ -221,7 +221,7 @@ export default function TaskDetailPageContent({
         normalizedRole === "SYSTEM_ADMIN"
     const isMember = normalizedRole === "MEMBER"
     const isAssignee = !!task.assignee?.id && !!currentUserId && String(task.assignee.id) === currentUserId
-    const canEdit = isAdminOrPM || (isMember && isAssignee)
+    const canEdit = isAdminOrPM || isMember
     const canDelete = isAdminOrPM
 
     const scrollToSubtasks = () => {

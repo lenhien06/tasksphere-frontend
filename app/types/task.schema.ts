@@ -103,6 +103,7 @@ export interface TaskStatusChangedResponse {
     oldStatus: TaskStatus
     newStatus: TaskStatus
     updatedAt: string
+    columnId?: string
 }
 
 // ── Request types ─────────────────────────────────────────────
