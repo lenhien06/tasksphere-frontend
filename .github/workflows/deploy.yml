@@ -13,7 +13,7 @@ jobs:
   deploy:
     name: Build & Deploy to VPS
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          command_timeout: 15m
+          command_timeout: 30m
           script: |
             set -e
             echo "=== Starting frontend deployment on VPS ==="
@@ -57,9 +57,9 @@ jobs:
           sleep 15
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             --max-time 10 \
-            https://tasksphere.io.vn || echo "000")
+            https://tasksphere.io.vn/images/logo.png || echo "000")
           echo "Frontend returned: $HTTP_STATUS"
-          if [[ "$HTTP_STATUS" != "200" && "$HTTP_STATUS" != "307" && "$HTTP_STATUS" != "308" ]]; then
+          if [[ "$HTTP_STATUS" != "200" ]]; then
             echo "::error::Frontend health check failed (HTTP $HTTP_STATUS)."
             exit 1
           fi
@@ -73,4 +73,6 @@ jobs:
           echo "To debug, SSH into VPS and run:"
           echo "  docker logs tasksphere-frontend-tasksphere-webapp-1 --tail 100"
           echo "  tail -100 /var/log/tasksphere-deploy.log"
+          echo "  free -h"
+          echo "  dmesg -T | tail -100"
           echo "  docker ps -a"

@@ -5,6 +5,10 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true
   },
+  experimental: {
+    // Reduce peak webpack memory usage during production builds on the VPS.
+    webpackMemoryOptimizations: true
+  },
   images: {
     unoptimized: true,
     remotePatterns: [
