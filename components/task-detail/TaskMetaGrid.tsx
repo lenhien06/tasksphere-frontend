@@ -153,31 +153,46 @@ function StatusField({ task, projectId, canEdit, etag, onBlockedBySubtask }: { t
 
 // ── Priority Field ─────────────────────────────────────────
 
-function PriorityField({ priority, onSave, readOnly }: { priority: TaskPriority; onSave: (p: TaskPriority) => void; readOnly: boolean }) {
-    const priorityConfig: Record<string, any> = {
-        critical: { label: "Critical", cls: "bg-red-50 text-red-700 border-red-100 hover:bg-red-100", dot: "bg-red-500" },
-        high: { label: "High", cls: "bg-orange-50 text-orange-700 border-orange-100 hover:bg-orange-100", dot: "bg-orange-500" },
-        medium: { label: "Medium", cls: "bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100", dot: "bg-amber-500" },
-        low: { label: "Low", cls: "bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100", dot: "bg-blue-500" },
+const PRIORITY_ORDER: TaskPriority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+
+function PriorityField({
+    priority,
+    onSave,
+    readOnly,
+    isSaving = false,
+}: {
+    priority: TaskPriority
+    onSave: (p: TaskPriority) => void
+    readOnly: boolean
+    isSaving?: boolean
+}) {
+    const priorityConfig: Record<TaskPriority, { label: string; cls: string; dot: string }> = {
+        CRITICAL: { label: "Critical", cls: "bg-red-50 text-red-700 border-red-100 hover:bg-red-100", dot: "bg-red-500" },
+        HIGH: { label: "High", cls: "bg-orange-50 text-orange-700 border-orange-100 hover:bg-orange-100", dot: "bg-orange-500" },
+        MEDIUM: { label: "Medium", cls: "bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100", dot: "bg-amber-500" },
+        LOW: { label: "Low", cls: "bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100", dot: "bg-blue-500" },
     }
-    const cfg = priorityConfig[priority.toLowerCase()] || priorityConfig.medium
+    const cfg = priorityConfig[priority] || priorityConfig.MEDIUM
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger asChild disabled={readOnly}>
-                <button className={cn("inline-flex items-center justify-between gap-2 px-2.5 py-1 rounded-md border transition-all w-fit min-w-[100px] text-[11px] font-bold shadow-sm", cfg.cls, readOnly && "cursor-default")}>
+            <DropdownMenuTrigger asChild disabled={readOnly || isSaving}>
+                <Button
+                    variant="ghost"
+                    className={cn("w-fit min-w-[100px] justify-between h-7 px-2.5 text-[11px] font-bold rounded-md border transition-all shadow-sm", cfg.cls, readOnly && "cursor-default")}
+                >
                     <span className="flex items-center gap-2">
                         <span className={cn("w-1.5 h-1.5 rounded-full", cfg.dot)} />
                         {cfg.label}
                     </span>
                     {!readOnly && <ChevronDown size={12} className="opacity-50" />}
-                </button>
+                </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-40 p-1.5 rounded-lg border-slate-200 shadow-xl">
-                {Object.keys(priorityConfig).map(p => {
+                {PRIORITY_ORDER.map((p) => {
                     const c = priorityConfig[p]
                     return (
-                        <DropdownMenuItem key={p} onClick={() => onSave(p as TaskPriority)} className={cn("flex items-center gap-2.5 px-2.5 py-1.5 rounded-md mb-0.5 last:mb-0 cursor-pointer text-[11px] font-semibold transition-colors", c.cls)}>
+                        <DropdownMenuItem key={p} onClick={() => onSave(p)} className={cn("flex items-center gap-2.5 px-2.5 py-1.5 rounded-md mb-0.5 last:mb-0 cursor-pointer text-[11px] font-semibold transition-colors", c.cls)}>
                             <span className={cn("w-1.5 h-1.5 rounded-full", c.dot)} />
                             {c.label}
                         </DropdownMenuItem>
@@ -315,6 +330,9 @@ export default function TaskMetaGrid({ task, projectId, canEdit, etag, onBlocked
             qc.invalidateQueries({ queryKey: ["activity", projectId, task.id] })
             invalidateTaskCollections(qc, projectId)
         },
+        onError: (err: any) => {
+            toast.error(err?.response?.data?.message ?? "Error updating task")
+        },
     })
 
     return (
@@ -339,7 +357,7 @@ export default function TaskMetaGrid({ task, projectId, canEdit, etag, onBlocked
             </div>
             <div className="space-y-5">
                 <div><FieldLabel icon={Target} label="Status" /><StatusField task={task} projectId={projectId} canEdit={canEdit} etag={etag} onBlockedBySubtask={onBlockedBySubtask} /></div>
-                <div><FieldLabel icon={Flag} label="Priority" /><PriorityField priority={task.priority} onSave={p => updateTask.mutate({ priority: p })} readOnly={!canEdit} /></div>
+                <div><FieldLabel icon={Flag} label="Priority" /><PriorityField priority={task.priority} onSave={p => updateTask.mutate({ priority: p })} readOnly={!canEdit} isSaving={updateTask.isPending} /></div>
                 <WorklogWidget task={task} projectId={projectId} canEdit={canEdit} />
             </div>
         </div>
