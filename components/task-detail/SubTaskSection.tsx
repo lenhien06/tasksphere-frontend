@@ -22,6 +22,7 @@ import {
     useDeleteSubTask,
 } from "@/hooks/useSubTasks"
 import PromoteSubTaskDialog from "@/components/task-detail/PromoteSubTaskDialog"
+import CreateSubTaskDialog from "@/components/task-detail/CreateSubTaskDialog"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { TaskService } from "@/app/services/TaskService"
 import { PRIORITY_CONFIG } from "@/components/task-detail/config"
@@ -30,6 +31,7 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
+import { invalidateTaskCollections } from "@/lib/task-query-sync"
 
 interface SubTaskSectionProps {
     task: TaskDetailResponse
@@ -61,6 +63,7 @@ function useToggleSubtask(projectId: string, parentId: string) {
             // Invalidate both this node's children list and the parent list to keep counts fresh
             qc.invalidateQueries({ queryKey: ["subtasks", parentId] })
             qc.invalidateQueries({ queryKey: ["task", projectId] })
+            invalidateTaskCollections(qc, projectId)
         },
     })
 }
@@ -77,9 +80,16 @@ interface SubTaskNodeProps {
     assigneeFallback: UserSummary | null
     onPromote: (sub: SubTaskResponse, fallback: UserSummary | null) => void
     onDelete: (sub: SubTaskResponse) => void
-    addingTo: string | null
-    onAddChild: (parentId: string) => void
-    onAddDone: () => void
+    addingTo: {
+        parentTaskId: string
+        parentTitle: string | null
+        assigneeFallback: UserSummary | null
+    } | null
+    onAddChild: (target: {
+        parentTaskId: string
+        parentTitle: string | null
+        assigneeFallback: UserSummary | null
+    }) => void
 }
 
 function SubTaskNode({
@@ -94,7 +104,6 @@ function SubTaskNode({
     onDelete,
     addingTo,
     onAddChild,
-    onAddDone,
 }: SubTaskNodeProps) {
     const router = useRouter()
     const [expanded, setExpanded] = useState(false)
@@ -112,7 +121,7 @@ function SubTaskNode({
 
     // Auto-expand when this node is the target for adding a child
     useEffect(() => {
-        if (addingTo === sub.id) setExpanded(true)
+        if (addingTo?.parentTaskId === sub.id) setExpanded(true)
     }, [addingTo, sub.id])
 
     const handleToggle = (checked: boolean) => {
@@ -194,7 +203,7 @@ function SubTaskNode({
                             Mở chi tiết
                         </DropdownMenuItem>
                         {canEdit && (
-                            <DropdownMenuItem onClick={() => onAddChild(sub.id)}>
+                            <DropdownMenuItem onClick={() => onAddChild({ parentTaskId: sub.id, parentTitle: sub.title, assigneeFallback: sub.assignee ?? assigneeFallback })}>
                                 <Plus size={13} className="mr-2" />
                                 Thêm sub-task con
                             </DropdownMenuItem>
@@ -220,18 +229,6 @@ function SubTaskNode({
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
-
-            {/* Inline add form under this node */}
-            {addingTo === sub.id && (
-                <div style={{ paddingLeft: (depth + 1) * 20 }}>
-                    <InlineAddForm
-                        parentId={sub.id}
-                        projectId={projectId}
-                        onDone={onAddDone}
-                    />
-                </div>
-            )}
-
             {/* Expanded children */}
             {expanded && (
                 <div>
@@ -259,7 +256,6 @@ function SubTaskNode({
                             onDelete={onDelete}
                             onAddChild={onAddChild}
                             addingTo={addingTo}
-                            onAddDone={onAddDone}
                         />
                     ))}
                 </div>
@@ -285,7 +281,7 @@ function InlineAddForm({
 
     const submit = () => {
         if (!title.trim()) return
-        addSubTask.mutate(title.trim(), {
+        addSubTask.mutate({ title: title.trim(), type: "SUB_TASK" }, {
             onSuccess: () => {
                 setTitle("")
                 onDone()
@@ -324,7 +320,11 @@ export default function SubTaskSection({ task, projectId, canEdit, isPM = false 
     const { data: subTasks = [], isLoading } = useSubTasks(task.id)
     const deleteSubTask = useDeleteSubTask(projectId, task.id)
 
-    const [addingTo, setAddingTo] = useState<string | null>(null)
+    const [addingTo, setAddingTo] = useState<{
+        parentTaskId: string
+        parentTitle: string | null
+        assigneeFallback: UserSummary | null
+    } | null>(null)
     const [promotingTarget, setPromotingTarget] = useState<SubTaskResponse | null>(null)
     const [promoteAssigneeFallback, setPromoteAssigneeFallback] = useState<UserSummary | null>(null)
     const [deletingTarget, setDeletingTarget] = useState<SubTaskResponse | null>(null)
@@ -349,7 +349,11 @@ export default function SubTaskSection({ task, projectId, canEdit, isPM = false 
                         size="sm"
                         variant="ghost"
                         className="text-xs h-7"
-                        onClick={() => setAddingTo(task.id)}
+                        onClick={() => setAddingTo({
+                            parentTaskId: task.id,
+                            parentTitle: task.title,
+                            assigneeFallback: task.assignee ?? null,
+                        })}
                         aria-label="Thêm sub-task"
                     >
                         <Plus size={13} className="mr-0.5" /> Thêm
@@ -382,20 +386,23 @@ export default function SubTaskSection({ task, projectId, canEdit, isPM = false 
                                 setPromotingTarget(s)
                             }}
                             onDelete={setDeletingTarget}
-                            onAddChild={setAddingTo}
+                            onAddChild={(target) => setAddingTo(target)}
                             addingTo={addingTo}
-                            onAddDone={() => setAddingTo(null)}
                         />
                     ))}
-                    {addingTo === task.id && (
-                        <InlineAddForm
-                            parentId={task.id}
-                            projectId={projectId}
-                            onDone={() => setAddingTo(null)}
-                        />
-                    )}
                 </div>
             )}
+
+            <CreateSubTaskDialog
+                open={!!addingTo}
+                onOpenChange={(open) => {
+                    if (!open) setAddingTo(null)
+                }}
+                projectId={projectId}
+                parentTaskId={addingTo?.parentTaskId ?? null}
+                parentTitle={addingTo?.parentTitle ?? null}
+                assigneeFallback={addingTo?.assigneeFallback ?? task.assignee ?? null}
+            />
 
             <PromoteSubTaskDialog
                 open={!!promotingTarget}

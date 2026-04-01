@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { TaskDetailService } from "@/app/services/TaskDetailService"
 import { TaskService } from "@/app/services/TaskService"
-import type { SubTaskResponse, TaskStatus, PromoteSubTaskRequestBody } from "@/app/types/task.schema"
+import type { SubTaskResponse, TaskStatus, PromoteSubTaskRequestBody, CreateTaskRequest } from "@/app/types/task.schema"
+import { invalidateTaskCollections } from "@/lib/task-query-sync"
 
 export function useSubTasks(taskId: string) {
     return useQuery({
@@ -18,12 +19,13 @@ export function useSubTasks(taskId: string) {
 export function useAddSubTask(projectId: string, parentTaskId: string) {
     const qc = useQueryClient()
     return useMutation({
-        mutationFn: (title: string) => TaskDetailService.addSubtask(parentTaskId, title),
+        mutationFn: (payload: CreateTaskRequest) => TaskDetailService.addSubtask(parentTaskId, payload),
         onSuccess: (newSub) => {
             qc.setQueryData(["subtasks", parentTaskId], (old: SubTaskResponse[] | undefined) =>
                 old ? [...old, newSub] : [newSub]
             )
             qc.invalidateQueries({ queryKey: ["task", projectId, parentTaskId] })
+            invalidateTaskCollections(qc, projectId)
             toast.success(`Sub-task ${newSub.taskCode} đã được tạo`)
         },
         onError: (err: any) => {
@@ -52,6 +54,7 @@ export function useUpdateSubTaskStatus(projectId: string, parentTaskId: string) 
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ["subtasks", parentTaskId] })
             qc.invalidateQueries({ queryKey: ["task", projectId, parentTaskId] })
+            invalidateTaskCollections(qc, projectId)
         },
     })
 }
@@ -64,7 +67,7 @@ export function usePromoteSubTask(projectId: string, parentTaskId: string) {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["subtasks", parentTaskId] })
             qc.invalidateQueries({ queryKey: ["task", projectId, parentTaskId] })
-            qc.invalidateQueries({ queryKey: ["tasks", projectId] })
+            invalidateTaskCollections(qc, projectId)
             toast.success("Đã chuyển thành task độc lập")
         },
         onError: (err: any) => {

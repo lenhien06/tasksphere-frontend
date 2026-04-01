@@ -8,6 +8,7 @@ import type {
     SubTaskResponse,
     TaskDetailResponse,
     PromoteSubTaskRequestBody,
+    CreateTaskRequest,
 } from "@/app/types/task.schema"
 
 export const TaskDetailService = {
@@ -108,8 +109,8 @@ export const TaskDetailService = {
         apiJava.get(`/v1/tasks/${taskId}/subtasks`)
             .then(r => r.data.data as SubTaskResponse[]),
 
-    addSubtask: (parentTaskId: string, title: string) =>
-        apiJava.post(`/v1/tasks/${parentTaskId}/subtasks`, { title })
+    addSubtask: (parentTaskId: string, body: CreateTaskRequest) =>
+        apiJava.post(`/v1/tasks/${parentTaskId}/subtasks`, body)
             .then(r => r.data.data as SubTaskResponse),
 
     promoteSubtask: (subtaskId: string, body?: PromoteSubTaskRequestBody) =>

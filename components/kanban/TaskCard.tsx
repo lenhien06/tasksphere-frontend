@@ -6,7 +6,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { motion } from "framer-motion";
 import {
   CalendarClock, MessageCircle, Paperclip, TriangleAlert,
-  Sparkles, RefreshCw, MoreHorizontal, Pencil, Trash2, Link as LinkIcon,
+  Sparkles, RefreshCw, MoreHorizontal, Pencil, Trash2, Link as LinkIcon, ListTodo,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -172,16 +172,25 @@ export default function TaskCard({
         </div>
 
         {task.subTaskCount > 0 && (
-          <div className="flex items-center gap-2 mt-2.5">
-            <div className="flex-1 h-[3px] bg-gray-100 rounded-full overflow-hidden">
+          <div className="mt-2.5 rounded-lg border border-slate-100 bg-slate-50/70 px-2 py-1.5">
+            <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-500">
+              <span className="inline-flex items-center gap-1">
+                <ListTodo size={12} />
+                Subtasks
+              </span>
+              <span>{task.subTaskDoneCount}/{task.subTaskCount}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-[3px] bg-gray-100 rounded-full overflow-hidden">
               <div
                 className="h-full bg-blue-500 rounded-full transition-all"
                 style={{ width: `${Math.round((task.subTaskDoneCount / task.subTaskCount) * 100)}%` }}
               />
+              </div>
+              <span className="text-[11px] text-gray-400 flex-shrink-0">
+                {Math.round((task.subTaskDoneCount / task.subTaskCount) * 100)}%
+              </span>
             </div>
-            <span className="text-[11px] text-gray-400 flex-shrink-0">
-              {task.subTaskDoneCount}/{task.subTaskCount}
-            </span>
           </div>
         )}
       </motion.article>
