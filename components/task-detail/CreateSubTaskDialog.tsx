@@ -9,14 +9,12 @@ import { Label } from "@/components/ui/label"
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
 } from "@/components/ui/dialog"
 import { TaskService } from "@/app/services/TaskService"
 import { ProjectMemberService } from "@/app/services/project-member.service"
 import { useAddSubTask } from "@/hooks/useSubTasks"
 import { PRIORITY_CONFIG, STATUS_CONFIG } from "@/components/task-detail/config"
+import { cn } from "@/lib/utils"
 import type {
     ColumnResponse,
     CreateTaskRequest,
@@ -163,146 +161,190 @@ export default function CreateSubTaskDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>Tao sub-task</DialogTitle>
-                    <DialogDescription>
-                        {parentTitle ? `Sub-task moi se duoc tao ben trong "${parentTitle}".` : "Thiet lap thong tin cho sub-task truoc khi tao."}
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4">
-                    <div className="space-y-1.5">
-                        <Label htmlFor="subtask-title">Tieu de</Label>
-                        <Input
-                            id="subtask-title"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            maxLength={255}
-                            placeholder="Nhap ten sub-task"
-                            autoFocus
-                        />
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <Label htmlFor="subtask-description">Mo ta</Label>
-                        <textarea
-                            id="subtask-description"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            maxLength={2000}
-                            rows={4}
-                            className="min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none"
-                            placeholder="Mo ta ngan cho sub-task"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="subtask-assignee">Nguoi duoc giao</Label>
-                            <select
-                                id="subtask-assignee"
-                                value={assigneeId}
-                                onChange={(e) => setAssigneeId(e.target.value)}
-                                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none"
-                                disabled={membersLoading}
-                            >
-                                <option value="">Chua phan cong</option>
-                                {memberOptions.map((member) => (
-                                    <option key={member.id} value={member.id}>
-                                        {member.fullName}
-                                    </option>
-                                ))}
-                            </select>
+            <DialogContent className="w-[min(92vw,620px)] max-w-[620px] overflow-hidden rounded-[28px] border-0 bg-white p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+                <div className="max-h-[82vh] overflow-y-auto">
+                    <div className="border-b border-slate-100 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-5 py-5">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-[24px] font-bold tracking-tight text-slate-900">Tạo sub-task</h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    {parentTitle ? `Tạo công việc con trong "${parentTitle}".` : "Thiết lập nhanh thông tin cho sub-task."}
+                                </p>
+                            </div>
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-600">
+                                SUB-TASK
+                            </span>
                         </div>
 
-                        <div className="space-y-1.5">
-                            <Label htmlFor="subtask-status">Status</Label>
-                            <select
-                                id="subtask-status"
-                                value={selectedStatus}
-                                onChange={(e) => setSelectedStatus(e.target.value as TaskStatus)}
-                                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none"
-                                disabled={columnsLoading || availableStatuses.length === 0}
-                            >
-                                {availableStatuses.map((status) => (
-                                    <option key={status} value={status}>
-                                        {STATUS_CONFIG[status].label}
-                                    </option>
-                                ))}
-                            </select>
+                        <div className="grid grid-cols-1 gap-4">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="subtask-title" className="text-sm font-semibold text-slate-700">Tiêu đề</Label>
+                                    <span className="text-xs text-slate-400">{title.length}/255</span>
+                                </div>
+                                <Input
+                                    id="subtask-title"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    maxLength={255}
+                                    placeholder="Tên công việc con..."
+                                    autoFocus
+                                    className="h-12 rounded-2xl border-slate-200 px-4 text-base"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="subtask-description" className="text-sm font-semibold text-slate-700">Mô tả</Label>
+                                <textarea
+                                    id="subtask-description"
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    maxLength={2000}
+                                    rows={3}
+                                    className="min-h-[104px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-300"
+                                    placeholder="Mô tả ngắn cho sub-task..."
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="subtask-priority">Priority</Label>
-                            <select
-                                id="subtask-priority"
-                                value={priority}
-                                onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none"
-                            >
-                                {PRIORITY_ORDER.map((value) => (
-                                    <option key={value} value={value}>
-                                        {PRIORITY_CONFIG[value].label}
-                                    </option>
-                                ))}
-                            </select>
+                    <div className="space-y-5 px-5 py-5">
+                        <div className="space-y-2.5">
+                            <Label className="text-sm font-semibold text-slate-700">Trạng thái</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {availableStatuses.map((status) => {
+                                    const cfg = STATUS_CONFIG[status]
+                                    const active = selectedStatus === status
+                                    return (
+                                        <button
+                                            key={status}
+                                            type="button"
+                                            onClick={() => setSelectedStatus(status)}
+                                            disabled={columnsLoading}
+                                            className={cn(
+                                                "flex h-11 items-center gap-2 rounded-2xl border px-3 text-sm font-medium transition",
+                                                active
+                                                    ? `border-slate-300 ${cfg.bg} shadow-sm`
+                                                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                            )}
+                                        >
+                                            <span className={cn("h-2.5 w-2.5 rounded-full", cfg.dot)} />
+                                            {cfg.label}
+                                        </button>
+                                    )
+                                })}
+                            </div>
                         </div>
 
-                        <div className="space-y-1.5">
-                            <Label htmlFor="subtask-due-date">Due date</Label>
-                            <Input
-                                id="subtask-due-date"
-                                type="date"
-                                min={todayYmd}
-                                value={dueDate}
-                                onChange={(e) => setDueDate(e.target.value)}
-                            />
+                        <div className="space-y-2.5">
+                            <Label className="text-sm font-semibold text-slate-700">Mức độ ưu tiên</Label>
+                            <div className="flex flex-wrap gap-2">
+                                {PRIORITY_ORDER.map((value) => {
+                                    const cfg = PRIORITY_CONFIG[value]
+                                    const active = priority === value
+                                    return (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            onClick={() => setPriority(value)}
+                                            className={cn(
+                                                "rounded-full border px-3 py-1.5 text-sm font-medium transition",
+                                                active
+                                                    ? `${cfg.bg} ${cfg.color} border-transparent`
+                                                    : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                                            )}
+                                        >
+                                            {cfg.label}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="subtask-assignee" className="text-sm font-semibold text-slate-700">Người thực hiện</Label>
+                                <select
+                                    id="subtask-assignee"
+                                    value={assigneeId}
+                                    onChange={(e) => setAssigneeId(e.target.value)}
+                                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-blue-300"
+                                    disabled={membersLoading}
+                                >
+                                    <option value="">Chưa phân công</option>
+                                    {memberOptions.map((member) => (
+                                        <option key={member.id} value={member.id}>
+                                            {member.fullName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="subtask-due-date" className="text-sm font-semibold text-slate-700">Ngày hết hạn</Label>
+                                <Input
+                                    id="subtask-due-date"
+                                    type="date"
+                                    min={todayYmd}
+                                    value={dueDate}
+                                    onChange={(e) => setDueDate(e.target.value)}
+                                    className="h-11 rounded-2xl border-slate-200"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="subtask-story-points" className="text-sm font-semibold text-slate-700">Story Points</Label>
+                                <Input
+                                    id="subtask-story-points"
+                                    type="number"
+                                    min={1}
+                                    max={100}
+                                    value={storyPoints}
+                                    onChange={(e) => setStoryPoints(e.target.value)}
+                                    placeholder="1-100"
+                                    className="h-11 rounded-2xl border-slate-200"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="subtask-estimated-hours" className="text-sm font-semibold text-slate-700">Giờ ước tính</Label>
+                                <Input
+                                    id="subtask-estimated-hours"
+                                    type="number"
+                                    min={0}
+                                    step="0.5"
+                                    value={estimatedHours}
+                                    onChange={(e) => setEstimatedHours(e.target.value)}
+                                    placeholder="VD: 4"
+                                    className="h-11 rounded-2xl border-slate-200"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
+                            Sub-task này vẫn giữ nguyên logic có thể chuyển thành task độc lập sau này nếu cần.
                         </div>
                     </div>
+                </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="subtask-story-points">Story points</Label>
-                            <Input
-                                id="subtask-story-points"
-                                type="number"
-                                min={1}
-                                max={100}
-                                value={storyPoints}
-                                onChange={(e) => setStoryPoints(e.target.value)}
-                                placeholder="1-100"
-                            />
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <Label htmlFor="subtask-estimated-hours">Gio uoc tinh</Label>
-                            <Input
-                                id="subtask-estimated-hours"
-                                type="number"
-                                min={0}
-                                step="0.5"
-                                value={estimatedHours}
-                                onChange={(e) => setEstimatedHours(e.target.value)}
-                                placeholder="VD: 4"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                        Sub-task van giu logic co the chuyen thanh task doc lap sau nay neu can.
-                    </div>
-
-                    <div className="flex justify-end gap-2">
-                        <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={addSubTask.isPending}>
-                            Huy
-                        </Button>
-                        <Button onClick={handleSubmit} disabled={disableSubmit}>
-                            {addSubTask.isPending ? "Dang tao..." : "Tao sub-task"}
-                        </Button>
-                    </div>
+                <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white px-5 py-4">
+                    <Button
+                        variant="ghost"
+                        onClick={() => onOpenChange(false)}
+                        disabled={addSubTask.isPending}
+                        className="rounded-xl"
+                    >
+                        Hủy
+                    </Button>
+                    <Button
+                        onClick={handleSubmit}
+                        disabled={disableSubmit}
+                        className="rounded-xl bg-[#1677FF] px-5"
+                    >
+                        {addSubTask.isPending ? "Đang tạo..." : "Tạo sub-task"}
+                    </Button>
                 </div>
             </DialogContent>
         </Dialog>
