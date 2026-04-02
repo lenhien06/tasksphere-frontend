@@ -26,6 +26,7 @@ import { UserAvatar } from '@/components/common/UserAvatar'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { TaskService } from '@/app/services/TaskService'
 import type { CalendarApiTask, TaskPriority, TaskStatus, ProjectRole } from '@/app/types/task.schema'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import {
   DndContext,
   DragEndEvent,
@@ -63,6 +64,9 @@ const STATUS_DOT: Record<TaskStatus, string> = {
   DONE:        'bg-green-500',
   CANCELLED:   'bg-gray-300',
 }
+
+const TERMINAL_STATUSES = new Set<TaskStatus>(['DONE', 'CANCELLED'])
+type CalendarTaskPayload = CalendarApiTask & { overdue?: boolean }
 
 // ════════════════════════════════════════
 // COMPONENTS
@@ -260,6 +264,23 @@ function toDateStr(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
+function isCalendarTaskOverdue(task: CalendarTaskPayload, todayKey: string): boolean {
+  const dueDateKey = typeof task.dueDate === 'string' ? task.dueDate.slice(0, 10) : ''
+
+  if (!dueDateKey || TERMINAL_STATUSES.has(task.taskStatus)) {
+    return false
+  }
+
+  return dueDateKey < todayKey || Boolean(task.isOverdue) || Boolean(task.overdue)
+}
+
+function normalizeCalendarTask(task: CalendarTaskPayload, todayKey: string): CalendarApiTask {
+  return {
+    ...task,
+    isOverdue: isCalendarTaskOverdue(task, todayKey),
+  }
+}
+
 // ════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════
@@ -279,6 +300,7 @@ export default function CalendarView({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { data: currentUser } = useCurrentUser()
   const STATUS_LABEL: Record<TaskStatus, string> = {
     TODO:        t('task.status_TODO'),
     IN_PROGRESS: t('task.status_IN_PROGRESS'),
@@ -287,6 +309,7 @@ export default function CalendarView({
     CANCELLED:   t('task.status_CANCELLED'),
   }
   const now = new Date()
+  const [todayKey, setTodayKey] = useState(() => toDateStr(new Date()))
   const [currentYear,  setCurrentYear]  = useState(now.getFullYear())
   const [currentMonth, setCurrentMonth] = useState(now.getMonth() + 1)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -303,6 +326,15 @@ export default function CalendarView({
   })
 
   const isReadOnly = currentUserRole === 'VIEWER' || currentUserRole === 'ROLE_VIEWER'
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      const nextTodayKey = toDateStr(new Date())
+      setTodayKey(prev => (prev === nextTodayKey ? prev : nextTodayKey))
+    }, 60_000)
+
+    return () => window.clearInterval(intervalId)
+  }, [])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -359,7 +391,10 @@ export default function CalendarView({
     },
   })
 
-  const tasks: CalendarApiTask[] = data?.tasks ?? []
+  const tasks = useMemo(
+    () => (data?.tasks ?? []).map(task => normalizeCalendarTask(task as CalendarTaskPayload, todayKey)),
+    [data?.tasks, todayKey]
+  )
 
   const derivedFilters = useMemo(() => {
     const assignees = Array.from(
@@ -380,13 +415,14 @@ export default function CalendarView({
     const keyword = filters.search.trim().toLowerCase()
     return tasks.filter(t => {
       if (filters.assigneeId && t.assignee?.id !== filters.assigneeId) return false
+      if (filters.onlyMy && t.assignee?.id !== currentUser?.id) return false
       if (filters.priority && t.priority !== filters.priority) return false
       if (filters.status && t.taskStatus !== filters.status) return false
       if (filters.sprint && t.sprint?.id !== filters.sprint) return false
       if (keyword && !(t.title.toLowerCase().includes(keyword) || t.taskCode.toLowerCase().includes(keyword))) return false
       return true
     })
-  }, [tasks, filters])
+  }, [tasks, filters, currentUser?.id])
 
   const tasksByDate = useMemo(() => {
     const map: Record<string, CalendarApiTask[]> = {}
@@ -402,7 +438,8 @@ export default function CalendarView({
     [selectedDate, tasksByDate]
   )
 
-  const overdueCount   = filteredTasks.filter(t => t.isOverdue && t.taskStatus !== 'DONE').length
+  const totalTaskCount = filteredTasks.length
+  const overdueCount   = filteredTasks.filter(t => t.isOverdue).length
   const completedCount = filteredTasks.filter(t => t.taskStatus === 'DONE').length
 
   const days = useMemo(
@@ -634,7 +671,7 @@ export default function CalendarView({
             <div>
               <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">{t('report.totalTasks')}</div>
               <div className="text-[16px] font-bold text-gray-900 leading-tight">
-                {isLoading ? '...' : (data?.totalTasks ?? 0)} {t('nav.tasks').toLowerCase()}
+                {isLoading ? '...' : totalTaskCount} {t('nav.tasks').toLowerCase()}
               </div>
             </div>
           </div>
