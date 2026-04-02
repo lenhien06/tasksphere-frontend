@@ -125,7 +125,10 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     const sprints = sprintsQuery.data ?? []
     const orderedSprints = useMemo(() => orderSprintsForBacklogUi(sprints), [sprints])
     const activeSprint = sprints.find(s => s.status === "ACTIVE") ?? null
-    const plannedSprints = useMemo(() => sprints.filter(s => s.status === "PLANNED"), [sprints])
+    const assignableSprints = useMemo(
+        () => orderSprintsForBacklogUi(sprints.filter(s => s.status !== "COMPLETED")),
+        [sprints]
+    )
 
     useEffect(() => {
         setSprintOpen(prev => {
@@ -556,7 +559,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                                     isViewer={isViewer}
                                                     currentUserId={currentUserId}
                                                     projectId={projectId}
-                                                    plannedSprints={plannedSprints}
+                                                    sprintOptions={assignableSprints}
                                                     onAssignToSprint={handleAssignToSprint}
                                                     onDeleteTask={deleteTaskMutation.mutate}
                                                     sortable
@@ -578,7 +581,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                             isViewer={isViewer}
                                             currentUserId={currentUserId}
                                             projectId={projectId}
-                                            plannedSprints={plannedSprints}
+                                            sprintOptions={assignableSprints}
                                             onAssignToSprint={handleAssignToSprint}
                                             onDeleteTask={deleteTaskMutation.mutate}
                                             sortable={false}
@@ -659,19 +662,21 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                 <p className="border-b px-3 py-2 text-[10px] font-bold uppercase text-gray-400">
                                     {t("backlog.selectTargetSprint")}
                                 </p>
-                                {plannedSprints.length === 0 ? (
+                                {assignableSprints.length === 0 ? (
                                     <p className="px-3 py-4 text-center text-xs text-gray-400">
                                         {t("backlog.noPlannedSprintsForAssign")}
                                     </p>
                                 ) : (
-                                    plannedSprints.map(sp => (
+                                    assignableSprints.map(sp => (
                                         <button
                                             key={sp.id}
                                             type="button"
                                             onClick={() => handleBatchAssign(sp.id)}
-                                            className="flex w-full px-4 py-3 text-left text-sm hover:bg-gray-50"
+                                            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-gray-50"
                                         >
-                                            {sp.name}
+                                            <span className={sp.status === "ACTIVE" ? "h-2 w-2 shrink-0 rounded-full bg-emerald-500" : "h-2 w-2 shrink-0 rounded-full bg-slate-400"} />
+                                            <span className="min-w-0 flex-1 truncate">{sp.name}</span>
+                                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{sp.status}</span>
                                         </button>
                                     ))
                                 )}

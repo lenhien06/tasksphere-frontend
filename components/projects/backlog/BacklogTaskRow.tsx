@@ -50,7 +50,7 @@ export type BacklogTaskRowBaseProps = {
     isViewer: boolean
     currentUserId: string
     projectId: string
-    plannedSprints: SprintDetail[]
+    sprintOptions: SprintDetail[]
     onAssignToSprint: (taskId: string, sprintId: string) => void
     onDeleteTask: (taskId: string) => void
     sortable: boolean
@@ -67,7 +67,7 @@ function BacklogTaskRowInner({
     isViewer,
     currentUserId,
     projectId,
-    plannedSprints,
+    sprintOptions,
     onAssignToSprint,
     onDeleteTask,
     sortable,
@@ -192,7 +192,7 @@ function BacklogTaskRowInner({
                                 </button>
                                 {showSprintMenu && (
                                     <AssignSprintDropdown
-                                        plannedSprints={plannedSprints}
+                                        sprintOptions={sprintOptions}
                                         onAssign={sprintId => {
                                             onAssignToSprint(task.id, sprintId)
                                             setShowSprintMenu(false)
