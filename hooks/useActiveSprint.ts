@@ -13,6 +13,22 @@ export function useActiveSprint(projectId: string) {
       const activeStatuses = new Set(['ACTIVE', 'active', 'IN_PROGRESS', 'in_progress', 'STARTED', 'started', 'RUNNING', 'running']);
       const active = list.find((s) => activeStatuses.has(String(s.status)));
       if (!active) return null;
+      const totalTasks = Number(active.totalTasks ?? active.total_tasks ?? active.taskCount ?? active.task_count ?? 0);
+      const doneTasks = Number(active.doneTasks ?? active.done_tasks ?? active.doneCount ?? active.done_count ?? 0);
+      const inProgressTasks = Number(
+        active.inProgressTasks
+        ?? active.in_progress_tasks
+        ?? Math.max(totalTasks - doneTasks, 0)
+      );
+      const totalStoryPoints = Number(active.totalStoryPoints ?? active.total_story_points ?? 0);
+      const completedStoryPoints = Number(
+        active.completedStoryPoints
+        ?? active.completed_story_points
+        ?? active.doneStoryPoints
+        ?? active.done_story_points
+        ?? 0
+      );
+
       return {
         ...active,
         id: String(active.id ?? active.sprintId ?? active.sprint_id ?? ''),
@@ -21,11 +37,11 @@ export function useActiveSprint(projectId: string) {
         startDate: active.startDate ?? active.start_date ?? '',
         endDate: active.endDate ?? active.end_date ?? '',
         goal: active.goal ?? null,
-        totalTasks: Number(active.totalTasks ?? active.total_tasks ?? 0),
-        doneTasks: Number(active.doneTasks ?? active.done_tasks ?? 0),
-        inProgressTasks: Number(active.inProgressTasks ?? active.in_progress_tasks ?? 0),
-        totalStoryPoints: Number(active.totalStoryPoints ?? active.total_story_points ?? 0),
-        completedStoryPoints: Number(active.completedStoryPoints ?? active.completed_story_points ?? 0),
+        totalTasks,
+        doneTasks,
+        inProgressTasks,
+        totalStoryPoints,
+        completedStoryPoints,
       } as ActiveSprintDetail;
     },
     staleTime: 60 * 1000,

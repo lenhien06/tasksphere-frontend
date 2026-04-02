@@ -91,6 +91,28 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     percentage: item.percentage,
   }));
 
+  const activeSprintTotalStoryPoints = Number(
+    burndownData?.totalPoints
+    ?? activeSprint?.totalStoryPoints
+    ?? 0
+  );
+  const latestBurndownActual = burndownData?.data?.length
+    ? burndownData.data[burndownData.data.length - 1]?.actual
+    : null;
+  const activeSprintCompletedStoryPoints = Math.max(
+    0,
+    Number(
+      latestBurndownActual == null
+        ? activeSprint?.completedStoryPoints ?? 0
+        : activeSprintTotalStoryPoints - latestBurndownActual
+    )
+  );
+  const activeSprintDoneTasks = Number(activeSprint?.doneTasks ?? 0);
+  const activeSprintTotalTasks = Number(activeSprint?.totalTasks ?? 0);
+  const activeSprintInProgressTasks = Number(
+    activeSprint?.inProgressTasks
+    ?? Math.max(activeSprintTotalTasks - activeSprintDoneTasks, 0)
+  );
   const velocityFromApi = (velocityData?.sprints ?? []).map((item, idx, arr) => ({
     sprintId: item.sprintId,
     sprintName: item.sprintName,
@@ -105,7 +127,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
           {
             sprintId: activeSprint.id,
             sprintName: activeSprint.name,
-            velocity: Number(activeSprint.completedStoryPoints ?? 0),
+            velocity: Number(activeSprintCompletedStoryPoints ?? 0),
             status: "active" as const,
           },
         ]
@@ -167,15 +189,15 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
           name: activeSprint.name,
           startDate: activeSprint.startDate,
           endDate: activeSprint.endDate,
-          totalTasks: activeSprint.totalTasks,
-          doneTasks: activeSprint.doneTasks,
-          inProgressTasks: activeSprint.inProgressTasks,
-          totalStoryPoints: activeSprint.totalStoryPoints,
-          completedStoryPoints: activeSprint.completedStoryPoints,
+          totalTasks: activeSprintTotalTasks,
+          doneTasks: activeSprintDoneTasks,
+          inProgressTasks: activeSprintInProgressTasks,
+          totalStoryPoints: activeSprintTotalStoryPoints,
+          completedStoryPoints: activeSprintCompletedStoryPoints,
           completionRate:
-            activeSprint.totalStoryPoints > 0
-              ? Math.round((activeSprint.completedStoryPoints / activeSprint.totalStoryPoints) * 100)
-              : 0,
+            activeSprintTotalStoryPoints > 0
+              ? Math.round((activeSprintCompletedStoryPoints / activeSprintTotalStoryPoints) * 100)
+              : Number(activeSprint.completionRate ?? 0),
         }
       : null,
     burndown: (burndownData?.data ?? []).map((item) => ({

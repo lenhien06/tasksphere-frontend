@@ -41,6 +41,7 @@ export interface ActiveSprintDetail {
   inProgressTasks: number;
   totalStoryPoints: number;
   completedStoryPoints: number;
+  completionRate?: number;
 }
 
 export interface BurndownPoint {
