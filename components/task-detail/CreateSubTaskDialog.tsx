@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import React from "react"
-import { Calendar, Clock, Loader2, UserCircle } from "lucide-react"
+import { Calendar, Clock, Loader2, UserCircle, X } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
     Dialog,
-    DialogContent,
+    DialogClose,
+    DialogOverlay,
+    DialogPortal,
 } from "@/components/ui/dialog"
 import { TaskService } from "@/app/services/TaskService"
 import { ProjectMemberService } from "@/app/services/project-member.service"
@@ -203,13 +205,27 @@ export default function CreateSubTaskDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="relative flex w-full max-w-[700px] flex-col overflow-hidden rounded-2xl bg-white p-0 shadow-2xl">
-                <div className="flex items-center justify-between border-b border-gray-100 px-6 pb-4 pt-5">
-                    <h2 className="text-xl font-bold tracking-tight text-gray-900">Tạo Sub-task Mới</h2>
-                    <span className="rounded-md bg-[#E5E7EB] px-2 py-0.5 font-mono text-sm text-gray-500">SUB</span>
-                </div>
+            <DialogPortal>
+                <DialogOverlay className="bg-black/40 backdrop-blur-[1px]" />
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="relative flex max-h-[calc(100vh-2rem)] w-full max-w-[700px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-gray-100 px-6 pb-4 pt-5">
+                            <h2 className="text-xl font-bold tracking-tight text-gray-900">Tạo Sub-task Mới</h2>
+                            <div className="flex items-center gap-3 pr-8">
+                                <span className="rounded-md bg-[#E5E7EB] px-2 py-0.5 font-mono text-sm text-gray-500">SUB</span>
+                            </div>
+                            <DialogClose asChild>
+                                <button
+                                    type="button"
+                                    className="absolute right-4 top-4 rounded-sm text-gray-500 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                    aria-label="Close"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </DialogClose>
+                        </div>
 
-                <div className="custom-scrollbar max-h-[75vh] space-y-3.5 overflow-y-auto px-6 py-4">
+                        <div className="custom-scrollbar max-h-[75vh] space-y-3.5 overflow-y-auto px-6 py-4">
                     <div>
                         <Label htmlFor="subtask-title" className="mb-1 flex gap-1 text-sm font-semibold text-gray-800">
                             Tiêu đề <span className="text-red-500">*</span>
@@ -437,39 +453,41 @@ export default function CreateSubTaskDialog({
                             <p className="mt-1.5 text-[11px] text-gray-400">Chọn nhanh hoặc nhập tay trong khoảng 1-100.</p>
                         </div>
                     </div>
-                </div>
+                        </div>
 
-                <div className="flex items-center justify-between border-t bg-gray-50/50 px-6 py-4">
-                    <label className="flex cursor-pointer items-center gap-2 select-none">
-                        <input
-                            type="checkbox"
-                            checked={createAnother}
-                            onChange={() => setCreateAnother((prev) => !prev)}
-                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-[14px] font-medium text-gray-700">Tạo thêm sub-task</span>
-                    </label>
+                        <div className="flex items-center justify-between border-t bg-gray-50/50 px-6 py-4">
+                            <label className="flex cursor-pointer items-center gap-2 select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={createAnother}
+                                    onChange={() => setCreateAnother((prev) => !prev)}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="text-[14px] font-medium text-gray-700">Tạo thêm sub-task</span>
+                            </label>
 
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
-                            disabled={addSubTask.isPending}
-                            className="h-10 rounded-lg border-gray-200 px-6 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                        >
-                            Hủy
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={disableSubmit}
-                            className="flex h-10 items-center justify-center gap-2 rounded-lg bg-[#3B82F6] px-8 text-sm font-bold text-white shadow-md hover:bg-blue-600"
-                        >
-                            {addSubTask.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
-                            {addSubTask.isPending ? "Đang tạo..." : "Tạo sub-task"}
-                        </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => onOpenChange(false)}
+                                    disabled={addSubTask.isPending}
+                                    className="h-10 rounded-lg border-gray-200 px-6 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                >
+                                    Hủy
+                                </Button>
+                                <Button
+                                    onClick={handleSubmit}
+                                    disabled={disableSubmit}
+                                    className="flex h-10 items-center justify-center gap-2 rounded-lg bg-[#3B82F6] px-8 text-sm font-bold text-white shadow-md hover:bg-blue-600"
+                                >
+                                    {addSubTask.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
+                                    {addSubTask.isPending ? "Đang tạo..." : "Tạo sub-task"}
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </DialogContent>
+            </DialogPortal>
         </Dialog>
     )
 }
