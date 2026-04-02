@@ -161,11 +161,11 @@ export default function CreateSubTaskDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-full max-w-[700px] overflow-hidden rounded-2xl bg-white p-0 shadow-2xl">
-                <div className="border-b border-gray-100 px-6 pb-4 pt-5">
-                    <div className="flex items-center justify-between gap-4">
+            <DialogContent className="w-full max-w-[680px] overflow-hidden rounded-2xl bg-white p-0 shadow-2xl">
+                <div className="border-b border-gray-100 px-6 pb-3 pt-4">
+                    <div className="flex items-start justify-between gap-4">
                         <div>
-                            <h2 className="text-xl font-bold tracking-tight text-gray-900">Tạo Sub-task Mới</h2>
+                            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Tạo Sub-task Mới</h2>
                             <p className="mt-1 text-sm text-gray-500">
                                 {parentTitle ? `Sub-task sẽ được tạo bên trong "${parentTitle}".` : "Thiết lập thông tin cho sub-task."}
                             </p>
@@ -174,7 +174,7 @@ export default function CreateSubTaskDialog({
                     </div>
                 </div>
 
-                <div className="max-h-[75vh] space-y-3.5 overflow-y-auto px-6 py-4">
+                <div className="max-h-[72vh] space-y-3 overflow-y-auto px-6 py-4">
                     <div>
                         <div className="mb-1 flex items-center justify-between">
                             <Label htmlFor="subtask-title" className="text-sm font-semibold text-gray-800">Tiêu đề</Label>
@@ -198,30 +198,46 @@ export default function CreateSubTaskDialog({
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             maxLength={2000}
-                            rows={3}
+                            rows={2}
                             className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-[15px] outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                             placeholder="Mô tả chi tiết công việc..."
                         />
                     </div>
 
-                    <div className="w-1/2">
-                        <Label htmlFor="subtask-estimated-hours" className="mb-1 block text-sm font-semibold text-gray-800">Giờ ước tính</Label>
-                        <Input
-                            id="subtask-estimated-hours"
-                            type="number"
-                            min={0}
-                            step="0.5"
-                            value={estimatedHours}
-                            onChange={(e) => setEstimatedHours(e.target.value)}
-                            placeholder="0.0"
-                            className="h-10 rounded-lg border-gray-200"
-                        />
-                        <p className="mt-1 text-[10px] text-gray-400">Thời gian dự kiến (giờ), ví dụ: 8.5</p>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <Label htmlFor="subtask-estimated-hours" className="mb-1 block text-sm font-semibold text-gray-800">Giờ ước tính</Label>
+                            <Input
+                                id="subtask-estimated-hours"
+                                type="number"
+                                min={0}
+                                step="0.5"
+                                value={estimatedHours}
+                                onChange={(e) => setEstimatedHours(e.target.value)}
+                                placeholder="0.0"
+                                className="h-10 rounded-lg border-gray-200"
+                            />
+                            <p className="mt-1 text-[10px] text-gray-400">Thời gian dự kiến (giờ), ví dụ: 8.5</p>
+                        </div>
+
+                        <div>
+                            <Label htmlFor="subtask-story-points" className="mb-1 block text-sm font-semibold text-gray-800">Story Points</Label>
+                            <Input
+                                id="subtask-story-points"
+                                type="number"
+                                min={1}
+                                max={100}
+                                value={storyPoints}
+                                onChange={(e) => setStoryPoints(e.target.value)}
+                                placeholder="1-100"
+                                className="h-10 rounded-lg border-gray-200"
+                            />
+                        </div>
                     </div>
 
-                    <div className="flex gap-6">
-                        <div className="flex-1">
-                            <Label className="mb-2 block text-sm font-semibold text-gray-800">Trạng thái</Label>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <Label className="mb-1.5 block text-sm font-semibold text-gray-800">Trạng thái</Label>
                             <div className="flex flex-wrap gap-1.5">
                                 {availableStatuses.map((status) => {
                                     const cfg = STATUS_CONFIG[status]
@@ -232,7 +248,7 @@ export default function CreateSubTaskDialog({
                                             onClick={() => setSelectedStatus(status)}
                                             disabled={columnsLoading}
                                             className={cn(
-                                                "flex items-center gap-1.5 rounded-full border-2 border-transparent px-3 py-1.5 text-xs font-semibold transition-all",
+                                                "flex items-center gap-1.5 rounded-full border-2 border-transparent px-3 py-1 text-xs font-semibold transition-all",
                                                 cfg.bg,
                                                 selectedStatus === status ? "ring-2 ring-blue-200 ring-offset-1" : "opacity-75 hover:opacity-100"
                                             )}
@@ -245,8 +261,8 @@ export default function CreateSubTaskDialog({
                             </div>
                         </div>
 
-                        <div className="flex-1">
-                            <Label className="mb-2 block text-sm font-semibold text-gray-800">Mức độ ưu tiên</Label>
+                        <div>
+                            <Label className="mb-1.5 block text-sm font-semibold text-gray-800">Mức độ ưu tiên</Label>
                             <div className="flex flex-wrap gap-1.5">
                                 {PRIORITY_ORDER.map((value) => {
                                     const cfg = PRIORITY_CONFIG[value]
@@ -256,7 +272,7 @@ export default function CreateSubTaskDialog({
                                             type="button"
                                             onClick={() => setPriority(value)}
                                             className={cn(
-                                                "rounded-full border-2 border-transparent px-3 py-1.5 text-xs font-semibold transition-all",
+                                                "rounded-full border-2 border-transparent px-3 py-1 text-xs font-semibold transition-all",
                                                 cfg.bg,
                                                 cfg.color,
                                                 priority === value ? "ring-2 ring-blue-200 ring-offset-1" : "opacity-75 hover:opacity-100"
@@ -270,8 +286,8 @@ export default function CreateSubTaskDialog({
                         </div>
                     </div>
 
-                    <div className="flex gap-6">
-                        <div className="flex-1">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
                             <Label htmlFor="subtask-assignee" className="mb-1.5 block text-sm font-semibold text-gray-800">Người thực hiện</Label>
                             <select
                                 id="subtask-assignee"
@@ -289,7 +305,7 @@ export default function CreateSubTaskDialog({
                             </select>
                         </div>
 
-                        <div className="flex-1">
+                        <div>
                             <Label htmlFor="subtask-due-date" className="mb-1.5 block text-sm font-semibold text-gray-800">Ngày hết hạn</Label>
                             <Input
                                 id="subtask-due-date"
@@ -302,31 +318,17 @@ export default function CreateSubTaskDialog({
                         </div>
                     </div>
 
-                    <div className="flex gap-6">
-                        <div className="flex-1">
-                            <Label htmlFor="subtask-story-points" className="mb-1.5 block text-sm font-semibold text-gray-800">Story Points</Label>
-                            <Input
-                                id="subtask-story-points"
-                                type="number"
-                                min={1}
-                                max={100}
-                                value={storyPoints}
-                                onChange={(e) => setStoryPoints(e.target.value)}
-                                placeholder="1-100"
-                                className="h-10 rounded-lg border-gray-200"
-                            />
-                        </div>
-
-                        <div className="flex-1">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
                             <Label className="mb-1.5 block text-sm font-semibold text-gray-800">Loại</Label>
                             <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium text-gray-600">
                                 Sub-task
                             </div>
                         </div>
-                    </div>
 
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-                        Sub-task vẫn giữ logic có thể chuyển thành task độc lập sau này nếu cần.
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-5 text-gray-500">
+                            Có thể chuyển thành task độc lập sau này nếu cần.
+                        </div>
                     </div>
                 </div>
 
