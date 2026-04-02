@@ -20,7 +20,7 @@ function normalizeBurndown(raw: any): BurndownData {
       data: source.data.map((p: any, idx: number) => ({
         day: toNumber(p?.day ?? idx + 1, idx + 1),
         date: String(p?.date ?? ''),
-        ideal: toNumber(p?.ideal ?? p?.idealPoints, 0),
+        ideal: toNumber(p?.ideal ?? p?.idealPoints ?? p?.remainingPoints, 0),
         actual:
           p?.actual == null && p?.remainingPoints == null
             ? null
@@ -52,7 +52,7 @@ function normalizeBurndown(raw: any): BurndownData {
       return {
         day: idx + 1,
         date,
-        ideal: toNumber(point?.idealPoints ?? point?.ideal, 0),
+        ideal: toNumber(point?.idealPoints ?? point?.ideal ?? point?.remainingPoints, 0),
         actual: mappedActual,
       };
     }),
