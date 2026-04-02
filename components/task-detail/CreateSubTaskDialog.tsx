@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React from "react"
 import { useQuery } from "@tanstack/react-query"
@@ -161,23 +161,23 @@ export default function CreateSubTaskDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-full max-w-[680px] overflow-hidden rounded-2xl bg-white p-0 shadow-2xl">
-                <div className="border-b border-gray-100 px-6 pb-3 pt-4">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Tạo Sub-task Mới</h2>
-                            <p className="mt-1 text-sm text-gray-500">
-                                {parentTitle ? `Sub-task sẽ được tạo bên trong "${parentTitle}".` : "Thiết lập thông tin cho sub-task."}
-                            </p>
-                        </div>
-                        <span className="rounded-md bg-[#E5E7EB] px-2 py-0.5 font-mono text-sm text-gray-500">SUB</span>
+            <DialogContent className="w-full max-w-[700px] overflow-hidden rounded-2xl bg-white p-0 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-gray-100 px-6 pb-4 pt-5">
+                    <div>
+                        <h2 className="text-xl font-bold tracking-tight text-gray-900">Tạo Sub-task Mới</h2>
+                        <p className="mt-1 text-sm text-gray-500">
+                            {parentTitle ? `Sub-task sẽ được tạo bên trong "${parentTitle}".` : "Thiết lập thông tin cho sub-task."}
+                        </p>
                     </div>
+                    <span className="rounded-md bg-[#E5E7EB] px-2 py-0.5 font-mono text-sm text-gray-500">SUB</span>
                 </div>
 
-                <div className="max-h-[72vh] space-y-3 overflow-y-auto px-6 py-4">
+                <div className="custom-scrollbar max-h-[75vh] space-y-3.5 overflow-y-auto px-6 py-4">
                     <div>
                         <div className="mb-1 flex items-center justify-between">
-                            <Label htmlFor="subtask-title" className="text-sm font-semibold text-gray-800">Tiêu đề</Label>
+                            <Label htmlFor="subtask-title" className="text-sm font-semibold text-gray-800">
+                                Tiêu đề <span className="text-red-500">*</span>
+                            </Label>
                             <span className="text-[10px] text-gray-400">{title.length}/255</span>
                         </div>
                         <Input
@@ -198,7 +198,7 @@ export default function CreateSubTaskDialog({
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             maxLength={2000}
-                            rows={2}
+                            rows={3}
                             className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-[15px] outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                             placeholder="Mô tả chi tiết công việc..."
                         />
@@ -235,9 +235,9 @@ export default function CreateSubTaskDialog({
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <div>
-                            <Label className="mb-1.5 block text-sm font-semibold text-gray-800">Trạng thái</Label>
+                            <Label className="mb-2 block text-sm font-semibold text-gray-800">Trạng thái</Label>
                             <div className="flex flex-wrap gap-1.5">
                                 {availableStatuses.map((status) => {
                                     const cfg = STATUS_CONFIG[status]
@@ -248,7 +248,7 @@ export default function CreateSubTaskDialog({
                                             onClick={() => setSelectedStatus(status)}
                                             disabled={columnsLoading}
                                             className={cn(
-                                                "flex items-center gap-1.5 rounded-full border-2 border-transparent px-3 py-1 text-xs font-semibold transition-all",
+                                                "flex items-center gap-1.5 rounded-full border-2 border-transparent px-3 py-1.5 text-xs font-semibold transition-all",
                                                 cfg.bg,
                                                 selectedStatus === status ? "ring-2 ring-blue-200 ring-offset-1" : "opacity-75 hover:opacity-100"
                                             )}
@@ -262,7 +262,7 @@ export default function CreateSubTaskDialog({
                         </div>
 
                         <div>
-                            <Label className="mb-1.5 block text-sm font-semibold text-gray-800">Mức độ ưu tiên</Label>
+                            <Label className="mb-2 block text-sm font-semibold text-gray-800">Mức độ ưu tiên</Label>
                             <div className="flex flex-wrap gap-1.5">
                                 {PRIORITY_ORDER.map((value) => {
                                     const cfg = PRIORITY_CONFIG[value]
@@ -272,7 +272,7 @@ export default function CreateSubTaskDialog({
                                             type="button"
                                             onClick={() => setPriority(value)}
                                             className={cn(
-                                                "rounded-full border-2 border-transparent px-3 py-1 text-xs font-semibold transition-all",
+                                                "rounded-full border-2 border-transparent px-3 py-1.5 text-xs font-semibold transition-all",
                                                 cfg.bg,
                                                 cfg.color,
                                                 priority === value ? "ring-2 ring-blue-200 ring-offset-1" : "opacity-75 hover:opacity-100"
@@ -286,7 +286,7 @@ export default function CreateSubTaskDialog({
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <div>
                             <Label htmlFor="subtask-assignee" className="mb-1.5 block text-sm font-semibold text-gray-800">Người thực hiện</Label>
                             <select
@@ -318,25 +318,32 @@ export default function CreateSubTaskDialog({
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <div>
                             <Label className="mb-1.5 block text-sm font-semibold text-gray-800">Loại</Label>
                             <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-medium text-gray-600">
                                 Sub-task
                             </div>
+                            <p className="mt-1 text-[10px] text-gray-400">Có thể chuyển thành task độc lập sau này nếu cần.</p>
                         </div>
-
-                        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-5 text-gray-500">
-                            Có thể chuyển thành task độc lập sau này nếu cần.
-                        </div>
+                        <div className="hidden sm:block" />
                     </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4">
-                    <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={addSubTask.isPending} className="h-[42px] rounded-xl px-6">
+                <div className="flex items-center justify-end gap-2 border-t bg-gray-50/50 px-6 py-4">
+                    <Button
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                        disabled={addSubTask.isPending}
+                        className="h-10 rounded-lg border-gray-200 px-6 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
                         Hủy
                     </Button>
-                    <Button onClick={handleSubmit} disabled={disableSubmit} className="h-[42px] rounded-xl bg-[#A7C7FF] px-8 text-white hover:bg-[#8eb6ff]">
+                    <Button
+                        onClick={handleSubmit}
+                        disabled={disableSubmit}
+                        className="h-10 rounded-lg bg-[#3B82F6] px-8 text-sm font-bold text-white shadow-md hover:bg-blue-600"
+                    >
                         {addSubTask.isPending ? "Đang tạo..." : "Tạo sub-task"}
                     </Button>
                 </div>
