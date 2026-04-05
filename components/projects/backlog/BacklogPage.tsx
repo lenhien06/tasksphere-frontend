@@ -53,6 +53,8 @@ import { SprintSection } from "./SprintSection"
 import { StartSprintModal } from "./StartSprintModal"
 import { CompleteSprintModal } from "./CompleteSprintModal"
 import { BacklogTaskRow, SortableBacklogTaskRow } from "./BacklogTaskRow"
+import { AiTaskGenerator } from "@/components/ai/AiTaskGenerator"
+import { AiAssignReview } from "@/components/ai/AiAssignReview"
 import { orderSprintsForBacklogUi } from "./utils"
 
 const PRIORITY_OPTIONS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as TaskPriority[]
@@ -82,6 +84,10 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     const isPM = myRole === "project_manager" || myRole === "system_admin"
     const isMemberOnly = myRole === "member"
     const isViewer = !isPM && !isMemberOnly
+
+    // AI Modal state
+    const [showAiGenerator, setShowAiGenerator] = useState(false)
+    const [showAiAssign,    setShowAiAssign]     = useState(false)
     const canReorderBacklog = isPM || isMemberOnly
 
     const [search, setSearch] = useState("")
@@ -399,6 +405,24 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                 className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-blue-700"
                             >
                                 <Plus size={16} strokeWidth={3} /> {t("backlog.createTaskCta")}
+                            </button>
+                        )}
+                        {isPM && (
+                            <button
+                                type="button"
+                                onClick={() => setShowAiGenerator(true)}
+                                className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-indigo-700"
+                            >
+                                ✨ AI tạo task
+                            </button>
+                        )}
+                        {isPM && (
+                            <button
+                                type="button"
+                                onClick={() => setShowAiAssign(true)}
+                                className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-purple-700"
+                            >
+                                🤖 AI phân công
                             </button>
                         )}
                     </div>
@@ -741,6 +765,29 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                     }))}
                     onConfirm={handleCreateTask}
                     onClose={() => setShowCreateModal(false)}
+                />
+            )}
+
+            {showAiGenerator && (
+                <AiTaskGenerator
+                    projectId={projectId}
+                    projectName={projectDetail?.data?.name ?? ""}
+                    onSuccess={(count) => {
+                        toast.success(`Đã tạo ${count} task thành công!`)
+                        queryClient.invalidateQueries({ queryKey: ['backlog', projectId] })
+                    }}
+                    onClose={() => setShowAiGenerator(false)}
+                />
+            )}
+
+            {showAiAssign && (
+                <AiAssignReview
+                    projectId={projectId}
+                    onSuccess={(result) => {
+                        toast.success(`Đã phân công ${result.totalAssigned} task (${result.aiConfirmed} AI · ${result.pmOverridden} override)`)
+                        queryClient.invalidateQueries({ queryKey: ['backlog', projectId] })
+                    }}
+                    onClose={() => setShowAiAssign(false)}
                 />
             )}
         </div>
