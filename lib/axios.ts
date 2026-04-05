@@ -1,7 +1,7 @@
 import axios, { AxiosError } from "axios";
 import { useAuthStore } from "@/stores/useAuthStore";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 function isAuthFreePath() {
     if (typeof window === "undefined") return false;
