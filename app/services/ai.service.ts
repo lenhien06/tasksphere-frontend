@@ -17,7 +17,7 @@ export async function generateTasks(
   payload: GenerateTasksRequest,
 ): Promise<GeneratedTaskDto[]> {
   const { data } = await apiJava.post<ApiResponse<GeneratedTaskDto[]>>(
-    `/api/v1/projects/${projectId}/ai/generate-tasks`,
+    `/v1/projects/${projectId}/ai/generate-tasks`,
     payload,
   );
   return data.data;
@@ -28,7 +28,7 @@ export async function confirmTasks(
   payload: ConfirmTasksRequest,
 ): Promise<ConfirmTasksResponse> {
   const { data } = await apiJava.post<ApiResponse<ConfirmTasksResponse>>(
-    `/api/v1/projects/${projectId}/ai/confirm-tasks`,
+    `/v1/projects/${projectId}/ai/confirm-tasks`,
     payload,
   );
   return data.data;
@@ -40,7 +40,7 @@ export async function suggestAssignments(
   projectId: string,
 ): Promise<SuggestAssignmentsResponse> {
   const { data } = await apiJava.post<ApiResponse<SuggestAssignmentsResponse>>(
-    `/api/v1/projects/${projectId}/ai/suggest-assignments`,
+    `/v1/projects/${projectId}/ai/suggest-assignments`,
   );
   return data.data;
 }
@@ -50,7 +50,7 @@ export async function confirmAssignments(
   payload: ConfirmAssignmentsRequest,
 ): Promise<AssignmentConfirmResult> {
   const { data } = await apiJava.post<ApiResponse<AssignmentConfirmResult>>(
-    `/api/v1/projects/${projectId}/ai/confirm-assignments`,
+    `/v1/projects/${projectId}/ai/confirm-assignments`,
     payload,
   );
   return data.data;
@@ -60,7 +60,7 @@ export async function confirmAssignments(
 
 export async function updateSkillTags(tags: string[]): Promise<string[]> {
   const { data } = await apiJava.patch<ApiResponse<{ skillTags: string[] }>>(
-    '/api/v1/users/me/skill-tags',
+    '/v1/users/me/skill-tags',
     { skillTags: tags },
   );
   return data.data.skillTags;
