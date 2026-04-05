@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useState } from 'react';
-import type { GeneratedTaskDto, StoryPoints, TaskPriority, TaskType } from '@/app/types/ai';
+import type {
+  AiTaskPriority,
+  AiTaskType,
+  GeneratedTaskDto,
+  StoryPoints,
+} from '@/app/types/ai';
 
 interface Props {
   task:     GeneratedTaskDto;
@@ -11,14 +16,14 @@ interface Props {
   onToggle: (selected: boolean) => void;
 }
 
-const PRIORITY_COLORS: Record<TaskPriority, string> = {
+const PRIORITY_COLORS: Record<AiTaskPriority, string> = {
   critical: 'bg-red-100 text-red-700 border-red-300',
   high:     'bg-orange-100 text-orange-700 border-orange-300',
   medium:   'bg-yellow-100 text-yellow-700 border-yellow-300',
   low:      'bg-green-100 text-green-700 border-green-300',
 };
 
-const TYPE_LABELS: Record<TaskType, string> = {
+const TYPE_LABELS: Record<AiTaskType, string> = {
   task:  'Task',
   story: 'Story',
   bug:   'Bug',
@@ -70,11 +75,11 @@ export function TaskSuggestionCard({ task, index, selected, onChange, onToggle }
             {/* Priority selector */}
             <select
               value={task.priority}
-              onChange={(e) => update('priority', e.target.value as TaskPriority)}
+              onChange={(e) => update('priority', e.target.value as AiTaskPriority)}
               className={`text-xs px-2 py-0.5 rounded-full border font-medium cursor-pointer
                           focus:outline-none ${PRIORITY_COLORS[task.priority]}`}
             >
-              {(['critical', 'high', 'medium', 'low'] as TaskPriority[]).map((p) => (
+              {(['critical', 'high', 'medium', 'low'] as AiTaskPriority[]).map((p) => (
                 <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
               ))}
             </select>
