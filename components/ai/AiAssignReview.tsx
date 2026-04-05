@@ -222,7 +222,7 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
 
   const isLoading  = suggestMutation.isPending;
   const hasSuggs   = suggestions.length > 0;
-  const assignedCount = [...assignments.values()].filter((a) => a.assigneeId).length;
+  const assignedCount = Array.from(assignments.values()).filter((a) => a.assigneeId).length;
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
