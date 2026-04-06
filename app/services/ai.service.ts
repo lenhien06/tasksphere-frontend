@@ -38,9 +38,11 @@ export async function confirmTasks(
 
 export async function suggestAssignments(
   projectId: string,
+  taskIds?: string[],
 ): Promise<SuggestAssignmentsResponse> {
   const { data } = await apiJava.post<ApiResponse<SuggestAssignmentsResponse>>(
     `/v1/projects/${projectId}/ai/suggest-assignments`,
+    taskIds && taskIds.length > 0 ? { taskIds } : undefined,
   );
   return data.data;
 }

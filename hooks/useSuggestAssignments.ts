@@ -7,8 +7,8 @@ import type {
 } from '@/app/types/ai';
 
 export function useSuggestAssignments(projectId: string) {
-  return useMutation<SuggestAssignmentsResponse, Error, void>({
-    mutationFn: () => suggestAssignments(projectId),
+  return useMutation<SuggestAssignmentsResponse, Error, string[] | undefined>({
+    mutationFn: (taskIds) => suggestAssignments(projectId, taskIds),
   });
 }
 

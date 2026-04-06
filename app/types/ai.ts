@@ -31,6 +31,8 @@ export interface ConfirmTasksRequest {
 export interface ConfirmTasksResponse {
   createdTaskIds: string[];
   count:          number;
+  memberCount:    number;
+  projectId:      string;
 }
 
 // ── Feature 2 ────────────────────────────────────────────────────────────────
