@@ -258,7 +258,7 @@ export default function Sidebar({
     queryKey: ["sidebar-workspaces"],
     queryFn: async () => {
       const response = await WorkspaceService.getMyWorkspaces();
-      return (response.data as Workspace[]) ?? [];
+      return Array.isArray(response.data) ? response.data : [];
     },
     staleTime: 5 * 60 * 1000,
   });
