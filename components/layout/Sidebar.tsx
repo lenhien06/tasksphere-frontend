@@ -185,7 +185,7 @@ export default function Sidebar({
     },
     {
       icon: Settings,
-      label: "Settings",
+      label: "Cấu hình thông báo",
       path: "/settings",
       active: activeItem.startsWith("/settings"),
     },
