@@ -9,7 +9,6 @@ import {
   BarChart2,
   Building2,
   Calendar,
-  CheckSquare2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -183,12 +182,6 @@ export default function Sidebar({
       label: "Home",
       path: "/dashboard",
       active: activeItem === "/dashboard",
-    },
-    {
-      icon: CheckSquare2,
-      label: "My Tasks",
-      path: "/my-tasks",
-      active: activeItem === "/my-tasks",
     },
     {
       icon: FolderKanban,
