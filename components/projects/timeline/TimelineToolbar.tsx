@@ -22,6 +22,8 @@ export interface TimelineFilterState {
 interface TimelineToolbarProps {
     projectId: string;
     filters: TimelineFilterState;
+    visibleTaskCount: number;
+    dependencyCount: number;
     onFilterChange: (filters: TimelineFilterState) => void;
     zoom: ZoomLevel;
     onZoomChange: (zoom: ZoomLevel) => void;
@@ -62,7 +64,7 @@ function FilterTrigger({
             )}
         >
             {icon}
-            <span>{label}</span>
+            <span className="whitespace-nowrap">{label}</span>
             <ChevronDown size={14} className="opacity-60" />
         </button>
     );
@@ -95,6 +97,8 @@ function OptionButton({
 export default function TimelineToolbar({
     projectId,
     filters,
+    visibleTaskCount,
+    dependencyCount,
     onFilterChange,
     zoom,
     onZoomChange,
@@ -283,7 +287,13 @@ export default function TimelineToolbar({
                     </button>
                 )}
 
-                <div className="ml-auto flex items-center gap-2">
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                    <div className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 whitespace-nowrap">
+                        {visibleTaskCount} visible tasks
+                    </div>
+                    <div className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 whitespace-nowrap">
+                        {dependencyCount} dependencies
+                    </div>
                     <button
                         type="button"
                         onClick={onToday}
@@ -299,7 +309,7 @@ export default function TimelineToolbar({
                                 type="button"
                                 onClick={() => onZoomChange(value)}
                                 className={cn(
-                                    "rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors",
+                                    "rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-colors",
                                     zoom === value
                                         ? "bg-white text-blue-700 shadow-sm"
                                         : "text-slate-500 hover:text-slate-700"

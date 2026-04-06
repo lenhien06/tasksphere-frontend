@@ -44,9 +44,9 @@ export default function TimelineTaskTable({
     rowHeight,
 }: TimelineTaskTableProps) {
     return (
-        <div className="sticky left-0 z-10 w-[620px] flex-none border-r border-slate-200 bg-white shadow-[8px_0_24px_-18px_rgba(15,23,42,0.35)]">
+        <div className="sticky left-0 z-10 w-[700px] flex-none border-r border-slate-200 bg-white shadow-[8px_0_24px_-18px_rgba(15,23,42,0.25)]">
             <div className="sticky top-0 z-20 border-b border-slate-200 bg-white">
-                <div className="grid grid-cols-[110px_minmax(0,1.6fr)_120px_120px_110px] items-center px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                <div className="grid grid-cols-[110px_minmax(0,2fr)_150px_125px_110px] items-center px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
                     <span>ID</span>
                     <span>Name</span>
                     <span>Assignee</span>
@@ -64,7 +64,7 @@ export default function TimelineTaskTable({
                         <div
                             key={row.id}
                             className={cn(
-                                "grid cursor-pointer grid-cols-[110px_minmax(0,1.6fr)_120px_120px_110px] items-center px-4 transition-colors",
+                                "grid cursor-pointer grid-cols-[110px_minmax(0,2fr)_150px_125px_110px] items-center px-4 transition-colors",
                                 index % 2 === 0 ? "bg-white" : "bg-slate-50/40",
                                 isHovered && "bg-blue-50/70"
                             )}
@@ -136,7 +136,7 @@ export default function TimelineTaskTable({
                                         </span>
                                     </div>
                                 ) : (
-                                    <span className="text-sm text-slate-400">Unassigned</span>
+                                    <span className="whitespace-nowrap text-sm text-slate-400">Unassigned</span>
                                 )}
                             </div>
 

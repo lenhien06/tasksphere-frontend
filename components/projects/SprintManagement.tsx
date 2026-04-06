@@ -82,13 +82,13 @@ const ActiveSprintConflictModal = ({ open, onClose }: { open: boolean, onClose: 
 function StatusBadge({ status }: { status: SprintStatus }) {
     const { t } = useTranslation()
     const config = {
-        PLANNED:   { label: t('sprint.status_PLANNED'),    className: "bg-gray-100 text-gray-600 border-gray-200" },
-        ACTIVE:    { label: `🏃 ${t('sprint.status_ACTIVE')}`,   className: "bg-blue-100 text-blue-600 border-blue-200" },
-        COMPLETED: { label: `✓ ${t('sprint.status_COMPLETED')}`, className: "bg-green-100 text-green-600 border-green-200" },
+        PLANNED:   { label: t('sprint.status_PLANNED'), className: "bg-slate-100 text-slate-600 border-slate-200" },
+        ACTIVE:    { label: t('sprint.status_ACTIVE'), className: "bg-blue-100 text-blue-700 border-blue-200" },
+        COMPLETED: { label: t('sprint.status_COMPLETED'), className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
     }
     const { label, className } = config[status]
     return (
-        <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", className)}>
+        <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold", className)}>
             {label}
         </span>
     )
@@ -107,91 +107,75 @@ interface SprintCardProps {
 
 const SprintCard = ({ sprint, isPM, variant, onStart, onEdit, onDelete }: SprintCardProps) => {
     const { t } = useTranslation()
+    const remaining = Math.max(0, sprint.taskCount - sprint.doneCount)
+    const duration = getDurationDays(sprint.startDate, sprint.endDate)
     return (
-        <div className="bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all group relative">
-            <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-bold text-gray-900 truncate">{sprint.name}</h4>
-                        <StatusBadge status={sprint.status} />
-                        {variant === "completed" && sprint.velocity > 0 && (
-                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold border border-blue-100">
-                                ⚡ {sprint.velocity} pts
-                            </span>
-                        )}
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="truncate text-[22px] font-bold tracking-tight text-slate-900">{sprint.name}</h4>
+                        <StatusBadge status={variant === "completed" ? "COMPLETED" : sprint.status} />
                     </div>
 
                     {sprint.goal && (
-                        <p className="text-sm text-gray-500 italic mb-2 line-clamp-1">"{sprint.goal}"</p>
+                        <p className="mt-1 text-sm font-medium italic text-slate-500">{sprint.goal}</p>
                     )}
 
-                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400">
-                        <Calendar size={12} />
-                        <span>{formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}</span>
-                        <span className="mx-1 opacity-30">|</span>
-                        <span>{getDurationDays(sprint.startDate, sprint.endDate)} {t('sprint.days')}</span>
-                    </div>
-
-                    {/* Mini metrics grid */}
-                    <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-gray-50">
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{t('sprint.total')}</span>
-                            <span className="text-[14px] font-black text-gray-900">{sprint.taskCount}</span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{t('sprint.done')}</span>
-                            <span className="text-[14px] font-black text-green-600">{sprint.doneCount}</span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{t('sprint.left')}</span>
-                            <span className="text-[14px] font-black text-orange-600">{sprint.taskCount - sprint.doneCount}</span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{t('sprint.velocity')}</span>
-                            <span className="text-[14px] font-black text-blue-600">{sprint.velocity || 0}</span>
-                        </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-600">
+                        <span>{t('sprint.startDate')}: {formatDate(sprint.startDate)}</span>
+                        <span>{t('sprint.duration')}: {duration} {t('sprint.days')}</span>
+                        <span>{t('sprint.totalTasks')}: {sprint.taskCount}</span>
+                        <span>{t('sprint.velocity')}: {sprint.velocity || 0} pts</span>
+                        {variant === "completed" && sprint.completedAt && (
+                            <span>{t('sprint.status_COMPLETED')}: {formatDate(sprint.completedAt)}</span>
+                        )}
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4 ml-4">
-                    {/* Actions on hover */}
-                    {isPM && variant === "planned" && (
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                                onClick={() => onStart?.(sprint)}
-                                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95"
-                            >
-                                <Play size={12} fill="currentColor" /> {t('sprint.start')}
-                            </button>
-                            <button
-                                onClick={() => onEdit?.(sprint)}
-                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            >
-                                <Pencil size={14} />
-                            </button>
-                            <button
-                                onClick={() => onDelete?.(sprint)}
-                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
-                    )}
-
-                    {variant === "completed" && (
-                        <span className="text-[11px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
-                            {formatDate(sprint.completedAt || "")}
-                        </span>
-                    )}
-                </div>
+                {isPM && variant === "planned" && (
+                    <div className="flex items-center gap-2 self-start">
+                        <button
+                            onClick={() => onStart?.(sprint)}
+                            className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                        >
+                            <Play size={14} fill="currentColor" />
+                            {t('sprint.start')}
+                        </button>
+                        <button
+                            onClick={() => onEdit?.(sprint)}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 hover:text-blue-700"
+                        >
+                            <Pencil size={16} />
+                        </button>
+                        <button
+                            onClick={() => onDelete?.(sprint)}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {variant === "planned" && sprint.taskCount > 0 && (
-                <div className="mt-4 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div 
-                        className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                        style={{ width: `${sprint.completionRate}%` }} 
-                    />
+            {variant === "planned" && (
+                <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 md:grid-cols-4">
+                    <div>
+                        <div className="text-xs font-semibold text-slate-400">{t('sprint.total')}</div>
+                        <div className="mt-1 text-lg font-bold text-slate-900">{sprint.taskCount}</div>
+                    </div>
+                    <div>
+                        <div className="text-xs font-semibold text-slate-400">{t('sprint.done')}</div>
+                        <div className="mt-1 text-lg font-bold text-emerald-600">{sprint.doneCount}</div>
+                    </div>
+                    <div>
+                        <div className="text-xs font-semibold text-slate-400">{t('sprint.left')}</div>
+                        <div className="mt-1 text-lg font-bold text-amber-600">{remaining}</div>
+                    </div>
+                    <div>
+                        <div className="text-xs font-semibold text-slate-400">{t('sprint.velocity')}</div>
+                        <div className="mt-1 text-lg font-bold text-blue-700">{sprint.velocity || 0} <span className="text-sm">pts</span></div>
+                    </div>
                 </div>
             )}
         </div>
@@ -627,174 +611,165 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
     }
 
     return (
-        <div className="flex flex-col h-full bg-[#F9FAFB]">
-            <header className="px-5 md:px-8 py-4 flex flex-col gap-4 flex-shrink-0 border-b border-gray-100 bg-white z-20 shadow-sm">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-[20px] md:text-[24px] font-bold text-gray-900 tracking-tight whitespace-nowrap">
-                        {projectName}
-                    </h1>
-                </div>
+        <div className="flex h-full flex-col bg-[#F8FAFD]">
+            <main className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="mx-auto w-full max-w-6xl space-y-8 px-5 py-6 md:px-8">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                        <div>
+                            <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
+                                <span>{t('nav.projects')}</span>
+                                <ChevronRight size={14} className="text-slate-400" />
+                                <span>{projectName}</span>
+                                <ChevronRight size={14} className="text-slate-400" />
+                                <span className="font-semibold text-slate-700">{t('sprint.management')}</span>
+                            </div>
+                            <h1 className="text-4xl font-bold tracking-tight text-slate-950">{t('sprint.management')}</h1>
+                            <p className="mt-2 text-base text-slate-500">
+                                {t('sprint.description', { defaultValue: 'Quản lý các chu kỳ phát triển, theo dõi tiến độ và tốc độ làm việc của nhóm.' })}
+                            </p>
+                        </div>
 
-                <div className="flex items-center gap-4 md:gap-6 overflow-x-auto hide-scrollbar pb-1">
-                    <div className="flex items-center gap-2 shrink-0">
-                        <nav className="flex items-center gap-2 text-[14px] font-medium text-gray-500">
-                            <span className="hover:text-blue-600 cursor-pointer">{t('nav.projects')}</span>
-                            <ChevronRight size={14} className="text-gray-400" />
-                            <span className="text-gray-900 font-bold whitespace-nowrap">{t('sprint.management')}</span>
-                        </nav>
-                    </div>
-
-                    <div className="h-6 w-[1px] bg-gray-200 hidden xl:block" />
-
-                    <div className="relative flex items-center min-w-[180px] max-w-[280px] w-full">
-                        <Search className="absolute left-3.5 w-4 h-4 text-gray-400 pointer-events-none" />
-                        <input
-                            type="text"
-                            placeholder={t('sprint.searchPlaceholder')}
-                            className="w-full h-[40px] bg-white border border-gray-200 rounded-xl pl-11 pr-4 text-[14px] focus:ring-4 focus:ring-blue-50 focus:border-blue-400 focus:outline-none transition-all placeholder:text-gray-400 shadow-sm"
-                        />
-                    </div>
-
-                    <div className="flex-1" />
-
-                    <div className="flex items-center gap-3 md:gap-4 shrink-0">
                         {isPM && (
-                            <button 
+                            <button
                                 onClick={() => setShowCreate(true)}
-                                className="flex items-center gap-2.5 h-[42px] px-4 md:px-5 bg-[#111827] text-white rounded-xl text-[14px] font-bold hover:bg-gray-800 transition-all shadow-md active:scale-95 whitespace-nowrap"
+                                className="inline-flex h-11 items-center gap-2 self-start rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
                             >
-                                <Plus className="w-5 h-5 stroke-[3px]" />
-                                <span className="hidden sm:inline">{t('sprint.create')}</span>
+                                <Plus className="h-4 w-4" />
+                                {t('sprint.create')}
                             </button>
                         )}
                     </div>
-                </div>
-            </header>
 
-            <main className="flex-1 overflow-y-auto custom-scrollbar">
-                <div className="w-full space-y-8 p-5 md:p-8">
                     {activeSprint ? (
-                        <div className="border border-blue-200 bg-white rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                            <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600" />
-                            <div className="relative z-10">
-                                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
+                        <section className="rounded-3xl border-2 border-blue-300 bg-white p-5 shadow-sm">
+                            <div className="flex flex-col gap-5">
+                                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                                     <div className="min-w-0">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <span className="relative flex h-2 w-2">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
+                                        <div className="mb-2 flex items-center gap-3">
+                                            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
+                                                <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                                                {t('sprint.status_ACTIVE')}
                                             </span>
-                                            <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest">{t('sprint.status_ACTIVE')}</span>
                                         </div>
-                                        <h2 className="text-[22px] font-bold text-gray-900 leading-tight truncate">{activeSprint.name}</h2>
+                                        <h2 className="truncate text-[34px] font-bold tracking-tight text-slate-950">{activeSprint.name}</h2>
                                         {activeSprint.goal && (
-                                            <p className="text-[14px] text-gray-500 mt-1.5 italic">"{activeSprint.goal}"</p>
+                                            <p className="mt-3 text-lg italic text-slate-600">{activeSprint.goal}</p>
                                         )}
                                     </div>
+
                                     {isPM && (
-                                        <button 
+                                        <button
                                             onClick={() => setShowComplete(true)}
-                                            className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold h-[40px] px-5 rounded-xl transition-all shadow-sm active:scale-95 shrink-0 text-[14px]"
+                                            className="inline-flex h-11 items-center gap-2 self-start rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
                                         >
                                             <CheckCircle size={18} />
-                                            <span>{t('sprint.complete')}</span>
+                                            {t('sprint.complete')}
                                         </button>
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">{t('sprint.totalTasks')}</span>
-                                        <span className="text-2xl font-bold text-gray-900">{activeSprint.taskCount}</span>
+                                <div className="grid grid-cols-2 divide-x divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white md:grid-cols-4">
+                                    <div className="px-6 py-5 text-center">
+                                        <div className="text-sm text-slate-500">{t('sprint.totalTasks')}</div>
+                                        <div className="mt-1 text-4xl font-bold text-slate-950">{activeSprint.taskCount}</div>
                                     </div>
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">{t('sprint.status_COMPLETED')}</span>
-                                        <span className="text-2xl font-bold text-green-600">{activeSprint.doneCount}</span>
+                                    <div className="px-6 py-5 text-center">
+                                        <div className="text-sm text-slate-500">{t('sprint.status_COMPLETED')}</div>
+                                        <div className="mt-1 text-4xl font-bold text-slate-950">{activeSprint.doneCount}</div>
                                     </div>
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">{t('sprint.remaining')}</span>
-                                        <span className="text-2xl font-bold text-orange-600">{activeSprint.taskCount - activeSprint.doneCount}</span>
+                                    <div className="px-6 py-5 text-center">
+                                        <div className="text-sm text-slate-500">{t('sprint.remaining')}</div>
+                                        <div className="mt-1 text-4xl font-bold text-slate-950">{Math.max(0, activeSprint.taskCount - activeSprint.doneCount)}</div>
                                     </div>
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">{t('sprint.velocity')}</span>
-                                        <span className="text-2xl font-bold text-blue-600">{activeSprint.velocity} <span className="text-xs">pts</span></span>
+                                    <div className="px-6 py-5 text-center">
+                                        <div className="text-sm text-slate-500">{t('sprint.velocity')}</div>
+                                        <div className="mt-1 text-4xl font-bold text-slate-950">{activeSprint.velocity} <span className="text-xl">pts</span></div>
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 text-[14px] font-bold text-gray-900">
-                                            <span>{t('sprint.progress')}:</span>
-                                            <span className="text-blue-600">{activeSprint.completionRate}%</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-[12px] font-medium text-gray-500">
-                                            <Calendar size={14} />
-                                            <span>{formatDate(activeSprint.startDate)} — {formatDate(activeSprint.endDate)}</span>
-                                            <span className={cn("ml-2 font-bold px-2 py-0.5 rounded-md", daysLeft > 0 ? "bg-blue-50 text-blue-600" : "bg-red-50 text-red-600")}>
-                                                {daysLeft > 0 ? t('sprint.daysLeft', { count: daysLeft }) : t('task.overdue')}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                                        <div 
-                                            className={cn("h-full rounded-full transition-all duration-1000", activeSprint.completionRate === 100 ? "bg-green-500" : "bg-blue-600")}
+                                <div>
+                                    <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                                        <div
+                                            className="h-full rounded-full bg-blue-600 transition-all duration-700"
                                             style={{ width: `${activeSprint.completionRate}%` }}
                                         />
                                     </div>
+                                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm font-semibold">
+                                        <span className="text-slate-700">{activeSprint.completionRate}% complete</span>
+                                        <span className="text-slate-600">
+                                            {formatDate(activeSprint.startDate)} → {formatDate(activeSprint.endDate)}
+                                            <span className={cn("ml-2 rounded-md px-2 py-1 text-xs", daysLeft > 0 ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-700")}>
+                                                {daysLeft > 0 ? t('sprint.daysLeft', { count: daysLeft }) : t('task.overdue')}
+                                            </span>
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        </section>
                     ) : (
-                        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center shadow-sm">
-                            <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-100">
-                                <Rocket size={32} className="text-gray-300" />
+                        <section className="rounded-3xl border border-slate-200 bg-white px-8 py-12 text-center shadow-sm">
+                            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
+                                <Rocket size={30} />
                             </div>
-                            <h3 className="text-xl font-bold text-gray-900">{t('sprint.noActiveSprint')}</h3>
-                            <p className="text-sm text-gray-500 mt-1 mb-8 max-w-xs mx-auto">{t('sprint.noActiveSprintDesc')}</p>
+                            <h3 className="text-2xl font-bold text-slate-900">{t('sprint.noActiveSprint')}</h3>
+                            <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500">{t('sprint.noActiveSprintDesc')}</p>
                             {isPM && plannedSprints.length > 0 && (
-                                <button onClick={() => setStartingSprint(plannedSprints[0])} className="bg-[#111827] text-white font-bold h-[42px] px-8 rounded-xl transition-all shadow-md active:scale-95">
+                                <button
+                                    onClick={() => setStartingSprint(plannedSprints[0])}
+                                    className="mt-6 inline-flex h-11 items-center rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                                >
                                     {t('sprint.start')} {plannedSprints[0].name}
                                 </button>
                             )}
-                        </div>
+                        </section>
                     )}
 
-                    <div>
-                        <div className="flex items-center gap-2 mb-4 px-1">
-                            <h3 className="text-[16px] font-bold text-gray-900 flex items-center gap-2">
-                                <Clock size={18} className="text-gray-400" />
-                                {t('sprint.status_PLANNED')}
-                                <span className="bg-gray-100 text-gray-500 text-[12px] font-bold px-2 py-0.5 rounded-md border border-gray-200">{plannedSprints.length}</span>
-                            </h3>
+                    <section>
+                        <div className="mb-4 flex items-center gap-2 text-slate-900">
+                            <Clock size={18} className="text-slate-500" />
+                            <h3 className="text-3xl font-bold tracking-tight">{t('sprint.status_PLANNED')}</h3>
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-sm font-semibold text-slate-600">{plannedSprints.length}</span>
                         </div>
+
                         {plannedSprints.length === 0 ? (
-                            <div className="bg-white border border-dashed border-gray-200 rounded-xl p-8 text-center">
-                                <p className="text-[14px] font-medium text-gray-400">{t('sprint.noPlanned')}</p>
+                            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-400">
+                                {t('sprint.noPlanned')}
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 gap-3">
-                                {plannedSprints.map(s => (
-                                    <SprintCard key={s.id} sprint={s} isPM={isPM} variant="planned" onStart={setStartingSprint} onEdit={setEditingSprint} onDelete={setDeletingSprint} />
+                            <div className="space-y-4">
+                                {plannedSprints.map((sprint) => (
+                                    <SprintCard
+                                        key={sprint.id}
+                                        sprint={sprint}
+                                        isPM={isPM}
+                                        variant="planned"
+                                        onStart={setStartingSprint}
+                                        onEdit={setEditingSprint}
+                                        onDelete={setDeletingSprint}
+                                    />
                                 ))}
                             </div>
                         )}
-                    </div>
+                    </section>
 
                     {completedSprints.length > 0 && (
-                        <div className="pb-8">
-                            <button onClick={() => setExpandedCompleted(!expandedCompleted)} className="flex items-center gap-3 w-full py-3.5 px-5 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-all text-sm font-bold text-gray-500 shadow-sm">
-                                <ChevronDown size={18} className={cn("transition-transform duration-300", expandedCompleted ? "rotate-180" : "")} />
-                                <Archive size={16} />
+                        <section className="pb-8">
+                            <button
+                                onClick={() => setExpandedCompleted(!expandedCompleted)}
+                                className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 text-left text-base font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                            >
                                 <span>{t('sprint.viewCompleted', { count: completedSprints.length })}</span>
+                                <ChevronDown size={18} className={cn("transition-transform duration-300", expandedCompleted ? "rotate-180" : "")} />
                             </button>
+
                             {expandedCompleted && (
-                                <div className="grid grid-cols-1 gap-3 mt-4 animate-in fade-in slide-in-from-top-2">
-                                    {completedSprints.map(s => (
-                                        <SprintCard key={s.id} sprint={s} isPM={isPM} variant="completed" />
+                                <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
+                                    {completedSprints.map((sprint) => (
+                                        <SprintCard key={sprint.id} sprint={sprint} isPM={isPM} variant="completed" />
                                     ))}
                                 </div>
                             )}
-                        </div>
+                        </section>
                     )}
                 </div>
             </main>

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, GitBranch, Loader2, Rows3 } from "lucide-react";
+import { AlertCircle, Loader2, Rows3 } from "lucide-react";
 import { differenceInDays, startOfDay } from "date-fns";
 
 import { TaskService } from "@/app/services/TaskService";
@@ -172,7 +172,7 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
 
     if (isLoading) {
         return (
-            <div className="flex h-[680px] items-center justify-center rounded-[28px] border border-slate-200 bg-white">
+            <div className="flex h-[680px] items-center justify-center rounded-[18px] border border-slate-200 bg-white">
                 <div className="flex flex-col items-center gap-4 text-slate-500">
                     <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
                     <span className="text-sm font-semibold">Loading timeline...</span>
@@ -183,7 +183,7 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
 
     if (error) {
         return (
-            <div className="flex h-[680px] items-center justify-center rounded-[28px] border border-slate-200 bg-white">
+            <div className="flex h-[680px] items-center justify-center rounded-[18px] border border-slate-200 bg-white">
                 <div className="flex flex-col items-center gap-3 text-center text-red-500">
                     <AlertCircle size={40} />
                     <p className="text-base font-semibold text-slate-900">Failed to load timeline</p>
@@ -194,29 +194,12 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
     }
 
     return (
-        <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_70px_-35px_rgba(15,23,42,0.35)]">
-            <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 px-5 py-4 text-white">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <div className="text-sm font-semibold text-blue-100">Project timeline</div>
-                        <h3 className="mt-1 text-2xl font-bold tracking-tight">Plan, track and visualize dependencies</h3>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 font-medium text-white/90">
-                            <Rows3 size={14} />
-                            {flattenedRows.length} visible tasks
-                        </div>
-                        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 font-medium text-white/90">
-                            <GitBranch size={14} />
-                            {visibleDependencies.length} dependencies
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+        <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_24px_70px_-35px_rgba(15,23,42,0.25)]">
             <TimelineToolbar
                 projectId={projectId}
                 filters={filters}
+                visibleTaskCount={flattenedRows.length}
+                dependencyCount={visibleDependencies.length}
                 onFilterChange={setFilters}
                 zoom={zoom}
                 onZoomChange={setZoom}

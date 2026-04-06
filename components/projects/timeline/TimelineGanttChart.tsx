@@ -156,7 +156,7 @@ export default function TimelineGanttChart({
                         {topGroups.map((group) => (
                             <div
                                 key={group.key}
-                                className="flex items-center border-r border-slate-200 px-3 text-sm font-bold text-slate-700"
+                                className="flex items-center border-r border-slate-200 px-3 text-sm font-bold text-slate-700 whitespace-nowrap"
                                 style={{ width: group.span * dayWidth }}
                             >
                                 {group.label}
@@ -169,7 +169,7 @@ export default function TimelineGanttChart({
                             <div
                                 key={slot.toISOString()}
                                 className={cn(
-                                    "flex shrink-0 flex-col items-center justify-center border-r border-slate-200 text-[11px] font-semibold",
+                                    "flex shrink-0 flex-col items-center justify-center border-r border-slate-200 px-1 text-[11px] font-semibold whitespace-nowrap",
                                     isWeekend(slot) ? "bg-slate-50 text-slate-500" : "bg-white text-slate-700",
                                     isToday(slot) && "bg-blue-50 text-blue-700"
                                 )}
