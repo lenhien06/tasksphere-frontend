@@ -612,25 +612,9 @@ function TabMembers({ project }: { project: Project }) {
                         {canManageMembers && (
                             <AISkillTriggerButton
                                 onClick={() => {
-                                    const memberList = (members as any[] || []).map((m: any) => ({
-                                        memberId: m.id,
-                                        userId: m.user.id,
-                                        fullName: m.user.fullName,
-                                        email: m.user.email,
-                                        avatarUrl: m.user.avatarUrl ?? undefined,
-                                        roleLabel: m.user.id === project.ownerId ? 'Owner' : (m.projectRole || 'Member'),
-                                        profileSkills: [],
-                                        projectSkills: mockSkills[m.user.email] || m.user.skills || [],
-                                    }));
                                     openSkillModal({
-                                        members: memberList,
+                                        projectId: project.id,
                                         canEdit: canManageMembers,
-                                        onConfirm: (updated) => {
-                                            // Apply updates back to local mock skill state
-                                            const newSkills: Record<string, string[]> = {};
-                                            updated.forEach((u) => { newSkills[u.email] = u.projectSkills; });
-                                            setMockSkills((prev) => ({ ...prev, ...newSkills }));
-                                        },
                                     });
                                 }}
                             />

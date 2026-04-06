@@ -231,22 +231,9 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     onNavigateToBacklog: () => router.push(`/projects/${projectId}/backlog`),
     onOpenAISkillModal: userRole === "PROJECT_MANAGER"
       ? () => {
-          const rawList = Array.isArray(projectMembers) ? projectMembers : [];
           openSkillModal({
-            members: rawList.map((m) => ({
-              memberId: m.id,
-              userId: m.id,
-              fullName: m.name,
-              email: "",
-              avatarUrl: m.avatarUrl ?? undefined,
-              roleLabel: undefined,
-              profileSkills: [],
-              projectSkills: [],
-            })),
+            projectId,
             canEdit: true,
-            onConfirm: (updated) => {
-              console.log("[AI Skill Allocation] project overview confirmed:", updated);
-            },
           });
         }
       : undefined,

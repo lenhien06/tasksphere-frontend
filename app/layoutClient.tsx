@@ -145,12 +145,12 @@ function AIModalGlobal() {
 }
 
 function AISkillModalGlobal() {
-  const { isOpen, members, canEdit, onConfirm, close } = useAISkillModalStore();
+  const { isOpen, projectId, canEdit, onConfirm, close } = useAISkillModalStore();
   return (
     <AISkillAllocationModal
       isOpen={isOpen}
       onClose={close}
-      members={members}
+      projectId={projectId}
       canEdit={canEdit}
       onConfirm={(updated) => {
         onConfirm?.(updated);
