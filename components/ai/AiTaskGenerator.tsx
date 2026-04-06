@@ -2,8 +2,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useConfirmTasks, useGenerateTasks } from '@/hooks/useGenerateTasks';
-import type { GeneratedTaskDto } from '@/app/types/ai';
+import type { ConfirmTasksResponse, GeneratedTaskDto } from '@/app/types/ai';
 import { TaskSuggestionCard } from './TaskSuggestionCard';
+import { AiAssignReview } from './AiAssignReview';
 
 interface Props {
   projectId:   string;
@@ -49,6 +50,10 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
   const [tasks, setTasks]       = useState<GeneratedTaskDto[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
+  // ── Confirm result / assign modal state ────────────────────────────────
+  const [confirmResult, setConfirmResult] = useState<ConfirmTasksResponse | null>(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+
   // ── Mutations ───────────────────────────────────────────────────────────
   const generateMutation = useGenerateTasks(projectId);
   const confirmMutation  = useConfirmTasks(projectId);
@@ -92,7 +97,7 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
       {
         onSuccess: (result) => {
           onSuccess?.(result.count);
-          onClose();
+          setConfirmResult(result);
         },
       },
     );
@@ -102,10 +107,12 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
   const isConfirming = confirmMutation.isPending;
   const hasTasks     = tasks.length > 0;
   const selectedCount = selected.size;
+  const isSuccess    = confirmResult !== null;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto
                       bg-white rounded-2xl shadow-2xl flex flex-col">
@@ -128,6 +135,9 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
 
         {/* Body */}
         <div className="flex-1 px-6 py-5 space-y-4">
+
+          {/* Form + suggestions — hidden after confirm */}
+          {!isSuccess && <>
 
           {/* Requirements textarea */}
           <div>
@@ -261,6 +271,55 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
             </TypeIn>
           )}
 
+          </> /* end !isSuccess */}
+
+          {/* Success screen */}
+          {isSuccess && (
+            <div className="flex flex-col items-center justify-center py-8 text-center gap-4">
+              <div className="text-5xl">🎉</div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">
+                  Đã tạo thành công {confirmResult.count} task!
+                </p>
+                {confirmResult.memberCount > 0 ? (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Project có {confirmResult.memberCount} thành viên — bạn có muốn phân công ngay không?
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Project chưa có thành viên, hãy thêm thành viên trước khi phân công.
+                  </p>
+                )}
+              </div>
+              {confirmResult.memberCount > 0 ? (
+                <div className="flex gap-3 mt-2">
+                  <button
+                    onClick={() => setShowAssignModal(true)}
+                    className="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold
+                               hover:bg-blue-700 transition-colors"
+                  >
+                    🤖 Phân công ngay
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm
+                               hover:bg-gray-50 transition-colors"
+                  >
+                    Để sau
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={onClose}
+                  className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm
+                             hover:bg-gray-50 transition-colors"
+                >
+                  Đóng
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Error */}
           {generateMutation.isError && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
@@ -274,36 +333,48 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
           )}
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-between
-                        bg-gray-50 rounded-b-2xl">
-          {hasTasks ? (
-            <>
-              <button
-                onClick={() => { setTasks([]); setSelected(new Set()); generateMutation.reset(); }}
-                className="text-sm text-gray-500 hover:text-gray-700 underline"
-              >
-                ← Nhập lại requirements
+        {/* Footer — hidden on success screen */}
+        {!isSuccess && (
+          <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-between
+                          bg-gray-50 rounded-b-2xl">
+            {hasTasks ? (
+              <>
+                <button
+                  onClick={() => { setTasks([]); setSelected(new Set()); generateMutation.reset(); }}
+                  className="text-sm text-gray-500 hover:text-gray-700 underline"
+                >
+                  ← Nhập lại requirements
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={selectedCount === 0 || isConfirming}
+                  className="px-5 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold
+                             hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed
+                             transition-colors"
+                >
+                  {isConfirming
+                    ? 'Đang tạo...'
+                    : `Tạo ${selectedCount} task đã chọn`}
+                </button>
+              </>
+            ) : (
+              <button onClick={onClose} className="ml-auto text-sm text-gray-500 hover:text-gray-700">
+                Hủy
               </button>
-              <button
-                onClick={handleConfirm}
-                disabled={selectedCount === 0 || isConfirming}
-                className="px-5 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold
-                           hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed
-                           transition-colors"
-              >
-                {isConfirming
-                  ? 'Đang tạo...'
-                  : `Tạo ${selectedCount} task đã chọn`}
-              </button>
-            </>
-          ) : (
-            <button onClick={onClose} className="ml-auto text-sm text-gray-500 hover:text-gray-700">
-              Hủy
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
+
+    {/* AI Assignment modal — rendered outside the generator modal */}
+    {showAssignModal && confirmResult && (
+      <AiAssignReview
+        projectId={projectId}
+        preSelectedTaskIds={confirmResult.createdTaskIds}
+        onClose={() => { setShowAssignModal(false); onClose(); }}
+      />
+    )}
+    </>
   );
 }
