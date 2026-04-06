@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Search, Lock, Users, Globe, Check, Mail, Crown, Shield, Eye, Settings, Bell,
-    AlertTriangle, MessageCircle, Plus, CheckCircle2, BarChart2, Sparkles, Zap,
+    AlertTriangle, MessageCircle, Plus, CheckCircle2, BarChart2, Zap,
     ShieldOff, ArrowLeft, X, Calendar, Clock, Trash2, Loader2, ChevronDown, ChevronRight, Archive, RefreshCw, Filter,
     Layout, Kanban, ListTodo, MoreHorizontal, Tag, Rocket, Webhook, GitBranch, GanttChart
 } from "lucide-react";
@@ -49,8 +49,6 @@ import TimelineView from "@/components/projects/timeline/TimelineView";
 import TaskDetailPanel, { type Member } from "@/components/projects/TaskDetailPanel";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import ForbiddenPage from "@/components/common/ForbiddenPage";
-import { AISkillTriggerButton } from "@/components/projects/AISkillAllocationModal";
-import { useAISkillModalStore } from "@/stores/useAISkillModalStore";
 import { ProfileService } from "@/app/services/profile.service";
 import { canActAsProjectManager, toKanbanUserRole, toLegacyMyRoleLower, toTaskPanelRole } from "@/lib/projectRole";
 
@@ -476,7 +474,6 @@ function TabMembers({ project }: { project: Project }) {
     const [inviteStatusFilter, setInviteStatusFilter] = useState<string>("PENDING");
     const [changeRoleTarget, setChangeRoleTarget] = useState<{ id: string; userId: string; fullName: string; currentRole: string } | null>(null);
     const queryClient = useQueryClient();
-    const openSkillModal = useAISkillModalStore((s) => s.open);
 
     // --- SKILL STATE ---
     const [addingSkillToMemberId, setAddingSkillToMemberId] = useState<string | null>(null);
@@ -625,16 +622,6 @@ function TabMembers({ project }: { project: Project }) {
                         </span>
                     </div>
                     <div className="flex items-center gap-3">
-                        {canManageMembers && (
-                            <AISkillTriggerButton
-                                onClick={() => {
-                                    openSkillModal({
-                                        projectId: project.id,
-                                        canEdit: canManageMembers,
-                                    });
-                                }}
-                            />
-                        )}
                         {canManageMembers && (
                             <button
                                 onClick={() => setShowInviteModal(true)}

@@ -48,8 +48,6 @@ import {
     DeleteProjectModal,
     RestoreProjectModal,
 } from "@/components/projects/ProjectModals";
-import { AIProjectTriggerButton } from "@/components/projects/AIProjectCreationModal";
-import { useAIModalStore } from "@/stores/useAIModalStore";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { toast } from "sonner";
 import { ProjectService } from "@/app/services/ProjectService";
@@ -281,7 +279,6 @@ export default function ProjectsPage() {
     
     // UI state
     const [showCreate, setShowCreate] = useState(false);
-    const openAIModal = useAIModalStore((s) => s.open);
     const { selectedContext, selectedWorkspace } = useWorkspace();
     const [activeProject, setActiveProject] = useState<any>(null);
     const [modalType, setModalType] = useState<"edit" | "archive" | "delete" | "restore" | null>(null);
@@ -579,7 +576,6 @@ export default function ProjectsPage() {
                                 Tạo với AI
                             </button>
                         )}
-                        <AIProjectTriggerButton onClick={openAIModal} />
                         <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 h-[38px] px-4 bg-[#111827] text-white rounded-xl text-[13px] font-bold hover:bg-gray-800 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)] active:scale-95">
                             <Plus className="w-4 h-4 stroke-[3px]" /> <span>{t('project.newProject')}</span>
                         </button>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpRight,
   Building2,
@@ -17,29 +17,24 @@ import {
   Settings,
   Sparkles,
   Users,
+  X,
 } from "lucide-react";
 import { WorkspaceService } from "@/app/services/workspace.service";
 import { ProjectService } from "@/app/services/ProjectService";
 import {
   type Workspace,
   type WorkspaceMember,
-  type WorkspacePlan,
   type WorkspaceRole,
 } from "@/app/types/workspace.schema";
 import { type Project } from "@/app/types/project..schema";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const ROLE_STYLES: Record<WorkspaceRole, string> = {
   OWNER: "border-[#fff1c2] bg-[#fff8c5] text-[#9a6700]",
   ADMIN: "border-[#b6e3ff] bg-[#ddf4ff] text-[#0969da]",
   MEMBER: "border-[#d0d7de] bg-[#f6f8fa] text-[#57606a]",
-};
-
-const PLAN_LABELS: Record<WorkspacePlan, string> = {
-  free: "Free",
-  pro: "Pro",
-  enterprise: "Enterprise",
 };
 
 const VISIBILITY_STYLES: Record<
@@ -104,7 +99,7 @@ function ProjectRow({
     <button
       type="button"
       onClick={onOpen}
-      className="grid w-full grid-cols-[minmax(0,1fr)_200px] gap-6 border-t border-[#d8dee4] px-5 py-5 text-left transition hover:bg-[#f6f8fa]"
+      className="grid w-full grid-cols-[minmax(0,1fr)_148px] gap-4 border-t border-[#d8dee4] px-5 py-4 text-left transition hover:bg-[#f6f8fa]"
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
@@ -126,12 +121,12 @@ function ProjectRow({
         </div>
 
         {project.description && (
-          <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#57606a]">
+          <p className="mt-1.5 line-clamp-1 text-sm leading-6 text-[#57606a]">
             {project.description}
           </p>
         )}
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[#57606a]">
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-[#57606a]">
           <span
             className={cn(
               "inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize",
@@ -156,8 +151,8 @@ function ProjectRow({
       </div>
 
       <div className="flex items-center justify-end gap-4">
-        <div className="hidden w-full max-w-[120px] md:block">
-          <div className="h-[36px] overflow-hidden rounded-full bg-[#f6f8fa] px-3 py-4">
+        <div className="hidden w-full max-w-[104px] md:block">
+          <div className="h-[32px] overflow-hidden rounded-full bg-[#f6f8fa] px-3 py-3.5">
             <div
               className="h-[3px] rounded-full bg-gradient-to-r from-[#2da44e] via-[#1f883d] to-[#9be9a8]"
               style={{ width: `${Math.max(progress, 6)}%` }}
@@ -175,37 +170,229 @@ function ProjectRow({
 
 type WorkspaceTab = "projects" | "members" | "settings";
 
+type InviteWorkspaceMemberModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  workspaceId: string;
+};
+
+function InviteWorkspaceMemberModal({
+  isOpen,
+  onClose,
+  workspaceId,
+}: InviteWorkspaceMemberModalProps) {
+  const queryClient = useQueryClient();
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
+
+  const inviteMutation = useMutation({
+    mutationFn: () =>
+      WorkspaceService.inviteMember(workspaceId, {
+        email: email.trim(),
+        role,
+      }),
+    onSuccess: () => {
+      toast.success("Đã thêm thành viên vào workspace");
+      queryClient.invalidateQueries({ queryKey: ["ws-members", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["workspace"] });
+      setEmail("");
+      setRole("MEMBER");
+      onClose();
+    },
+    onError: (error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : "Không thể thêm thành viên";
+      toast.error(message);
+    },
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d1117]/45 px-4">
+      <div className="w-full max-w-md rounded-2xl border border-[#d0d7de] bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-[#d8dee4] px-6 py-5">
+          <div>
+            <h3 className="text-lg font-semibold text-[#1f2328]">Thêm thành viên</h3>
+            <p className="mt-1 text-sm text-[#57606a]">
+              Mời thành viên mới vào workspace này.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-2 text-[#57606a] transition hover:bg-[#f6f8fa]"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[#1f2328]">
+              Email
+            </label>
+            <input
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="name@example.com"
+              className="h-11 w-full rounded-xl border border-[#d0d7de] px-4 text-sm text-[#1f2328] outline-none transition placeholder:text-[#8c959f] focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[#1f2328]">
+              Vai trò
+            </label>
+            <select
+              value={role}
+              onChange={(event) => setRole(event.target.value as "ADMIN" | "MEMBER")}
+              className="h-11 w-full rounded-xl border border-[#d0d7de] px-4 text-sm text-[#1f2328] outline-none transition focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
+            >
+              <option value="MEMBER">Member</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 border-t border-[#d8dee4] px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] transition hover:bg-[#f6f8fa]"
+          >
+            Hủy
+          </button>
+          <button
+            type="button"
+            onClick={() => inviteMutation.mutate()}
+            disabled={!email.trim() || inviteMutation.isPending}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {inviteMutation.isPending && <Loader2 size={14} className="animate-spin" />}
+            Thêm thành viên
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MemberListRow({ member }: { member: WorkspaceMember }) {
   return (
-    <div className="flex items-center gap-3 border-t border-[#d8dee4] px-5 py-4 first:border-t-0">
-      {member.avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={member.avatarUrl}
-          alt={member.fullName}
-          className="h-10 w-10 rounded-full border border-[#d0d7de] object-cover"
-        />
-      ) : (
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d0d7de] bg-[#f6f8fa] text-xs font-semibold text-[#57606a]">
-          {getInitials(member.fullName)}
-        </div>
-      )}
-
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-[#1f2328]">
-          {member.fullName}
-        </div>
-        <div className="truncate text-xs text-[#57606a]">{member.email}</div>
-      </div>
-
-      <div className="text-right">
-        <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
-          {member.role}
-        </div>
-        <div className="mt-1 text-[11px] text-[#8c959f]">
-          {member.activeTaskCount} task mở
+    <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_120px_140px] items-center gap-4 border-t border-[#d8dee4] px-5 py-4 first:border-t-0">
+      <div className="flex min-w-0 items-center gap-3">
+        {member.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={member.avatarUrl}
+            alt={member.fullName}
+            className="h-10 w-10 rounded-full border border-[#d0d7de] object-cover"
+          />
+        ) : (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d0d7de] bg-[#f6f8fa] text-xs font-semibold text-[#57606a]">
+            {getInitials(member.fullName)}
+          </div>
+        )}
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-[#1f2328]">
+            {member.fullName}
+          </div>
+          <div className="truncate text-xs text-[#57606a]">{member.email}</div>
         </div>
       </div>
+
+      <div className="min-w-0">
+        <div className="flex flex-wrap gap-1.5">
+          {(member.skillTags ?? []).length > 0 ? (
+            (member.skillTags ?? []).slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-[#ddf4ff] px-2 py-0.5 text-[11px] font-semibold text-[#0969da]"
+              >
+                {tag}
+              </span>
+            ))
+          ) : (
+            <span className="text-xs text-[#8c959f]">Chưa có skill</span>
+          )}
+        </div>
+      </div>
+
+      <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
+        {member.role}
+      </div>
+
+      <div className="text-right text-[11px] text-[#57606a]">
+        {member.joinedAt ? new Date(member.joinedAt).toISOString().split("T")[0] : "-"}
+        <div className="mt-1 text-[#8c959f]">{member.activeTaskCount} task mở</div>
+      </div>
+    </div>
+  );
+}
+
+function MemberListHeader() {
+  return (
+    <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_120px_140px] gap-4 border-b border-[#d8dee4] bg-[#f6f8fa] px-5 py-3 text-[11px] font-bold uppercase tracking-wide text-[#57606a]">
+      <div>Thành viên</div>
+      <div>Skills</div>
+      <div>Role</div>
+      <div className="text-right">Ngày tham gia</div>
+    </div>
+  );
+}
+
+function CompactMemberList({ members }: { members: WorkspaceMember[] }) {
+  return (
+    <div className="space-y-3">
+      {members.slice(0, 4).map((member) => (
+        <div
+          key={member.userId}
+          className="flex items-center gap-3 border-t border-[#d8dee4] pt-3 first:border-t-0 first:pt-0"
+        >
+          {member.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={member.avatarUrl}
+              alt={member.fullName}
+              className="h-8 w-8 rounded-full border border-[#d0d7de] object-cover"
+            />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d0d7de] bg-[#f6f8fa] text-[11px] font-semibold text-[#57606a]">
+              {getInitials(member.fullName)}
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium text-[#1f2328]">
+              {member.fullName}
+            </div>
+            <div className="truncate text-xs uppercase text-[#57606a]">
+              {member.role}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SidebarCard({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-[#d0d7de] bg-white p-5 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-[#1f2328]">{title}</h2>
+        {action}
+      </div>
+      <div className="mt-4">{children}</div>
     </div>
   );
 }
@@ -217,6 +404,7 @@ export default function WorkspaceDetailPage() {
   const { selectWorkspace } = useWorkspace();
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("projects");
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [search, setSearch] = useState("");
   const [visibilityFilter, setVisibilityFilter] = useState<"all" | Project["visibility"]>(
     "all"
@@ -304,7 +492,6 @@ export default function WorkspaceDetailPage() {
     );
   }, [allProjects]);
 
-  const memberPreview = members.slice(0, 8);
   const canManage = workspace?.role === "OWNER" || workspace?.role === "ADMIN";
 
   if (workspaceLoading) {
@@ -337,7 +524,7 @@ export default function WorkspaceDetailPage() {
   }
 
   const initials = getInitials(workspace.name);
-  const tabs: { id: WorkspaceTab; label: string; icon: React.ReactNode }[] = [
+  const tabs: { id: WorkspaceTab; label: string; icon: ReactNode }[] = [
     { id: "projects", label: "Tất cả dự án", icon: <FolderKanban size={14} /> },
     { id: "members", label: "Thành viên", icon: <Users size={14} /> },
     { id: "settings", label: "Settings", icon: <Settings size={14} /> },
@@ -424,7 +611,7 @@ export default function WorkspaceDetailPage() {
 
       <div className="px-6 pt-6">
         {activeTab === "projects" && (
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <main className="min-w-0">
           <div className="mb-4 flex items-center gap-2 text-[22px] font-semibold text-[#1f2328]">
             <FolderKanban size={20} />
@@ -538,24 +725,17 @@ export default function WorkspaceDetailPage() {
         </main>
 
         <aside className="space-y-4">
-          <div className="rounded-xl border border-[#d0d7de] bg-white p-5 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
-            <h2 className="text-sm font-semibold text-[#1f2328]">Thông tin workspace</h2>
-            <div className="mt-4 space-y-3 text-sm text-[#57606a]">
+              <SidebarCard title="Thông tin workspace">
+                <div className="space-y-3 text-sm text-[#57606a]">
               <div className="flex items-center justify-between gap-4">
                 <span>Loại</span>
                 <span className="font-medium text-[#1f2328]">
                   {workspace.type === "PERSONAL" ? "Personal" : "Organization"}
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-4">
-                <span>Gói</span>
-                <span className="font-medium text-[#1f2328]">
-                  {PLAN_LABELS[workspace.plan]}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span>Owner</span>
-                <span className="truncate font-medium text-[#1f2328]">
+                  <div className="flex items-center justify-between gap-4">
+                    <span>Owner</span>
+                    <span className="truncate font-medium text-[#1f2328]">
                   {workspace.ownerName}
                 </span>
               </div>
@@ -585,79 +765,38 @@ export default function WorkspaceDetailPage() {
                 </button>
               )}
             </div>
-          </div>
+              </SidebarCard>
 
-          <div className="rounded-xl border border-[#d0d7de] bg-white p-5 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
-            <h2 className="text-sm font-semibold text-[#1f2328]">Thành viên</h2>
-            {membersLoading ? (
-              <div className="mt-4 flex items-center justify-center py-6">
-                <Loader2 size={18} className="animate-spin text-[#0969da]" />
-              </div>
-            ) : members.length === 0 ? (
-              <p className="mt-4 text-sm text-[#57606a]">
+              <SidebarCard
+                title="Thành viên"
+                action={
+                  canManage ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowInviteModal(true)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-[#d0d7de] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#24292f] transition hover:bg-[#f6f8fa]"
+                    >
+                      <Plus size={12} />
+                      Thêm
+                    </button>
+                  ) : undefined
+                }
+              >
+                {membersLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 size={18} className="animate-spin text-[#0969da]" />
+                  </div>
+                ) : members.length === 0 ? (
+              <p className="text-sm text-[#57606a]">
                 Workspace này chưa có thành viên nào.
               </p>
             ) : (
-              <>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {memberPreview.map((member) =>
-                    member.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={member.userId}
-                        src={member.avatarUrl}
-                        alt={member.fullName}
-                        title={member.fullName}
-                        className="h-9 w-9 rounded-full border border-[#d0d7de] object-cover"
-                      />
-                    ) : (
-                      <div
-                        key={member.userId}
-                        title={member.fullName}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#d0d7de] bg-[#f6f8fa] text-xs font-semibold text-[#57606a]"
-                      >
-                        {getInitials(member.fullName)}
-                      </div>
-                    )
-                  )}
-                </div>
+                  <CompactMemberList members={members} />
+                )}
+              </SidebarCard>
 
-                <div className="mt-4 space-y-3">
-                  {members.slice(0, 5).map((member) => (
-                    <div
-                      key={member.userId}
-                      className="flex items-center gap-3 border-t border-[#d8dee4] pt-3 first:border-t-0 first:pt-0"
-                    >
-                      {member.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={member.avatarUrl}
-                          alt={member.fullName}
-                          className="h-8 w-8 rounded-full border border-[#d0d7de] object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d0d7de] bg-[#f6f8fa] text-[11px] font-semibold text-[#57606a]">
-                          {getInitials(member.fullName)}
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-[#1f2328]">
-                          {member.fullName}
-                        </div>
-                        <div className="truncate text-xs text-[#57606a]">
-                          {member.role}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-[#d0d7de] bg-white p-5 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
-            <h2 className="text-sm font-semibold text-[#1f2328]">Top visibility</h2>
-            <div className="mt-4 flex flex-wrap gap-3 text-sm text-[#57606a]">
+          <SidebarCard title="Top visibility">
+            <div className="flex flex-wrap gap-3 text-sm text-[#57606a]">
               <span className="inline-flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full bg-[#57606a]" />
                 Private {visibilitySummary.private}
@@ -671,17 +810,29 @@ export default function WorkspaceDetailPage() {
                 Public {visibilitySummary.public}
               </span>
             </div>
-          </div>
+          </SidebarCard>
         </aside>
           </div>
         )}
 
         {activeTab === "members" && (
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
             <main className="min-w-0">
-              <div className="mb-4 flex items-center gap-2 text-[22px] font-semibold text-[#1f2328]">
-                <Users size={20} />
-                Thành viên
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-[22px] font-semibold text-[#1f2328]">
+                  <Users size={20} />
+                  Thành viên
+                </div>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => setShowInviteModal(true)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1d4ed8]"
+                  >
+                    <Plus size={15} />
+                    Thêm thành viên
+                  </button>
+                )}
               </div>
 
               <div className="overflow-hidden rounded-xl border border-[#d0d7de] bg-white shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
@@ -694,17 +845,33 @@ export default function WorkspaceDetailPage() {
                     Workspace này chưa có thành viên nào.
                   </div>
                 ) : (
-                  members.map((member) => (
-                    <MemberListRow key={member.userId} member={member} />
-                  ))
+                  <>
+                    <MemberListHeader />
+                    {members.map((member) => (
+                      <MemberListRow key={member.userId} member={member} />
+                    ))}
+                  </>
                 )}
               </div>
             </main>
 
             <aside className="space-y-4">
-              <div className="rounded-xl border border-[#d0d7de] bg-white p-5 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
-                <h2 className="text-sm font-semibold text-[#1f2328]">Tóm tắt đội ngũ</h2>
-                <div className="mt-4 space-y-3 text-sm text-[#57606a]">
+              <SidebarCard
+                title="Tóm tắt đội ngũ"
+                action={
+                  canManage ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowInviteModal(true)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-[#d0d7de] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#24292f] transition hover:bg-[#f6f8fa]"
+                    >
+                      <Plus size={12} />
+                      Mời mới
+                    </button>
+                  ) : undefined
+                }
+              >
+                <div className="space-y-3 text-sm text-[#57606a]">
                   <div className="flex items-center justify-between">
                     <span>Tổng thành viên</span>
                     <span className="font-medium text-[#1f2328]">{workspace.memberCount}</span>
@@ -728,13 +895,33 @@ export default function WorkspaceDetailPage() {
                     </span>
                   </div>
                 </div>
-              </div>
+              </SidebarCard>
+
+              <SidebarCard title="Phân bổ kỹ năng">
+                <div className="flex flex-wrap gap-2">
+                  {Array.from(
+                    new Set(members.flatMap((member) => member.skillTags ?? []))
+                  )
+                    .slice(0, 8)
+                    .map((skill) => (
+                      <span
+                        key={skill}
+                        className="rounded-full bg-[#ddf4ff] px-2.5 py-1 text-xs font-semibold text-[#0969da]"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  {members.every((member) => !(member.skillTags ?? []).length) && (
+                    <span className="text-sm text-[#8c959f]">Chưa có skill được khai báo.</span>
+                  )}
+                </div>
+              </SidebarCard>
             </aside>
           </div>
         )}
 
         {activeTab === "settings" && (
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
             <main className="min-w-0">
               <div className="mb-4 flex items-center gap-2 text-[22px] font-semibold text-[#1f2328]">
                 <Settings size={20} />
@@ -769,10 +956,10 @@ export default function WorkspaceDetailPage() {
                   </div>
                   <div className="rounded-xl border border-[#d8dee4] p-4">
                     <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
-                      Gói
+                      Owner
                     </div>
                     <div className="mt-2 text-base font-semibold text-[#1f2328]">
-                      {PLAN_LABELS[workspace.plan]}
+                      {workspace.ownerName}
                     </div>
                   </div>
                 </div>
@@ -814,20 +1001,24 @@ export default function WorkspaceDetailPage() {
             </main>
 
             <aside className="space-y-4">
-              <div className="rounded-xl border border-[#d0d7de] bg-white p-5 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
-                <h2 className="text-sm font-semibold text-[#1f2328]">Quyền hiện tại</h2>
-                <div className="mt-4 text-sm text-[#57606a]">
+              <SidebarCard title="Quyền hiện tại">
+                <div className="text-sm text-[#57606a]">
                   Bạn đang ở vai trò{" "}
                   <span className="font-semibold text-[#1f2328]">
                     {workspace.role ?? "MEMBER"}
                   </span>{" "}
                   trong workspace này.
                 </div>
-              </div>
+              </SidebarCard>
             </aside>
           </div>
         )}
       </div>
+      <InviteWorkspaceMemberModal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        workspaceId={workspace.id}
+      />
     </div>
   );
 }

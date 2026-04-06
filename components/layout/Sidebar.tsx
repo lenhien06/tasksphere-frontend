@@ -16,12 +16,10 @@ import {
   LucideIcon,
   Plus,
   Settings,
-  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/app/services/auth.service";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useAIModalStore } from "@/stores/useAIModalStore";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -148,7 +146,6 @@ export default function Sidebar({
 }: SidebarProps) {
   const { t } = useTranslation();
   const { logout } = useAuthStore();
-  const openAIModal = useAIModalStore((s) => s.open);
   const {
     organizationWorkspaces,
     personalWorkspace,
@@ -416,42 +413,6 @@ export default function Sidebar({
         </div>
 
         <div className="mt-auto border-t border-[#1E293B] bg-[#0F172A] pb-6 pt-4">
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0, height: 0 }}
-                animate={{ scale: 1, opacity: 1, height: "auto" }}
-                exit={{ scale: 0.9, opacity: 0, height: 0 }}
-                className="mx-3 mb-4 rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 overflow-hidden"
-              >
-                <p className="flex items-center gap-1.5 text-[11px] font-bold text-purple-400 uppercase tracking-wider">
-                  <Sparkles size={12} className="animate-pulse" />
-                  {t("sidebar.aiTitle")}
-                </p>
-                <p className="mt-1 text-[10px] text-slate-500 leading-relaxed italic">
-                  "{t("sidebar.aiDesc")}"
-                </p>
-                <button
-                  onClick={openAIModal}
-                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-2 py-2 text-[10px] font-bold text-white hover:from-purple-500 hover:to-blue-500 transition-all shadow-lg active:scale-95"
-                >
-                  <Sparkles size={11} />
-                  Tạo dự án với AI
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {isCollapsed && (
-            <button
-              onClick={openAIModal}
-              title="Tạo dự án với AI"
-              className="mx-auto mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 transition-all"
-            >
-              <Sparkles size={16} />
-            </button>
-          )}
-
           <div
             onClick={handleLogout}
             className={cn(

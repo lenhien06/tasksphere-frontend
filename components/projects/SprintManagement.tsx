@@ -110,11 +110,11 @@ const SprintCard = ({ sprint, isPM, variant, onStart, onEdit, onDelete }: Sprint
     const remaining = Math.max(0, sprint.taskCount - sprint.doneCount)
     const duration = getDurationDays(sprint.startDate, sprint.endDate)
     return (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="truncate text-[22px] font-bold tracking-tight text-slate-900">{sprint.name}</h4>
+                        <h4 className="truncate text-[19px] font-bold tracking-tight text-slate-900">{sprint.name}</h4>
                         <StatusBadge status={variant === "completed" ? "COMPLETED" : sprint.status} />
                     </div>
 
@@ -137,20 +137,20 @@ const SprintCard = ({ sprint, isPM, variant, onStart, onEdit, onDelete }: Sprint
                     <div className="flex items-center gap-2 self-start">
                         <button
                             onClick={() => onStart?.(sprint)}
-                            className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                            className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
                         >
                             <Play size={14} fill="currentColor" />
                             {t('sprint.start')}
                         </button>
                         <button
                             onClick={() => onEdit?.(sprint)}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 hover:text-blue-700"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 hover:text-blue-700"
                         >
                             <Pencil size={16} />
                         </button>
                         <button
                             onClick={() => onDelete?.(sprint)}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-600"
                         >
                             <Trash2 size={16} />
                         </button>
@@ -159,7 +159,7 @@ const SprintCard = ({ sprint, isPM, variant, onStart, onEdit, onDelete }: Sprint
             </div>
 
             {variant === "planned" && (
-                <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 md:grid-cols-4">
+                <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 md:grid-cols-4">
                     <div>
                         <div className="text-xs font-semibold text-slate-400">{t('sprint.total')}</div>
                         <div className="mt-1 text-lg font-bold text-slate-900">{sprint.taskCount}</div>
@@ -614,20 +614,8 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
         <div className="flex h-full flex-col bg-[#F8FAFD]">
             <main className="flex-1 overflow-y-auto custom-scrollbar">
                 <div className="w-full space-y-8 px-4 py-5 md:px-6">
-                    {isPM && (
-                        <div className="flex justify-end">
-                            <button
-                                onClick={() => setShowCreate(true)}
-                                className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-                            >
-                                <Plus className="h-4 w-4" />
-                                {t('sprint.create')}
-                            </button>
-                        </div>
-                    )}
-
                     {activeSprint ? (
-                        <section className="rounded-3xl border-2 border-blue-300 bg-white p-5 shadow-sm">
+                        <section className="rounded-xl border-2 border-blue-300 bg-white p-5 shadow-sm">
                             <div className="flex flex-col gap-5">
                                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                                     <div className="min-w-0">
@@ -637,16 +625,16 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
                                                 {t('sprint.status_ACTIVE')}
                                             </span>
                                         </div>
-                                        <h2 className="truncate text-[34px] font-bold tracking-tight text-slate-950">{activeSprint.name}</h2>
+                                        <h2 className="truncate text-[28px] font-bold tracking-tight text-slate-950">{activeSprint.name}</h2>
                                         {activeSprint.goal && (
-                                            <p className="mt-3 text-lg italic text-slate-600">{activeSprint.goal}</p>
+                                            <p className="mt-3 text-base italic text-slate-600">{activeSprint.goal}</p>
                                         )}
                                     </div>
 
                                     {isPM && (
                                         <button
                                             onClick={() => setShowComplete(true)}
-                                            className="inline-flex h-11 items-center gap-2 self-start rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                                            className="inline-flex h-11 items-center gap-2 self-start rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
                                         >
                                             <CheckCircle size={18} />
                                             {t('sprint.complete')}
@@ -654,7 +642,7 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-2 divide-x divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white md:grid-cols-4">
+                                <div className="grid grid-cols-2 divide-x divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white md:grid-cols-4">
                                     <div className="px-6 py-5 text-center">
                                         <div className="text-sm text-slate-500">{t('sprint.totalTasks')}</div>
                                         <div className="mt-1 text-4xl font-bold text-slate-950">{activeSprint.taskCount}</div>
@@ -693,7 +681,7 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
                             </div>
                         </section>
                     ) : (
-                        <section className="rounded-3xl border border-slate-200 bg-white px-8 py-12 text-center shadow-sm">
+                        <section className="rounded-xl border border-slate-200 bg-white px-8 py-12 text-center shadow-sm">
                             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
                                 <Rocket size={30} />
                             </div>
@@ -702,7 +690,7 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
                             {isPM && plannedSprints.length > 0 && (
                                 <button
                                     onClick={() => setStartingSprint(plannedSprints[0])}
-                                    className="mt-6 inline-flex h-11 items-center rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                                    className="mt-6 inline-flex h-11 items-center rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
                                 >
                                     {t('sprint.start')} {plannedSprints[0].name}
                                 </button>
@@ -711,14 +699,25 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
                     )}
 
                     <section>
-                        <div className="mb-4 flex items-center gap-2 text-slate-900">
-                            <Clock size={18} className="text-slate-500" />
-                            <h3 className="text-3xl font-bold tracking-tight">{t('sprint.status_PLANNED')}</h3>
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-sm font-semibold text-slate-600">{plannedSprints.length}</span>
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-slate-900">
+                            <div className="flex items-center gap-2">
+                                <Clock size={18} className="text-slate-500" />
+                                <h3 className="text-3xl font-bold tracking-tight">{t('sprint.status_PLANNED')}</h3>
+                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-sm font-semibold text-slate-600">{plannedSprints.length}</span>
+                            </div>
+                            {isPM && (
+                                <button
+                                    onClick={() => setShowCreate(true)}
+                                    className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    {t('sprint.create')}
+                                </button>
+                            )}
                         </div>
 
                         {plannedSprints.length === 0 ? (
-                            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-400">
+                            <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-400">
                                 {t('sprint.noPlanned')}
                             </div>
                         ) : (
@@ -742,7 +741,7 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
                         <section className="pb-8">
                             <button
                                 onClick={() => setExpandedCompleted(!expandedCompleted)}
-                                className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 text-left text-base font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                                className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-4 text-left text-base font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
                             >
                                 <span>{t('sprint.viewCompleted', { count: completedSprints.length })}</span>
                                 <ChevronDown size={18} className={cn("transition-transform duration-300", expandedCompleted ? "rotate-180" : "")} />
