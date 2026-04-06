@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import Link from "next/link"
 import {
-    Search,
     Plus,
     Zap,
     ChevronLeft,
@@ -43,9 +42,6 @@ import { useBacklogTasks } from "@/hooks/useBacklogTasks"
 import { useProjectSprints } from "@/hooks/useProjectSprints"
 import type {
     TaskFilterParams,
-    TaskPriority,
-    TaskType,
-    TaskResponse,
 } from "@/app/types/task.schema"
 
 import { cn } from "@/lib/utils"
@@ -56,9 +52,14 @@ import { BacklogTaskRow, SortableBacklogTaskRow } from "./BacklogTaskRow"
 import { AiTaskGenerator } from "@/components/ai/AiTaskGenerator"
 import { AiAssignReview } from "@/components/ai/AiAssignReview"
 import { orderSprintsForBacklogUi } from "./utils"
-
-const PRIORITY_OPTIONS = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as TaskPriority[]
-const TYPE_OPTIONS = ["TASK", "BUG", "FEATURE", "STORY", "EPIC", "SUB_TASK"] as TaskType[]
+import TaskFilterPopover from "@/components/projects/TaskFilterPopover"
+import {
+    DEFAULT_TASK_FILTER_STATE,
+    countActiveTaskFilters,
+    normalizeSavedTaskFilterCriteria,
+    toSavedTaskFilterCriteria,
+    type TaskFilterState,
+} from "@/components/projects/task-filter-utils"
 
 function useDebounce<T>(value: T, delay: number): T {
     const [debouncedValue, setDebouncedValue] = useState<T>(value)
@@ -90,10 +91,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     const [showAiAssign,    setShowAiAssign]     = useState(false)
     const canReorderBacklog = isPM || isMemberOnly
 
-    const [search, setSearch] = useState("")
-    const [filterPriority, setFilterPriority] = useState("")
-    const [filterType, setFilterType] = useState("")
-    const [filterAssignee, setFilterAssignee] = useState("")
+    const [filters, setFilters] = useState<TaskFilterState>(DEFAULT_TASK_FILTER_STATE)
     const [sortBy, setSortBy] = useState("taskPosition,asc")
     const [page, setPage] = useState(0)
 
@@ -105,25 +103,21 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     const [startTargetId, setStartTargetId] = useState<string | null>(null)
     const [completeTargetId, setCompleteTargetId] = useState<string | null>(null)
 
-    const debouncedSearch = useDebounce(search, 300)
+    const debouncedSearch = useDebounce(filters.search, 300)
 
-    useEffect(() => setPage(0), [debouncedSearch, filterPriority, filterType, filterAssignee, sortBy])
+    useEffect(() => setPage(0), [debouncedSearch, filters.assigneeId, filters.priorities, filters.type, sortBy])
 
     const params: TaskFilterParams = useMemo(
         () => ({
             ...(debouncedSearch && { q: debouncedSearch }),
-            ...(filterPriority && { priority: filterPriority as TaskPriority }),
-            ...(filterType && { type: filterType as TaskType }),
-            ...(filterAssignee === "me"
-                ? { assigneeId: "me" }
-                : filterAssignee && filterAssignee !== "unassigned"
-                  ? { assigneeId: filterAssignee }
-                  : {}),
+            ...(filters.priorities.length > 0 && { priority: filters.priorities }),
+            ...(filters.type && { type: filters.type }),
+            ...(filters.assigneeId && { assigneeId: filters.assigneeId }),
             sort: sortBy,
             page,
             size: 20,
         }),
-        [debouncedSearch, filterPriority, filterType, filterAssignee, sortBy, page],
+        [debouncedSearch, filters.assigneeId, filters.priorities, filters.type, sortBy, page],
     )
 
     const backlogQuery = useBacklogTasks(projectId, params)
@@ -162,6 +156,12 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
         enabled: !!projectId,
     })
 
+    const { data: savedFilters = [] } = useQuery({
+        queryKey: ["saved-filters", projectId],
+        queryFn: () => TaskService.getSavedFilters(projectId),
+        enabled: !!projectId,
+    })
+
     const { data: projectDetail } = useQuery({
         queryKey: ["project-detail", projectId],
         queryFn: () => ProjectService.getById(projectId),
@@ -174,14 +174,54 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     const totalStoryPoints = tasks.reduce((sum, x) => sum + (x.storyPoints ?? 0), 0)
     const from = page * (params.size || 20) + (tasks.length ? 1 : 0)
     const to = Math.min((page + 1) * (params.size || 20), totalElements)
-    const hasActiveFilters = !!(debouncedSearch || filterPriority || filterType || filterAssignee)
+    const hasActiveFilters = countActiveTaskFilters(filters, {
+        includeSmartFilter: false,
+        includeSprintFilter: false,
+        includeTypeFilter: true,
+    }) > 0
 
     const resetFilters = () => {
-        setSearch("")
-        setFilterPriority("")
-        setFilterType("")
-        setFilterAssignee("")
+        setFilters(DEFAULT_TASK_FILTER_STATE)
         setSortBy("taskPosition,asc")
+    }
+
+    const applySavedFilter = (filterId: string) => {
+        const found = savedFilters.find((item) => item.id === filterId)
+        if (!found) return
+
+        const normalized = normalizeSavedTaskFilterCriteria((found.filterCriteria ?? {}) as Record<string, unknown>)
+        setFilters({
+            ...DEFAULT_TASK_FILTER_STATE,
+            search: normalized.search,
+            assigneeId: normalized.smartFilter === "my_tasks" ? "me" : normalized.assigneeId,
+            priorities: normalized.priorities,
+            type: normalized.type,
+        })
+        toast.success(t("filter.applied", { name: found.name }))
+    }
+
+    const saveCurrentFilter = async (name: string) => {
+        try {
+            await TaskService.createSavedFilter(projectId, {
+                name,
+                filterCriteria: toSavedTaskFilterCriteria(filters) as any,
+            } as any)
+            toast.success(t("filter.saved"))
+            queryClient.invalidateQueries({ queryKey: ["saved-filters", projectId] })
+        } catch (err: any) {
+            if (err?.response?.status === 422) toast.error(t("filter.maxFilters"))
+            else toast.error(t("filter.saveError"))
+        }
+    }
+
+    const deleteSavedFilter = async (filterId: string) => {
+        try {
+            await TaskService.deleteSavedFilter(filterId)
+            toast.success(t("filter.deleted"))
+            queryClient.invalidateQueries({ queryKey: ["saved-filters", projectId] })
+        } catch {
+            toast.error(t("filter.deleteError"))
+        }
     }
 
     const handleSelect = (id: string) => {
@@ -429,56 +469,37 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                 </div>
 
                 <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-gray-50 px-4 py-3">
-                    <div className="relative min-w-[200px] max-w-xs flex-1">
-                        <Search
-                            size={14}
-                            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        />
-                        <input
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            placeholder={t("backlog.searchPlaceholder")}
-                            className="h-10 w-full rounded-xl border border-gray-200 bg-[#F5F5F5] pl-9 pr-3 text-sm outline-none focus:border-blue-400"
-                        />
-                    </div>
-                    <select
-                        value={filterPriority}
-                        onChange={e => setFilterPriority(e.target.value)}
-                        className="h-10 rounded-xl border border-gray-200 bg-[#F5F5F5] px-3 text-sm text-gray-600"
-                    >
-                        <option value="">{t("backlog.allPriorities")}</option>
-                        {PRIORITY_OPTIONS.map(k => (
-                            <option key={k} value={k}>
-                                {t(`project.priority_${k}`, { defaultValue: k })}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        value={filterType}
-                        onChange={e => setFilterType(e.target.value)}
-                        className="h-10 rounded-xl border border-gray-200 bg-[#F5F5F5] px-3 text-sm text-gray-600"
-                    >
-                        <option value="">{t("backlog.allTypes")}</option>
-                        {TYPE_OPTIONS.map(k => (
-                            <option key={k} value={k}>
-                                {t(`project.type_${k}`, { defaultValue: k })}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        value={filterAssignee}
-                        onChange={e => setFilterAssignee(e.target.value)}
-                        className="h-10 rounded-xl border border-gray-200 bg-[#F5F5F5] px-3 text-sm text-gray-600"
-                    >
-                        <option value="">{t("backlog.allAssignees")}</option>
-                        <option value="me">{t("backlog.me")}</option>
-                        <option value="unassigned">{t("task.unassigned")}</option>
-                        {projectMembers.map((m: any) => (
-                            <option key={m.user.id} value={m.user.id}>
-                                {m.user.fullName}
-                            </option>
-                        ))}
-                    </select>
+                    <TaskFilterPopover
+                        value={filters}
+                        onChange={setFilters}
+                        assignees={[
+                            { id: "me", name: t("backlog.me", { defaultValue: "Tôi" }) },
+                            ...projectMembers.map((m: any) => ({
+                                id: m.user.id,
+                                name: m.user.fullName,
+                                avatarUrl: m.user.avatarUrl,
+                            })),
+                        ]}
+                        savedFilters={savedFilters.map((item) => ({
+                            id: item.id,
+                            name: item.name,
+                            filterCriteria: item.filterCriteria,
+                        }))}
+                        onApplySavedFilter={applySavedFilter}
+                        onSaveCurrentFilter={saveCurrentFilter}
+                        onDeleteSavedFilter={deleteSavedFilter}
+                        showTypeFilter
+                        align="start"
+                    />
+                    {hasActiveFilters && (
+                        <button
+                            type="button"
+                            onClick={resetFilters}
+                            className="flex h-10 items-center gap-1 rounded-xl px-3 text-sm text-gray-500 transition-colors hover:text-red-600"
+                        >
+                            {t("project.clearFilters")}
+                        </button>
+                    )}
                     <select
                         value={sortBy}
                         onChange={e => setSortBy(e.target.value)}
@@ -490,15 +511,6 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                         <option value="dueDate,asc">{t("backlog.sortNearestDue")}</option>
                         <option value="storyPoints,desc">{t("backlog.sortHighestPoints")}</option>
                     </select>
-                    {hasActiveFilters && (
-                        <button
-                            type="button"
-                            onClick={resetFilters}
-                            className="flex h-10 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-4 text-sm text-gray-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                        >
-                            <X size={14} /> {t("project.clearFilters")}
-                        </button>
-                    )}
                 </div>
 
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 sm:px-4">

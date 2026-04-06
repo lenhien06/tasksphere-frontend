@@ -566,13 +566,19 @@
     "savedFilters": "Saved filters",
     "noSavedFilters": "No saved filters yet",
     "noActiveFilters": "No active filters",
+    "smartFilters": "Smart filters",
+    "searchTasks": "Search by task name, task code...",
+    "allTasks": "All tasks",
     "nameFilter": "Name this filter...",
+    "saveCurrent": "Save current filter",
     "saveFilter": "Save filter",
     "deleted": "Filter deleted",
     "deleteError": "Error deleting filter",
     "saveError": "Error saving filter",
     "maxFilters": "Maximum 10 filters per project",
-    "applied": "Applied: \"{{name}}\""
+    "applied": "Applied: \"{{name}}\"",
+    "activeCount_one": "{{count}} active filter",
+    "activeCount_other": "{{count}} active filters"
   },
 
   "backlog": {

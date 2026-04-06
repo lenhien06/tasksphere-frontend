@@ -566,13 +566,19 @@
     "savedFilters": "Bộ lọc đã lưu",
     "noSavedFilters": "Chưa có bộ lọc nào được lưu",
     "noActiveFilters": "Không có bộ lọc nào đang hoạt động",
+    "smartFilters": "Bộ lọc thông minh",
+    "searchTasks": "Tìm theo tên task, mã task...",
+    "allTasks": "Tất cả task",
     "nameFilter": "Đặt tên cho bộ lọc này...",
+    "saveCurrent": "Lưu bộ lọc hiện tại",
     "saveFilter": "Lưu bộ lọc",
     "deleted": "Bộ lọc đã xóa",
     "deleteError": "Lỗi xóa bộ lọc",
     "saveError": "Lỗi lưu bộ lọc",
     "maxFilters": "Tối đa 10 bộ lọc cho mỗi dự án",
-    "applied": "Đã áp dụng: \"{{name}}\""
+    "applied": "Đã áp dụng: \"{{name}}\"",
+    "activeCount_one": "{{count}} bộ lọc đang bật",
+    "activeCount_other": "{{count}} bộ lọc đang bật"
   },
 
   "backlog": {

@@ -125,7 +125,7 @@ export interface UpdateTaskRequest {
     title?: string
     description?: string | null
     type?: TaskType
-    priority?: TaskPriority
+    priority?: TaskPriority | TaskPriority[]
     assigneeId?: string | null          // null = unassign
     dueDate?: string | null
     storyPoints?: number | null         // 1–100; null = keep
@@ -149,7 +149,7 @@ export interface TaskFilterParams {
     status?: TaskStatus
     assigneeId?: string                 // UUID or "me"
     sprintId?: string                   // UUID (not "backlog" — use /backlog endpoint)
-    priority?: TaskPriority
+    priority?: TaskPriority | TaskPriority[]
     type?: TaskType
     overdue?: boolean                   // dueDate < today, not DONE/CANCELLED
     dueSoon?: boolean                   // dueDate within 7 days, not DONE/CANCELLED

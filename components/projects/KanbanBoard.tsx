@@ -23,6 +23,11 @@ import KanbanBoardUI, {
   type TaskCardData,
 } from "@/components/kanban/KanbanBoard";
 import type { ToolbarFilterState } from "@/components/kanban/KanbanToolbar";
+import {
+  DEFAULT_TASK_FILTER_STATE,
+  normalizeSavedTaskFilterCriteria,
+  toSavedTaskFilterCriteria,
+} from "@/components/projects/task-filter-utils";
 import CalendarView from "./CalendarView";
 import TaskDetailPanel, { type Member } from "./TaskDetailPanel";
 import {
@@ -60,15 +65,6 @@ interface MoveTaskPayload {
   newPosition: number;
   oldPosition: number;
 }
-
-const defaultFilters: ToolbarFilterState = {
-  search: "",
-  onlyMe: false,
-  unassigned: false,
-  priorities: [],
-  sprint: null,
-  smartFilter: "none",
-};
 
 const mapType = (type: string): TaskCardData["type"] => {
   const raw = type.toLowerCase();
@@ -184,7 +180,7 @@ export default function KanbanBoard({
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createDefaults, setCreateDefaults] = useState<{ columnId?: string; title?: string; parentTask?: ParentTask }>({});
-  const [filters, setFilters] = useState<ToolbarFilterState>(defaultFilters);
+  const [filters, setFilters] = useState<ToolbarFilterState>(DEFAULT_TASK_FILTER_STATE);
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
   useEffect(() => {
@@ -206,24 +202,28 @@ export default function KanbanBoard({
     enabled: !!projectId,
   });
 
+  const isBacklogOnly = filters.sprintScope === "backlog";
+
   const effectiveTaskParams = useMemo(() => {
     const params: Record<string, unknown> = { page: 0, size: 200 };
     if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
-    if (filters.unassigned) params.assigneeId = "unassigned";
-    else if (filters.onlyMe) params.assigneeId = "me";
+    if (filters.assigneeId) params.assigneeId = filters.assigneeId;
     if (filters.priorities.length > 0) {
-      params.priority = filters.priorities.map((p) => p.toUpperCase()).join(",");
+      params.priority = filters.priorities;
     }
-    if (filters.sprint) params.sprintId = filters.sprint;
+    if (filters.sprintScope === "sprint" && filters.sprintId) params.sprintId = filters.sprintId;
     if (filters.smartFilter === "in_progress") params.status = "IN_PROGRESS";
     if (filters.smartFilter === "overdue") params.overdue = true;
     if (filters.smartFilter === "my_tasks") params.assigneeId = "me";
     return params;
-  }, [debouncedSearch, filters, currentUserId]);
+  }, [debouncedSearch, filters]);
 
   const { data: tasksData, isLoading: tasksLoading, isFetching: tasksFetching } = useQuery({
-    queryKey: ["tasks", projectId, effectiveTaskParams],
-    queryFn: () => TaskService.getTasks(projectId, effectiveTaskParams as any),
+    queryKey: [isBacklogOnly ? "backlog-board-tasks" : "tasks", projectId, effectiveTaskParams],
+    queryFn: () =>
+      isBacklogOnly
+        ? TaskService.getBacklog(projectId, effectiveTaskParams as any)
+        : TaskService.getTasks(projectId, effectiveTaskParams as any),
     enabled: !!projectId,
     staleTime: 30_000,
   });
@@ -297,10 +297,9 @@ export default function KanbanBoard({
     () =>
       Boolean(
         filters.search ||
-          filters.onlyMe ||
-          filters.unassigned ||
+          filters.assigneeId ||
           filters.priorities.length ||
-          filters.sprint ||
+          filters.sprintScope !== "all" ||
           filters.smartFilter !== "none"
       ),
     [filters]
@@ -319,33 +318,14 @@ export default function KanbanBoard({
   const applySavedFilter = (filterId: string) => {
     const found = savedFilters.find((f) => f.id === filterId);
     if (!found) return;
-    const criteria = (found.filterCriteria ?? {}) as Record<string, unknown>;
-    setFilters((prev) => ({
-      ...prev,
-      search: String(criteria.q ?? ""),
-      onlyMe: Boolean(criteria.onlyMe ?? false),
-      unassigned: Boolean(criteria.unassigned ?? false),
-      priorities: Array.isArray(criteria.priorities)
-        ? (criteria.priorities as string[]).map((p) => p.toLowerCase() as any)
-        : [],
-      sprint: typeof criteria.sprintId === "string" ? criteria.sprintId : null,
-      smartFilter: (criteria.smartFilter as ToolbarFilterState["smartFilter"]) ?? "none",
-    }));
+    setFilters(normalizeSavedTaskFilterCriteria((found.filterCriteria ?? {}) as Record<string, unknown>));
   };
 
-  const saveCurrentFilter = async (name: string, scope: "PERSONAL" | "PROJECT") => {
+  const saveCurrentFilter = async (name: string) => {
     try {
       await TaskService.createSavedFilter(projectId, {
         name,
-        filterCriteria: {
-          q: filters.search,
-          onlyMe: filters.onlyMe,
-          unassigned: filters.unassigned,
-          priorities: filters.priorities,
-          sprintId: filters.sprint,
-          smartFilter: filters.smartFilter,
-        } as any,
-        ...(scope ? ({ scope } as any) : {}),
+        filterCriteria: toSavedTaskFilterCriteria(filters) as any,
       } as any);
       toast.success(t("filter.saved", { defaultValue: "Đã lưu bộ lọc" }));
       queryClient.invalidateQueries({ queryKey: ["saved-filters", projectId] });
@@ -390,6 +370,7 @@ export default function KanbanBoard({
     mutationFn: (taskId: string) => TaskService.deleteTask(projectId, taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
       toast.success("Đã xóa task");
     },
     onError: (err: any) => {
@@ -421,7 +402,7 @@ export default function KanbanBoard({
       }
     },
     onMutate: async (payload) => {
-      const key = ["tasks", projectId, effectiveTaskParams];
+      const key = [isBacklogOnly ? "backlog-board-tasks" : "tasks", projectId, effectiveTaskParams];
       await queryClient.cancelQueries({ queryKey: key });
       const snapshot = queryClient.getQueryData(key);
       const targetColumn = columns.find((c) => c.id === payload.targetColumnId);
@@ -444,6 +425,7 @@ export default function KanbanBoard({
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
     },
   });
 
@@ -498,6 +480,7 @@ export default function KanbanBoard({
           filterValue={filters}
           onFilterChange={setFilters}
           sprints={sprintOptions}
+          members={members}
           savedFilters={savedFilters.map((f) => ({ id: f.id, name: f.name, filterCriteria: f.filterCriteria }))}
           onApplySavedFilter={applySavedFilter}
           onSaveCurrentFilter={saveCurrentFilter}

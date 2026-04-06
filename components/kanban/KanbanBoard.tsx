@@ -22,6 +22,8 @@ import TaskCard, { type KanbanTaskCard } from "./TaskCard";
 import { canTransitionTo } from "@/app/utils/taskTransition";
 import { TaskStatus } from "@/app/types/task.schema";
 import { AddColumnModal } from "./AddColumnModal";
+import { DEFAULT_TASK_FILTER_STATE } from "@/components/projects/task-filter-utils";
+import type { FilterAssigneeOption } from "@/components/projects/TaskFilterPopover";
 
 export interface Column {
   id: string;
@@ -56,22 +58,14 @@ export interface KanbanBoardProps {
   filterValue: ToolbarFilterState;
   onFilterChange: (next: ToolbarFilterState) => void;
   sprints?: Array<{ id: string; name: string; isActive?: boolean }>;
+  members?: FilterAssigneeOption[];
   savedFilters?: Array<{ id: string; name: string; filterCriteria?: Record<string, unknown> }>;
   onApplySavedFilter?: (filterId: string) => void;
-  onSaveCurrentFilter?: (name: string, scope: "PERSONAL" | "PROJECT") => Promise<void> | void;
+  onSaveCurrentFilter?: (name: string) => Promise<void> | void;
   onDeleteSavedFilter?: (filterId: string) => Promise<void> | void;
   isFetching?: boolean;
   onDeleteTask?: (taskId: string) => void;
 }
-
-const defaultFilters: ToolbarFilterState = {
-  search: "",
-  onlyMe: false,
-  unassigned: false,
-  priorities: [],
-  sprint: null,
-  smartFilter: "none",
-};
 
 const DEFAULT_COLUMNS_FALLBACK: Column[] = [
   { id: "todo", name: "TO DO", colorHex: "#8C8C8C", category: "START", status: "TODO", position: 0, taskCount: 0, isDefault: true },
@@ -94,6 +88,7 @@ export default function KanbanBoard({
   filterValue,
   onFilterChange,
   sprints = [],
+  members = [],
   savedFilters = [],
   onApplySavedFilter,
   onSaveCurrentFilter,
@@ -143,7 +138,11 @@ export default function KanbanBoard({
   }, [localTasks, sortedColumns]);
 
   const hasFilter = Boolean(
-    filterValue.search || filterValue.onlyMe || filterValue.unassigned || filterValue.priorities.length || filterValue.smartFilter !== "none" || filterValue.sprint
+    filterValue.search ||
+      filterValue.assigneeId ||
+      filterValue.priorities.length ||
+      filterValue.smartFilter !== "none" ||
+      filterValue.sprintScope !== "all"
   );
   const hasAnyMatched = localTasks.length > 0;
 
@@ -276,11 +275,11 @@ export default function KanbanBoard({
         isBoardView={view === "board"}
         onToggleView={(next) => onViewChange?.(next)}
         sprints={sprints}
+        members={members}
         savedFilters={savedFilters}
         onApplySavedFilter={onApplySavedFilter}
         onSaveCurrentFilter={onSaveCurrentFilter}
         onDeleteSavedFilter={onDeleteSavedFilter}
-        hasActiveFilter={hasFilter}
         userRole={userRole}
         isFetching={isFetching}
       />
@@ -292,7 +291,7 @@ export default function KanbanBoard({
               <Search className="mx-auto mb-2 h-6 w-6 text-gray-400" />
               <div className="text-sm">{t("kanban.noTaskAfterFilter", { defaultValue: "Không tìm thấy task nào" })}</div>
               <div className="mt-1 text-xs text-gray-400">{t("kanban.tryChangeFilter", { defaultValue: "Thử thay đổi bộ lọc" })}</div>
-              <button className="mt-2 text-xs text-blue-600 hover:text-blue-700" onClick={() => onFilterChange(defaultFilters)}>
+              <button className="mt-2 text-xs text-blue-600 hover:text-blue-700" onClick={() => onFilterChange(DEFAULT_TASK_FILTER_STATE)}>
                 {t("kanban.clearFilters", { defaultValue: "Xoá bộ lọc" })}
               </button>
             </div>
@@ -327,7 +326,7 @@ export default function KanbanBoard({
                       hasMatchedTasks={allTasks.length > 0}
                       onAddTask={onCreateTask}
                       onTaskClick={onCardClick}
-                      onClearFilters={() => onFilterChange(defaultFilters)}
+                      onClearFilters={() => onFilterChange(DEFAULT_TASK_FILTER_STATE)}
                     />
                   </div>
                 );
