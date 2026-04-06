@@ -19,9 +19,12 @@ export function useAddChecklistItem(projectId: string, taskId: string) {
     return useMutation({
         mutationFn: (title: string) => TaskDetailService.addChecklistItem(taskId, title),
         onSuccess: (newItem) => {
+            // Be defensive: some BE versions may return partial payloads.
+            const normalized = { ...newItem, isDone: !!(newItem as any)?.isDone } as ChecklistItemResponse
             qc.setQueryData(["checklist", taskId], (old: { total: number; completed: number; items: ChecklistItemResponse[] } | undefined) => {
-                if (!old) return { total: 1, completed: 0, items: [newItem] }
-                return { ...old, total: old.total + 1, items: [...old.items, newItem] }
+                if (!old) return { total: 1, completed: normalized.isDone ? 1 : 0, items: [normalized] }
+                const completed = old.completed + (normalized.isDone ? 1 : 0)
+                return { ...old, total: old.total + 1, completed, items: [...old.items, normalized] }
             })
             qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
         },
@@ -57,13 +60,17 @@ export function useUpdateChecklistItem(projectId: string, taskId: string) {
             return { prev }
         },
         onSuccess: (updatedItem) => {
-            // Update the specific item in cache with the real data from server
+            // Merge instead of replace to avoid dropping fields if BE returns partial payload.
+            if (!updatedItem) {
+                qc.invalidateQueries({ queryKey: ["task", projectId, taskId] })
+                return
+            }
             qc.setQueryData(["checklist", taskId], (old: any) => {
                 if (!old) return old
                 const updated = old.items.map((i: ChecklistItemResponse) =>
-                    i.id === updatedItem.id ? updatedItem : i
+                    i.id === updatedItem.id ? ({ ...i, ...updatedItem } as ChecklistItemResponse) : i
                 )
-                const completed = updated.filter((i: ChecklistItemResponse) => i.isDone).length
+                const completed = updated.filter((i: ChecklistItemResponse) => !!i.isDone).length
                 return { ...old, completed, items: updated }
             })
             // Also invalidate task detail to keep total counts/badges in sync, 

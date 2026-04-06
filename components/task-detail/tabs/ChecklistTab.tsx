@@ -5,6 +5,7 @@ import { Plus, Trash2, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import type { CheckedState } from "@radix-ui/react-checkbox"
 import {
     useChecklists,
     useAddChecklistItem,
@@ -62,12 +63,12 @@ function SortableChecklistItem({
         opacity: isDragging ? 0.5 : 1,
     }
 
-    const handleToggle = () => {
-        const newValue = !localDone
-        setLocalDone(newValue)
+    const handleToggle = (checked: CheckedState) => {
+        const next = checked === true
+        setLocalDone(next)
         updateItem.mutate(
-            { itemId: item.id, data: { isDone: newValue } },
-            { onError: () => setLocalDone(!newValue) }
+            { itemId: item.id, data: { isDone: next } },
+            { onError: () => setLocalDone(item.isDone) }
         )
     }
 

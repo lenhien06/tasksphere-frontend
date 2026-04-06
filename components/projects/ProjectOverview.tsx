@@ -159,6 +159,54 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     }));
   })();
 
+  const burndownSeries = (burndownData?.data ?? []).map((item) => ({
+    day: item.day,
+    ideal: item.ideal,
+    actual: item.actual,
+    date: item.date,
+  }));
+
+  const hasBurndownActual = burndownSeries.some((item) => item.actual != null);
+  const fallbackBurndownSeries =
+    !hasBurndownActual && activeSprint && activeSprintTotalStoryPoints > 0 && burndownSeries.length > 0
+      ? (() => {
+          const sprintStart = new Date(activeSprint.startDate);
+          const sprintEnd = new Date(activeSprint.endDate);
+          const today = new Date();
+          today.setHours(23, 59, 59, 999);
+
+          const referenceEnd = today < sprintEnd ? today : sprintEnd;
+          const totalElapsedDays = Math.max(
+            1,
+            Math.ceil((referenceEnd.getTime() - sprintStart.getTime()) / (1000 * 60 * 60 * 24))
+          );
+          const completedPoints = Math.max(0, activeSprintCompletedStoryPoints);
+          const totalRemainingNow = Math.max(activeSprintTotalStoryPoints - completedPoints, 0);
+
+          return burndownSeries.map((point) => {
+            const pointDate = new Date(point.date);
+            if (Number.isNaN(pointDate.getTime()) || pointDate > referenceEnd) {
+              return { ...point, actual: null };
+            }
+
+            const elapsedDays = Math.max(
+              0,
+              Math.ceil((pointDate.getTime() - sprintStart.getTime()) / (1000 * 60 * 60 * 24))
+            );
+            const progressRatio = Math.min(elapsedDays / totalElapsedDays, 1);
+            const syntheticRemaining = Math.max(
+              activeSprintTotalStoryPoints - (activeSprintTotalStoryPoints - totalRemainingNow) * progressRatio,
+              0
+            );
+
+            return {
+              ...point,
+              actual: Math.round(syntheticRemaining * 10) / 10,
+            };
+          });
+        })()
+      : burndownSeries;
+
   const props: ProjectOverviewPageProps = {
     project: {
       id: projectData.data.id,
@@ -210,12 +258,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
               : Number(activeSprint.completionRate ?? 0),
         }
       : null,
-    burndown: (burndownData?.data ?? []).map((item) => ({
-      day: item.day,
-      ideal: item.ideal,
-      actual: item.actual,
-      date: item.date,
-    })),
+    burndown: fallbackBurndownSeries,
     burndownIsLoading: isBurndownLoading,
     velocity,
     averageVelocity: velocityData?.averageVelocity ?? 0,
