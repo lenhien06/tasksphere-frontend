@@ -1,34 +1,51 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, AlertCircle } from "lucide-react";
+import { AlertCircle, GitBranch, Loader2, Rows3 } from "lucide-react";
+import { differenceInDays, startOfDay } from "date-fns";
+
 import { TaskService } from "@/app/services/TaskService";
-import { TimelineResponse } from "@/app/types/task.schema";
-import { buildTaskTree, flattenTree, getTimelineInterval, ZoomLevel, TimelineRow } from "./utils";
-import TimelineToolbar, { TimelineFilterState } from "./TimelineToolbar";
-import TimelineTaskTable from "./TimelineTaskTable";
-import TimelineGanttChart from "./TimelineGanttChart";
-import { startOfDay, differenceInDays } from "date-fns";
+import { TimelineResponse, TimelineTask } from "@/app/types/task.schema";
 import { useAuthStore } from "@/stores/useAuthStore";
+import TimelineGanttChart from "./TimelineGanttChart";
+import TimelineTaskTable from "./TimelineTaskTable";
+import TimelineToolbar, { TimelineFilterState } from "./TimelineToolbar";
+import { buildTaskTree, flattenTree, getTimelineInterval, TimelineRow, ZoomLevel } from "./utils";
 
 interface TimelineViewProps {
     projectId: string;
     onTaskClick: (taskId: string) => void;
 }
 
-const ROW_HEIGHT = 56;
+const ROW_HEIGHT = 60;
+
+function collectNodeIds(nodes: TimelineRow[]) {
+    const ids = new Set<string>();
+    const visit = (items: TimelineRow[]) => {
+        items.forEach((item) => {
+            ids.add(item.id);
+            if (item.children.length > 0) visit(item.children);
+        });
+    };
+    visit(nodes);
+    return ids;
+}
 
 export default function TimelineView({ projectId, onTaskClick }: TimelineViewProps) {
-    const [zoom, setZoom] = useState<ZoomLevel>('week');
+    const [zoom, setZoom] = useState<ZoomLevel>("week");
+    const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [filters, setFilters] = useState<TimelineFilterState>({
         search: "",
         assigneeId: null,
         status: [],
         priority: [],
         onlyMe: false,
-        showDependencies: true
+        showDependencies: true,
     });
+
+    const currentUserId = useAuthStore((state) => state.user?.id);
 
     const { data: timelineData, isLoading, error } = useQuery<TimelineResponse>({
         queryKey: ["project-timeline", projectId],
@@ -36,76 +53,80 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
         enabled: !!projectId,
     });
 
-    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-    const currentUserId = useAuthStore(s => s.user?.id);
-
-    // Filter tasks client-side
     const filteredTasks = useMemo(() => {
         if (!timelineData) return [];
-        return timelineData.tasks.filter(task => {
-            const matchesSearch = task.title.toLowerCase().includes(filters.search.toLowerCase()) || 
-                                 task.taskCode.toLowerCase().includes(filters.search.toLowerCase());
+
+        const normalizedSearch = filters.search.trim().toLowerCase();
+        const taskMap = new Map(timelineData.tasks.map((task) => [task.id, task]));
+
+        const matchesTask = (task: TimelineTask) => {
+            const matchesSearch = !normalizedSearch
+                || task.title.toLowerCase().includes(normalizedSearch)
+                || task.taskCode.toLowerCase().includes(normalizedSearch);
             const matchesAssignee = !filters.assigneeId || task.assignee?.id === filters.assigneeId;
             const matchesOnlyMe = !filters.onlyMe || task.assignee?.id === String(currentUserId);
-            
-            return matchesSearch && matchesAssignee && matchesOnlyMe;
+            const matchesStatus = filters.status.length === 0 || filters.status.includes(task.status);
+            const matchesPriority = filters.priority.length === 0 || filters.priority.includes(task.priority);
+
+            return matchesSearch && matchesAssignee && matchesOnlyMe && matchesStatus && matchesPriority;
+        };
+
+        const includedIds = new Set<string>();
+        timelineData.tasks.forEach((task) => {
+            if (!matchesTask(task)) return;
+            let current: TimelineTask | undefined = task;
+            while (current) {
+                includedIds.add(current.id);
+                current = current.parentTaskId ? taskMap.get(current.parentTaskId) : undefined;
+            }
         });
+
+        return timelineData.tasks.filter((task) => includedIds.has(task.id));
     }, [timelineData, filters, currentUserId]);
 
     const tree = useMemo(() => buildTaskTree(filteredTasks), [filteredTasks]);
 
-    // Apply expansion state
+    useEffect(() => {
+        if (tree.length === 0) {
+            setExpandedIds(new Set());
+            return;
+        }
+
+        setExpandedIds((prev) => {
+            const next = new Set(prev);
+            collectNodeIds(tree).forEach((id) => next.add(id));
+            return next;
+        });
+    }, [tree]);
+
     const processedTree = useMemo(() => {
-        const applyExpansion = (nodes: TimelineRow[]): TimelineRow[] => {
-            return nodes.map(node => ({
+        const mapExpansion = (nodes: TimelineRow[]): TimelineRow[] =>
+            nodes.map((node) => ({
                 ...node,
                 expanded: expandedIds.has(node.id),
-                children: applyExpansion(node.children)
+                children: mapExpansion(node.children),
             }));
-        };
-        // Initial state: all expanded if expandedIds is empty and we just loaded
-        if (expandedIds.size === 0 && tree.length > 0) {
-            const allIds = new Set<string>();
-            const collect = (nodes: TimelineRow[]) => {
-                nodes.forEach(n => {
-                    allIds.add(n.id);
-                    collect(n.children);
-                });
-            };
-            collect(tree);
-            setExpandedIds(allIds);
-            return tree.map(n => ({ ...n, expanded: true }));
-        }
-        return applyExpansion(tree);
+
+        return mapExpansion(tree);
     }, [tree, expandedIds]);
 
     const flattenedRows = useMemo(() => flattenTree(processedTree), [processedTree]);
 
-    useEffect(() => {
-        if (process.env.NODE_ENV !== "production") {
-            console.debug("[timeline] visible task durations", flattenedRows.map((row) => ({
-                id: row.id,
-                taskCode: row.taskCode,
-                start: row.startDateObj.toISOString(),
-                end: row.endDateObj.toISOString(),
-                durationDays: row.durationDays,
-            })));
-            console.debug("[timeline] dependency pairs", (timelineData?.dependencies || []).map((dep) => ({
-                linkId: dep.linkId,
-                from: dep.blockerTaskId,
-                to: dep.blockedTaskId,
-                type: dep.linkType,
-            })));
-        }
-    }, [flattenedRows, timelineData]);
+    const visibleTaskIds = useMemo(() => new Set(flattenedRows.map((row) => row.id)), [flattenedRows]);
+    const visibleDependencies = useMemo(
+        () => (timelineData?.dependencies ?? []).filter(
+            (dependency) => visibleTaskIds.has(dependency.blockerTaskId) && visibleTaskIds.has(dependency.blockedTaskId)
+        ),
+        [timelineData?.dependencies, visibleTaskIds]
+    );
 
-    const { start: timelineStart, end: timelineEnd } = useMemo(() => 
-        getTimelineInterval(timelineData?.tasks || [], zoom), 
-    [timelineData, zoom]);
+    const { start: timelineStart, end: timelineEnd } = useMemo(
+        () => getTimelineInterval(filteredTasks, zoom),
+        [filteredTasks, zoom]
+    );
 
     const handleToggleExpand = (taskId: string) => {
-        setExpandedIds(prev => {
+        setExpandedIds((prev) => {
             const next = new Set(prev);
             if (next.has(taskId)) next.delete(taskId);
             else next.add(taskId);
@@ -116,58 +137,83 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
     const leftRef = useRef<HTMLDivElement>(null);
     const rightRef = useRef<HTMLDivElement>(null);
 
-    const handleToday = () => {
-        const right = rightRef.current;
-        if (!right || !timelineData) return;
-
-        const today = new Date();
-        const days = differenceInDays(startOfDay(today), startOfDay(timelineStart));
-        
-        const columnWidth = zoom === 'day' ? 40 : zoom === 'week' ? 120 : 300;
-        const pixelsPerDay = zoom === 'day' ? columnWidth : columnWidth / (zoom === 'week' ? 7 : 30);
-        
-        const scrollX = days * pixelsPerDay - right.clientWidth / 2;
-
-        right.scrollTo({ left: Math.max(0, scrollX), behavior: 'smooth' });
-    };
-
-    // Sync vertical scroll
     useEffect(() => {
         const left = leftRef.current;
         const right = rightRef.current;
         if (!left || !right) return;
 
-        const handleLeftScroll = () => {
+        const syncLeft = () => {
             right.scrollTop = left.scrollTop;
         };
-        const handleRightScroll = () => {
+
+        const syncRight = () => {
             left.scrollTop = right.scrollTop;
         };
 
-        left.addEventListener('scroll', handleLeftScroll, { passive: true });
-        right.addEventListener('scroll', handleRightScroll, { passive: true });
+        left.addEventListener("scroll", syncLeft, { passive: true });
+        right.addEventListener("scroll", syncRight, { passive: true });
+
         return () => {
-            left.removeEventListener('scroll', handleLeftScroll);
-            right.removeEventListener('scroll', handleRightScroll);
+            left.removeEventListener("scroll", syncLeft);
+            right.removeEventListener("scroll", syncRight);
         };
     }, []);
 
-    if (isLoading) return (
-        <div className="h-[600px] flex flex-col items-center justify-center gap-4 bg-white rounded-2xl border border-slate-200">
-            <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-            <p className="text-slate-400 font-bold animate-pulse uppercase tracking-widest text-xs">Loading Timeline...</p>
-        </div>
-    );
+    const handleToday = () => {
+        const right = rightRef.current;
+        if (!right) return;
 
-    if (error) return (
-        <div className="h-[600px] flex flex-col items-center justify-center gap-4 bg-white rounded-2xl border border-slate-200 text-red-500">
-            <AlertCircle size={40} />
-            <p className="font-bold">Failed to load timeline data</p>
-        </div>
-    );
+        const daysFromStart = differenceInDays(startOfDay(new Date()), startOfDay(timelineStart));
+        const dayWidth = zoom === "day" ? 56 : zoom === "week" ? 42 : 24;
+        const targetScrollLeft = daysFromStart * dayWidth - right.clientWidth / 2;
+
+        right.scrollTo({ left: Math.max(0, targetScrollLeft), behavior: "smooth" });
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex h-[680px] items-center justify-center rounded-[28px] border border-slate-200 bg-white">
+                <div className="flex flex-col items-center gap-4 text-slate-500">
+                    <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+                    <span className="text-sm font-semibold">Loading timeline...</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex h-[680px] items-center justify-center rounded-[28px] border border-slate-200 bg-white">
+                <div className="flex flex-col items-center gap-3 text-center text-red-500">
+                    <AlertCircle size={40} />
+                    <p className="text-base font-semibold text-slate-900">Failed to load timeline</p>
+                    <p className="text-sm text-slate-500">Please refresh and try again.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-200px)] min-h-[600px] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_70px_-35px_rgba(15,23,42,0.35)]">
+            <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 px-5 py-4 text-white">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <div className="text-sm font-semibold text-blue-100">Project timeline</div>
+                        <h3 className="mt-1 text-2xl font-bold tracking-tight">Plan, track and visualize dependencies</h3>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 font-medium text-white/90">
+                            <Rows3 size={14} />
+                            {flattenedRows.length} visible tasks
+                        </div>
+                        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 font-medium text-white/90">
+                            <GitBranch size={14} />
+                            {visibleDependencies.length} dependencies
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <TimelineToolbar
                 projectId={projectId}
                 filters={filters}
@@ -176,32 +222,46 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
                 onZoomChange={setZoom}
                 onToday={handleToday}
             />
-            
-            <div className="flex flex-1 overflow-hidden relative">
-                {/* Left Task Table */}
-                <div ref={leftRef} className="overflow-y-auto overflow-x-hidden hide-scrollbar border-r border-slate-200 bg-white">
-                    <TimelineTaskTable
-                        rows={flattenedRows}
-                        onToggleExpand={handleToggleExpand}
-                        onTaskClick={onTaskClick}
-                        rowHeight={ROW_HEIGHT}
-                    />
-                </div>
 
-                {/* Right Gantt Chart */}
-                <div ref={rightRef} className="flex-1 overflow-auto bg-slate-50">
-                    <TimelineGanttChart
-                        rows={flattenedRows}
-                        dependencies={timelineData?.dependencies || []}
-                        startDate={timelineStart}
-                        endDate={timelineEnd}
-                        zoom={zoom}
-                        onTaskClick={onTaskClick}
-                        showDependencies={filters.showDependencies}
-                        rowHeight={ROW_HEIGHT}
-                    />
+            {flattenedRows.length === 0 ? (
+                <div className="flex h-[520px] flex-col items-center justify-center gap-3 bg-[#FBFCFE] text-center">
+                    <div className="rounded-full bg-slate-100 p-4 text-slate-400">
+                        <Rows3 size={28} />
+                    </div>
+                    <h4 className="text-lg font-semibold text-slate-900">No tasks match the current timeline filters</h4>
+                    <p className="max-w-md text-sm text-slate-500">
+                        Try clearing filters or adding start and due dates so tasks can appear on the timeline.
+                    </p>
                 </div>
-            </div>
+            ) : (
+                <div className="flex h-[720px] overflow-hidden bg-[#FBFCFE]">
+                    <div ref={leftRef} className="overflow-y-auto overflow-x-hidden">
+                        <TimelineTaskTable
+                            rows={flattenedRows}
+                            hoveredTaskId={hoveredTaskId}
+                            onToggleExpand={handleToggleExpand}
+                            onTaskClick={onTaskClick}
+                            onHoverTask={setHoveredTaskId}
+                            rowHeight={ROW_HEIGHT}
+                        />
+                    </div>
+
+                    <div ref={rightRef} className="flex-1 overflow-auto">
+                        <TimelineGanttChart
+                            rows={flattenedRows}
+                            dependencies={visibleDependencies}
+                            startDate={timelineStart}
+                            endDate={timelineEnd}
+                            zoom={zoom}
+                            hoveredTaskId={hoveredTaskId}
+                            onTaskClick={onTaskClick}
+                            onHoverTask={setHoveredTaskId}
+                            showDependencies={filters.showDependencies}
+                            rowHeight={ROW_HEIGHT}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

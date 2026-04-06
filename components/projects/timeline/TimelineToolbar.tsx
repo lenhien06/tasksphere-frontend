@@ -1,12 +1,14 @@
 "use client";
 
-import { Search, Users, Filter, Calendar, ChevronDown, MousePointer2, GitBranch, ZoomIn, ZoomOut, Target, User } from "lucide-react";
+import React, { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Check, ChevronDown, Filter, GitBranch, Search, Target, Users } from "lucide-react";
+
+import { ProjectMemberService } from "@/app/services/project-member.service";
+import { UserAvatar } from "@/components/common/UserAvatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { ZoomLevel } from "./utils";
-import { useQuery } from "@tanstack/react-query";
-import { ProjectMemberService } from "@/app/services/project-member.service";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { UserAvatar } from "@/components/common/UserAvatar";
 
 export interface TimelineFilterState {
     search: string;
@@ -26,127 +28,288 @@ interface TimelineToolbarProps {
     onToday: () => void;
 }
 
+const STATUS_OPTIONS = [
+    { value: "TODO", label: "To do" },
+    { value: "IN_PROGRESS", label: "In progress" },
+    { value: "IN_REVIEW", label: "In review" },
+    { value: "DONE", label: "Done" },
+    { value: "CANCELLED", label: "Cancelled" },
+];
+
+const PRIORITY_OPTIONS = [
+    { value: "CRITICAL", label: "Critical" },
+    { value: "HIGH", label: "High" },
+    { value: "MEDIUM", label: "Medium" },
+    { value: "LOW", label: "Low" },
+];
+
+function FilterTrigger({
+    active,
+    label,
+    icon,
+}: {
+    active?: boolean;
+    label: string;
+    icon?: React.ReactNode;
+}) {
+    return (
+        <button
+            className={cn(
+                "inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors",
+                active
+                    ? "border-blue-200 bg-blue-50 text-blue-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+            )}
+        >
+            {icon}
+            <span>{label}</span>
+            <ChevronDown size={14} className="opacity-60" />
+        </button>
+    );
+}
+
+function OptionButton({
+    active,
+    onClick,
+    children,
+}: {
+    active?: boolean;
+    onClick: () => void;
+    children: React.ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={cn(
+                "flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
+                active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50"
+            )}
+        >
+            <span className="flex items-center gap-2 min-w-0">{children}</span>
+            {active && <Check size={14} className="shrink-0" />}
+        </button>
+    );
+}
+
 export default function TimelineToolbar({
     projectId,
     filters,
     onFilterChange,
     zoom,
     onZoomChange,
-    onToday
+    onToday,
 }: TimelineToolbarProps) {
-    const { data: membersData } = useQuery({
+    const { data: members = [] } = useQuery({
         queryKey: ["project-members", projectId],
         queryFn: () => ProjectMemberService.getMembers(projectId),
         enabled: !!projectId,
     });
 
-    const members = (membersData as any)?.data || [];
+    const selectedAssignee = useMemo(
+        () => members.find((member: any) => member.user.id === filters.assigneeId) ?? null,
+        [members, filters.assigneeId]
+    );
+
+    const activeFilterCount = Number(Boolean(filters.search.trim()))
+        + Number(Boolean(filters.assigneeId))
+        + Number(filters.status.length > 0)
+        + Number(filters.priority.length > 0)
+        + Number(filters.onlyMe)
+        + Number(!filters.showDependencies);
+
+    const toggleMultiValue = (field: "status" | "priority", value: string) => {
+        const current = filters[field];
+        const next = current.includes(value)
+            ? current.filter((item) => item !== value)
+            : [...current, value];
+        onFilterChange({ ...filters, [field]: next });
+    };
 
     return (
-        <div className="flex flex-wrap items-center gap-3 p-3 bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
-            {/* Search */}
-            <div className="relative min-w-[200px]">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                    type="text"
-                    value={filters.search}
-                    onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
-                    placeholder="Tìm kiếm task..."
-                    className="w-full h-9 pl-9 pr-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                />
-            </div>
+        <div className="border-b border-slate-200 bg-white px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-[260px] flex-1 md:max-w-sm">
+                    <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                        type="text"
+                        value={filters.search}
+                        onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
+                        placeholder="Search timeline"
+                        className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    />
+                </div>
 
-            {/* Assignee Filter */}
-            <Popover>
-                <PopoverTrigger asChild>
-                    <button className={cn(
-                        "h-9 px-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-2",
-                        filters.assigneeId ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                    )}>
-                        <User size={14} />
-                        {filters.assigneeId ? members.find((m: any) => (m.user?.id || m.id) === filters.assigneeId)?.user?.fullName || "Assigned" : "Người thực hiện"}
-                        <ChevronDown size={12} />
-                    </button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-[240px] p-2 rounded-xl shadow-xl border-slate-200 bg-white z-[9999]">
-                    <div className="space-y-1">
-                        <button
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <div>
+                            <FilterTrigger
+                                active={Boolean(filters.assigneeId)}
+                                label={selectedAssignee ? selectedAssignee.user.fullName : "Assignee"}
+                                icon={<Users size={14} />}
+                            />
+                        </div>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-[240px] rounded-2xl border-slate-200 p-2 shadow-xl">
+                        <OptionButton
+                            active={!filters.assigneeId}
                             onClick={() => onFilterChange({ ...filters, assigneeId: null })}
-                            className="w-full text-left px-2 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
                         >
-                            Tất cả mọi người
-                        </button>
-                        <div className="h-px bg-slate-100 my-1" />
-                        {members.map((m: any) => (
+                            <Users size={14} className="shrink-0" />
+                            <span>All assignees</span>
+                        </OptionButton>
+                        <div className="my-1 h-px bg-slate-100" />
+                        {members.map((member: any) => (
+                            <OptionButton
+                                key={member.id}
+                                active={filters.assigneeId === member.user.id}
+                                onClick={() => onFilterChange({ ...filters, assigneeId: member.user.id })}
+                            >
+                                <UserAvatar
+                                    name={member.user.fullName}
+                                    src={member.user.avatarUrl ?? undefined}
+                                    size={20}
+                                />
+                                <span className="truncate">{member.user.fullName}</span>
+                            </OptionButton>
+                        ))}
+                    </PopoverContent>
+                </Popover>
+
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <div>
+                            <FilterTrigger
+                                active={filters.status.length > 0}
+                                label={filters.status.length > 0 ? `Status (${filters.status.length})` : "Status"}
+                                icon={<Filter size={14} />}
+                            />
+                        </div>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-[220px] rounded-2xl border-slate-200 p-2 shadow-xl">
+                        <OptionButton
+                            active={filters.status.length === 0}
+                            onClick={() => onFilterChange({ ...filters, status: [] })}
+                        >
+                            <span>All statuses</span>
+                        </OptionButton>
+                        <div className="my-1 h-px bg-slate-100" />
+                        {STATUS_OPTIONS.map((option) => (
+                            <OptionButton
+                                key={option.value}
+                                active={filters.status.includes(option.value)}
+                                onClick={() => toggleMultiValue("status", option.value)}
+                            >
+                                <span>{option.label}</span>
+                            </OptionButton>
+                        ))}
+                    </PopoverContent>
+                </Popover>
+
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <div>
+                            <FilterTrigger
+                                active={filters.priority.length > 0}
+                                label={filters.priority.length > 0 ? `Priority (${filters.priority.length})` : "Priority"}
+                                icon={<Filter size={14} />}
+                            />
+                        </div>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-[220px] rounded-2xl border-slate-200 p-2 shadow-xl">
+                        <OptionButton
+                            active={filters.priority.length === 0}
+                            onClick={() => onFilterChange({ ...filters, priority: [] })}
+                        >
+                            <span>All priorities</span>
+                        </OptionButton>
+                        <div className="my-1 h-px bg-slate-100" />
+                        {PRIORITY_OPTIONS.map((option) => (
+                            <OptionButton
+                                key={option.value}
+                                active={filters.priority.includes(option.value)}
+                                onClick={() => toggleMultiValue("priority", option.value)}
+                            >
+                                <span>{option.label}</span>
+                            </OptionButton>
+                        ))}
+                    </PopoverContent>
+                </Popover>
+
+                <button
+                    type="button"
+                    onClick={() => onFilterChange({ ...filters, onlyMe: !filters.onlyMe })}
+                    className={cn(
+                        "inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors",
+                        filters.onlyMe
+                            ? "border-slate-900 bg-slate-900 text-white"
+                            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                    )}
+                >
+                    <Target size={14} />
+                    My items
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => onFilterChange({ ...filters, showDependencies: !filters.showDependencies })}
+                    className={cn(
+                        "inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors",
+                        filters.showDependencies
+                            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                    )}
+                >
+                    <GitBranch size={14} />
+                    Dependencies
+                </button>
+
+                {activeFilterCount > 0 && (
+                    <button
+                        type="button"
+                        onClick={() =>
+                            onFilterChange({
+                                search: "",
+                                assigneeId: null,
+                                status: [],
+                                priority: [],
+                                onlyMe: false,
+                                showDependencies: true,
+                            })
+                        }
+                        className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                    >
+                        Clear filters
+                    </button>
+                )}
+
+                <div className="ml-auto flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={onToday}
+                        className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                        Today
+                    </button>
+
+                    <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                        {(["day", "week", "month"] as ZoomLevel[]).map((value) => (
                             <button
-                                key={m.id}
-                                onClick={() => onFilterChange({ ...filters, assigneeId: m.user?.id || m.id })}
+                                key={value}
+                                type="button"
+                                onClick={() => onZoomChange(value)}
                                 className={cn(
-                                    "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-bold transition-all",
-                                    filters.assigneeId === (m.user?.id || m.id) ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50"
+                                    "rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors",
+                                    zoom === value
+                                        ? "bg-white text-blue-700 shadow-sm"
+                                        : "text-slate-500 hover:text-slate-700"
                                 )}
                             >
-                                <UserAvatar name={m.user?.fullName} src={m.user?.avatarUrl ?? undefined} size={20} />
-                                {m.user?.fullName}
+                                {value}
                             </button>
                         ))}
                     </div>
-                </PopoverContent>
-            </Popover>
-
-            {/* Only Me Toggle */}
-            <button
-                onClick={() => onFilterChange({ ...filters, onlyMe: !filters.onlyMe })}
-                className={cn(
-                    "h-9 px-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-2",
-                    filters.onlyMe ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                )}
-            >
-                <Target size={14} />
-                Chỉ tôi
-            </button>
-
-            {/* Show Dependencies Toggle */}
-            <button
-                onClick={() => onFilterChange({ ...filters, showDependencies: !filters.showDependencies })}
-                className={cn(
-                    "h-9 px-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-2",
-                    filters.showDependencies ? "bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                )}
-            >
-                <GitBranch size={14} />
-                Phụ thuộc
-            </button>
-
-            <div className="h-6 w-px bg-slate-200 mx-1" />
-
-            {/* Today Button */}
-            <button
-                onClick={onToday}
-                className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2"
-            >
-                <Calendar size={14} />
-                Hôm nay
-            </button>
-
-            {/* Zoom Controls */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                {(['day', 'week', 'month'] as ZoomLevel[]).map((z) => (
-                    <button
-                        key={z}
-                        onClick={() => onZoomChange(z)}
-                        className={cn(
-                            "px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all",
-                            zoom === z ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                        )}
-                    >
-                        {z}
-                    </button>
-                ))}
-            </div>
-
-            <div className="ml-auto flex items-center gap-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Gantt Chart</span>
+                </div>
             </div>
         </div>
     );

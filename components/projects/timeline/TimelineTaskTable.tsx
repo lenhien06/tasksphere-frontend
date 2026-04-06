@@ -1,90 +1,169 @@
 "use client";
 
 import React from "react";
-import { ChevronRight, ChevronDown, AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { cn } from "@/lib/utils";
 import { TimelineRow } from "./utils";
-import { UserAvatar } from "@/components/common/UserAvatar";
 
 interface TimelineTaskTableProps {
     rows: TimelineRow[];
+    hoveredTaskId: string | null;
     onToggleExpand: (taskId: string) => void;
     onTaskClick: (taskId: string) => void;
+    onHoverTask: (taskId: string | null) => void;
     rowHeight: number;
+}
+
+const STATUS_STYLES: Record<string, string> = {
+    TODO: "bg-slate-100 text-slate-600 border-slate-200",
+    IN_PROGRESS: "bg-blue-100 text-blue-700 border-blue-200",
+    IN_REVIEW: "bg-violet-100 text-violet-700 border-violet-200",
+    DONE: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    CANCELLED: "bg-rose-100 text-rose-700 border-rose-200",
+};
+
+const PRIORITY_STYLES: Record<string, string> = {
+    CRITICAL: "bg-rose-100 text-rose-700 border-rose-200",
+    HIGH: "bg-orange-100 text-orange-700 border-orange-200",
+    MEDIUM: "bg-amber-100 text-amber-700 border-amber-200",
+    LOW: "bg-emerald-100 text-emerald-700 border-emerald-200",
+};
+
+function formatStatus(status: string) {
+    return status.replaceAll("_", " ").toLowerCase().replace(/^\w/, (char) => char.toUpperCase());
 }
 
 export default function TimelineTaskTable({
     rows,
+    hoveredTaskId,
     onToggleExpand,
     onTaskClick,
-    rowHeight
+    onHoverTask,
+    rowHeight,
 }: TimelineTaskTableProps) {
     return (
-        <div className="flex-none w-[400px] border-r border-slate-200 bg-white z-10 sticky left-0 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]">
-            <div className="h-10 border-b border-slate-200 bg-slate-50 flex items-center px-4 sticky top-0 z-10">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tasks & Hierarchy</span>
+        <div className="sticky left-0 z-10 w-[620px] flex-none border-r border-slate-200 bg-white shadow-[8px_0_24px_-18px_rgba(15,23,42,0.35)]">
+            <div className="sticky top-0 z-20 border-b border-slate-200 bg-white">
+                <div className="grid grid-cols-[110px_minmax(0,1.6fr)_120px_120px_110px] items-center px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                    <span>ID</span>
+                    <span>Name</span>
+                    <span>Assignee</span>
+                    <span>Status</span>
+                    <span>Priority</span>
+                </div>
             </div>
+
             <div className="divide-y divide-slate-100">
-                {rows.map((row) => (
-                    <div
-                        key={row.id}
-                        className="group hover:bg-slate-50 transition-all cursor-pointer flex items-center px-2"
-                        style={{ height: rowHeight }}
-                        onClick={() => onTaskClick(row.id)}
-                    >
-                        <div 
-                            className="flex items-center gap-2 flex-1 min-w-0"
-                            style={{ paddingLeft: `${row.level * 16}px` }}
+                {rows.map((row, index) => {
+                    const isHovered = hoveredTaskId === row.id;
+                    const isParent = row.children.length > 0;
+
+                    return (
+                        <div
+                            key={row.id}
+                            className={cn(
+                                "grid cursor-pointer grid-cols-[110px_minmax(0,1.6fr)_120px_120px_110px] items-center px-4 transition-colors",
+                                index % 2 === 0 ? "bg-white" : "bg-slate-50/40",
+                                isHovered && "bg-blue-50/70"
+                            )}
+                            style={{ height: rowHeight }}
+                            onClick={() => onTaskClick(row.id)}
+                            onMouseEnter={() => onHoverTask(row.id)}
+                            onMouseLeave={() => onHoverTask(null)}
                         >
-                            <div className="w-5 h-5 flex items-center justify-center">
-                                {row.children.length > 0 && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onToggleExpand(row.id);
-                                        }}
-                                        className="p-0.5 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all"
-                                    >
-                                        {row.expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                    </button>
+                            <div className="pr-3">
+                                <span className="inline-flex rounded-lg border border-blue-100 bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-700">
+                                    {row.taskCode}
+                                </span>
+                            </div>
+
+                            <div
+                                className="flex min-w-0 items-center gap-2 pr-4"
+                                style={{ paddingLeft: `${row.level * 18}px` }}
+                            >
+                                <div className="flex h-6 w-6 shrink-0 items-center justify-center">
+                                    {isParent ? (
+                                        <button
+                                            type="button"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                onToggleExpand(row.id);
+                                            }}
+                                            className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+                                        >
+                                            {row.expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                        </button>
+                                    ) : (
+                                        <span className="h-2 w-2 rounded-full bg-slate-300" />
+                                    )}
+                                </div>
+
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span
+                                            className={cn(
+                                                "truncate text-sm font-semibold",
+                                                isParent ? "text-slate-950" : "text-slate-800"
+                                            )}
+                                        >
+                                            {row.title}
+                                        </span>
+                                        {row.blockedBy.length > 0 && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                                                <AlertTriangle size={11} />
+                                                Blocked
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="mt-1 text-[11px] text-slate-400">
+                                        {row.startDateObj.toLocaleDateString("vi-VN")} - {row.endDateObj.toLocaleDateString("vi-VN")}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pr-3">
+                                {row.assignee ? (
+                                    <div className="flex items-center gap-2">
+                                        <UserAvatar
+                                            name={row.assignee.fullName}
+                                            src={row.assignee.avatarUrl ?? undefined}
+                                            size={24}
+                                        />
+                                        <span className="truncate text-sm font-medium text-slate-700">
+                                            {row.assignee.fullName}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <span className="text-sm text-slate-400">Unassigned</span>
                                 )}
                             </div>
-                            
-                            <div className="flex flex-col min-w-0">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 shrink-0 uppercase tracking-tighter">
-                                        {row.taskCode}
-                                    </span>
-                                    <span className="text-sm font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                                        {row.title}
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                                    <span className={cn(
-                                        "px-1.5 rounded-full border",
-                                        row.status === 'DONE' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                                        row.status === 'IN_PROGRESS' ? "bg-blue-50 text-blue-600 border-blue-100" :
-                                        "bg-slate-50 text-slate-500 border-slate-100"
-                                    )}>
-                                        {row.status}
-                                    </span>
-                                    {row.assignee && (
-                                        <div className="flex items-center gap-1">
-                                            <UserAvatar name={row.assignee.fullName} src={row.assignee.avatarUrl ?? undefined} size={14} />
-                                            <span className="truncate max-w-[80px]">{row.assignee.fullName}</span>
-                                        </div>
+
+                            <div className="pr-3">
+                                <span
+                                    className={cn(
+                                        "inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold",
+                                        STATUS_STYLES[row.status] ?? "bg-slate-100 text-slate-600 border-slate-200"
                                     )}
-                                    {row.blockedBy.length > 0 && (
-                                        <div className="flex items-center gap-1 text-red-500">
-                                            <AlertTriangle size={10} />
-                                            <span>Blocked</span>
-                                        </div>
+                                >
+                                    {formatStatus(row.status)}
+                                </span>
+                            </div>
+
+                            <div>
+                                <span
+                                    className={cn(
+                                        "inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold",
+                                        PRIORITY_STYLES[row.priority] ?? "bg-slate-100 text-slate-600 border-slate-200"
                                     )}
-                                </div>
+                                >
+                                    {formatStatus(row.priority)}
+                                </span>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
