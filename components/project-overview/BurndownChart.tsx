@@ -1,6 +1,6 @@
 "use client";
 
-import { Inbox, Loader2 } from "lucide-react";
+import { AlertTriangle, Inbox, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface BurndownPoint {
@@ -37,8 +37,8 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
   };
 
   const width = 700;
-  const height = 220;
-  const padding = { top: 12, right: 18, bottom: 36, left: 34 };
+  const height = 240;
+  const padding = { top: 24, right: 18, bottom: 42, left: 44 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
 
@@ -52,17 +52,15 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
     return padding.top + (1 - clamped / maxValue) * plotHeight;
   };
 
-  const buildActualStepSegments = () => {
+  const buildActualSegments = () => {
     const segments: string[] = [];
     let current = "";
-    let lastY: number | null = null;
 
     safeData.forEach((point, index) => {
       if (point.actual == null) {
         if (current) {
           segments.push(current.trim());
           current = "";
-          lastY = null;
         }
         return;
       }
@@ -70,22 +68,15 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
       const x = xForIndex(index);
       const y = yForValue(point.actual);
 
-      if (!current || lastY == null) {
-        current = `M ${x} ${y} `;
-        lastY = y;
-        return;
-      }
-
-      // Jira-like step line: move horizontally first, then vertically at day boundary.
-      current += `L ${x} ${lastY} L ${x} ${y} `;
-      lastY = y;
+      const cmd = current ? "L" : "M";
+      current += `${cmd} ${x} ${y} `;
     });
 
     if (current) segments.push(current.trim());
     return segments;
   };
 
-  const actualSegments = buildActualStepSegments();
+  const actualSegments = buildActualSegments();
 
   const actualPoints = safeData.filter((point) => point.actual != null);
   const firstIdeal = safeData[0]?.ideal ?? maxValue;
@@ -95,6 +86,17 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
     : `M ${xForIndex(0)} ${yForValue(firstIdeal)} L ${xForIndex(0)} ${yForValue(firstIdeal)}`;
 
   const tickStep = safeData.length <= 8 ? 1 : Math.ceil(safeData.length / 6);
+  const latestActualPoint = [...safeData].reverse().find((p) => p.actual != null) ?? null;
+  const latestActual = latestActualPoint?.actual ?? null;
+  const latestIndex = latestActualPoint?.idx ?? 0;
+  const idealAtLatest = safeData[latestIndex]?.ideal ?? 0;
+  const diff = latestActual == null ? 0 : latestActual - idealAtLatest;
+  const isBehind = diff > 0;
+  const interpretationText = latestActual == null
+    ? t("report.noBurndownData", { defaultValue: "Không có dữ liệu burndown cho sprint này" })
+    : isBehind
+      ? `Team đang chậm hơn so với kế hoạch ${Math.round(diff)} điểm.`
+      : `Team đang đúng hoặc nhanh hơn kế hoạch ${Math.round(Math.abs(diff))} điểm.`;
 
   if (isLoading) {
     return (
@@ -106,7 +108,7 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
 
   if (safeData.length === 0) {
     return (
-      <div className="h-56 rounded-2xl border border-dashed border-gray-200 grid place-items-center text-gray-400">
+      <div className="h-[280px] rounded-2xl border border-dashed border-gray-200 grid place-items-center text-gray-400">
         <div className="text-center">
           <Inbox className="mx-auto h-6 w-6 mb-2 text-gray-300" />
           <p className="text-sm font-medium">{t("report.noBurndownData", { defaultValue: "Không có dữ liệu burndown" })}</p>
@@ -118,7 +120,7 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
 
   if (!hasDrawableValues) {
     return (
-      <div className="h-56 rounded-2xl border border-dashed border-gray-200 grid place-items-center text-gray-400">
+      <div className="h-[280px] rounded-2xl border border-dashed border-gray-200 grid place-items-center text-gray-400">
         <div className="text-center">
           <Inbox className="mx-auto h-6 w-6 mb-2 text-gray-300" />
           <p className="text-sm font-medium">{t("report.noBurndownData", { defaultValue: "Không có dữ liệu burndown cho sprint này" })}</p>
@@ -129,8 +131,15 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
   }
 
   return (
-    <div className="h-56 w-full rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" role="img" aria-label={t("report.tab_burndown", { defaultValue: "Burndown Chart" })}>
+    <div className="w-full rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+      <div className="h-[220px]">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" role="img" aria-label={t("report.tab_burndown", { defaultValue: "Burndown Chart" })}>
+          <g>
+            <line x1={250} y1={12} x2={278} y2={12} stroke="#7C8BA1" strokeWidth="2" strokeDasharray="6 6" />
+            <text x={282} y={15} fill="#64748B" fontSize="11">{t("report.ideal", { defaultValue: "Ideal" })}</text>
+            <line x1={336} y1={12} x2={364} y2={12} stroke="#3B82F6" strokeWidth="2.4" />
+            <text x={368} y={15} fill="#64748B" fontSize="11">{t("report.actual", { defaultValue: "Actual" })}</text>
+          </g>
         {[0, 1, 2, 3, 4].map((step) => {
           const y = padding.top + (step / 4) * plotHeight;
           const value = Math.round(maxValue - (step / 4) * maxValue);
@@ -152,6 +161,7 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
         })}
 
         <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={height - padding.bottom} stroke="#CBD5E1" />
+        <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} stroke="#CBD5E1" />
 
         {idealPath && (
           <path
@@ -199,11 +209,31 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
               fill="#94A3B8"
               fontSize="10"
             >
-              {formatTickDate(point.date) || `${t("sprint.days", { defaultValue: "Day" })} ${point.day}`}
+              {point.day}
             </text>
           );
         })}
-      </svg>
+
+        <text x={width / 2} y={height - 2} textAnchor="middle" fill="#475569" fontSize="11">Days</text>
+        <text
+          x={10}
+          y={height / 2}
+          textAnchor="middle"
+          fill="#475569"
+          fontSize="11"
+          transform={`rotate(-90 10 ${height / 2})`}
+        >
+          Story Points
+        </text>
+        </svg>
+      </div>
+
+      <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600" />
+        <div>
+          <span className="font-semibold">Interpretation:</span> {interpretationText}
+        </div>
+      </div>
     </div>
   );
 }

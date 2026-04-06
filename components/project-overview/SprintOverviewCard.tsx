@@ -120,10 +120,6 @@ export default function SprintOverviewCard({
           <h4 className="text-xs uppercase tracking-[0.2em] text-gray-500">
             {t("report.tab_burndown", { defaultValue: "Burndown Chart" })}
           </h4>
-          <div className="flex items-center gap-3 text-[11px] text-gray-400">
-            <span>• {t("report.actual", { defaultValue: "Actual" })}</span>
-            <span>-- {t("report.ideal", { defaultValue: "Ideal" })}</span>
-          </div>
         </div>
         <BurndownChart data={burndown} isLoading={burndownIsLoading} />
       </div>
