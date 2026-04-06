@@ -48,6 +48,8 @@ import {
     DeleteProjectModal,
     RestoreProjectModal,
 } from "@/components/projects/ProjectModals";
+import { AIProjectTriggerButton } from "@/components/projects/AIProjectCreationModal";
+import { useAIModalStore } from "@/stores/useAIModalStore";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { toast } from "sonner";
 import { ProjectService } from "@/app/services/ProjectService";
@@ -279,22 +281,15 @@ export default function ProjectsPage() {
     
     // UI state
     const [showCreate, setShowCreate] = useState(false);
-    const { selectedContext, selectedWorkspace, personalWorkspace } = useWorkspace();
+    const openAIModal = useAIModalStore((s) => s.open);
+    const { selectedContext, selectedWorkspace } = useWorkspace();
     const [activeProject, setActiveProject] = useState<any>(null);
     const [modalType, setModalType] = useState<"edit" | "archive" | "delete" | "restore" | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [restoreLoading, setRestoreLoading] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [isResettingFilters, setIsResettingFilters] = useState(false);
-    const [aiPrompt, setAiPrompt] = useState("");
     const isArchiveView = statusFilter === "Archived";
-    const aiWorkspace = selectedContext.workspace ?? personalWorkspace;
-    const contextTitle = selectedContext.kind === "workspace"
-        ? selectedContext.workspace.name
-        : "Personal Workspace";
-    const contextSubtitle = selectedContext.kind === "workspace"
-        ? "Projects in this workspace"
-        : "Your personal projects";
 
     async function handleCopyProjectLink(projectId: string) {
         if (typeof window === "undefined") return;
@@ -452,18 +447,6 @@ export default function ProjectsPage() {
         });
     }
 
-    function handleOpenAiFlow() {
-        if (!aiWorkspace) {
-            toast.error("Chưa sẵn sàng workspace để tạo dự án với AI.");
-            return;
-        }
-
-        const query = aiPrompt.trim()
-            ? `?prompt=${encodeURIComponent(aiPrompt.trim())}`
-            : "";
-        router.push(`/ws/${aiWorkspace.slug}/projects/new-with-ai${query}`);
-    }
-
     function handleEdit(data: any) {
         if (!activeProject) return;
         updateMutation.mutate({
@@ -577,8 +560,8 @@ export default function ProjectsPage() {
             <div className="px-2 md:px-4 py-2 flex flex-col gap-4 flex-shrink-0 mb-4">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
-                        <h1 className="text-[24px] md:text-[28px] font-extrabold text-gray-900 tracking-tight">{contextTitle}</h1>
-                        <p className="text-[13px] text-gray-500 font-medium">{contextSubtitle}</p>
+                        <h1 className="text-[24px] md:text-[28px] font-extrabold text-gray-900 tracking-tight">{t('project.myProjects')}</h1>
+                        <p className="text-[13px] text-gray-500 font-medium">{t('project.trackProgress')}</p>
                         <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-700">
                             <Building2 className="h-3.5 w-3.5" />
                             {selectedContext.kind === "workspace"
@@ -587,51 +570,19 @@ export default function ProjectsPage() {
                         </div>
                     </div>
                     <div className="flex items-start gap-3">
+                        {selectedContext.kind === "workspace" && selectedWorkspace && (
+                            <button
+                                onClick={() => router.push(`/ws/${selectedWorkspace.slug}/projects/new-with-ai`)}
+                                className="flex items-center gap-2 h-[38px] px-4 rounded-xl text-[13px] font-bold border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition-all"
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                Tạo với AI
+                            </button>
+                        )}
+                        <AIProjectTriggerButton onClick={openAIModal} />
                         <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 h-[38px] px-4 bg-[#111827] text-white rounded-xl text-[13px] font-bold hover:bg-gray-800 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)] active:scale-95">
                             <Plus className="w-4 h-4 stroke-[3px]" /> <span>{t('project.newProject')}</span>
                         </button>
-                    </div>
-                </div>
-
-                <div className="rounded-2xl border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-blue-50 p-4 shadow-sm">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-                        <div className="min-w-0 flex-1">
-                            <div className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.18em] text-violet-600">
-                                <Sparkles className="h-4 w-4" />
-                                AI Project Creation
-                            </div>
-                            <p className="mb-3 text-[13px] font-medium text-slate-500">
-                                Mô tả ngắn dự án bạn muốn làm, AI sẽ dựng kế hoạch ngay trong context hiện tại.
-                            </p>
-                            <textarea
-                                value={aiPrompt}
-                                onChange={(e) => setAiPrompt(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                                        handleOpenAiFlow();
-                                    }
-                                }}
-                                rows={3}
-                                placeholder="Ví dụ: Tạo app quản lý phòng khám online cho mobile và web..."
-                                className="w-full resize-none rounded-xl border border-violet-100 bg-white px-4 py-3 text-[13px] text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
-                            />
-                        </div>
-                        <div className="flex shrink-0 flex-wrap items-center gap-3">
-                            <button
-                                onClick={handleOpenAiFlow}
-                                className="flex items-center gap-2 h-[40px] rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 text-[13px] font-bold text-white shadow-[0_6px_24px_rgba(124,58,237,0.25)] transition-all hover:from-violet-700 hover:to-blue-700 active:scale-95"
-                            >
-                                <Sparkles className="h-4 w-4" />
-                                Generate with AI
-                            </button>
-                            <button
-                                onClick={() => setShowCreate(true)}
-                                className="flex items-center gap-2 h-[40px] rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-bold text-slate-700 transition-all hover:bg-slate-50"
-                            >
-                                <Plus className="h-4 w-4" />
-                                New Project
-                            </button>
-                        </div>
                     </div>
                 </div>
 
