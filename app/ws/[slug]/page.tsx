@@ -344,8 +344,8 @@ export default function WorkspaceDetailPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8 text-[#1f2328]">
-      <section className="rounded-2xl border border-[#d0d7de] bg-white px-7 pb-0 pt-7 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+    <div className="w-full pb-8 pt-0 text-[#1f2328]">
+      <section className="border-b border-slate-200 bg-white px-6 pb-0 pt-5 shadow-sm">
         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
           <div className="flex min-w-0 items-start gap-6">
             {workspace.avatarUrl ? (
@@ -363,7 +363,7 @@ export default function WorkspaceDetailPage() {
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="truncate text-[36px] font-medium leading-tight text-[#1f2328]">
+                <h1 className="truncate text-[34px] font-medium leading-tight text-[#1f2328]">
                   {workspace.name}
                 </h1>
                 <span
@@ -422,7 +422,7 @@ export default function WorkspaceDetailPage() {
         </div>
       </section>
 
-      <div className="mt-8">
+      <div className="px-6 pt-6">
         {activeTab === "projects" && (
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
         <main className="min-w-0">
