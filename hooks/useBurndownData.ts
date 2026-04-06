@@ -18,7 +18,7 @@ function normalizeBurndown(raw: any): BurndownData {
       sprintName: String(source.sprintName ?? ''),
       totalPoints: toNumber(source.totalPoints ?? source.totalStoryPoints, 0),
       data: source.data.map((p: any, idx: number) => ({
-        day: toNumber(p?.day ?? idx + 1, idx + 1),
+        day: toNumber(p?.day ?? idx, idx),
         date: String(p?.date ?? ''),
         ideal: toNumber(p?.ideal ?? p?.idealPoints ?? p?.remainingPoints, 0),
         actual:
@@ -50,7 +50,7 @@ function normalizeBurndown(raw: any): BurndownData {
         : (fallbackActual == null ? null : toNumber(fallbackActual, 0));
 
       return {
-        day: idx + 1,
+        day: idx,
         date,
         ideal: toNumber(point?.idealPoints ?? point?.ideal ?? point?.remainingPoints, 0),
         actual: mappedActual,

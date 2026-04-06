@@ -360,7 +360,13 @@
     "dueSoon": "Due soon",
     "velocityHint": "Data appears after the first sprint is completed",
     "avgVelocity": "Avg. Velocity",
-    "volumePoints": "Volume (PTS)"
+    "volumePoints": "Volume (PTS)",
+    "performanceTitle": "Performance",
+    "performanceSubtitle": "Who closes the most tasks and who slips deadlines the most",
+    "topCompleter": "Top completer",
+    "mostOverdue": "Most overdue",
+    "lateTasks": "late tasks",
+    "onTrack": "No overdue tasks"
   },
 
   "comment": {

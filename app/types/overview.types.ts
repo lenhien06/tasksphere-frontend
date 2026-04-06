@@ -71,6 +71,31 @@ export interface VelocityData {
   trend: 'increasing' | 'decreasing' | 'stable';
 }
 
+export interface MemberPerformanceItem {
+  user: {
+    id: string;
+    fullName: string;
+    avatarUrl: string | null;
+  };
+  tasksAssigned: number;
+  tasksDone: number;
+  tasksInProgress: number;
+  tasksOverdue: number;
+  storyPointsCompleted: number;
+  completionRate: number;
+  avgCompletionDays: number;
+}
+
+export interface MemberPerformanceData {
+  period: {
+    sprintId?: string;
+    sprintName?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  };
+  members: MemberPerformanceItem[];
+}
+
 export interface DueSoonTask {
   id: string;
   taskId: string;

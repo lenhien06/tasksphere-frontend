@@ -360,7 +360,13 @@
     "dueSoon": "Sắp đến hạn",
     "velocityHint": "Dữ liệu sẽ xuất hiện sau khi hoàn thành sprint đầu tiên",
     "avgVelocity": "Velocity trung bình",
-    "volumePoints": "Khối lượng (PTS)"
+    "volumePoints": "Khối lượng (PTS)",
+    "performanceTitle": "Hiệu suất",
+    "performanceSubtitle": "Ai hoàn thành nhiều task nhất và ai hay trễ deadline nhất",
+    "topCompleter": "Làm nhiều task nhất",
+    "mostOverdue": "Trễ deadline nhiều nhất",
+    "lateTasks": "task trễ hạn",
+    "onTrack": "Chưa có task trễ hạn"
   },
 
   "comment": {

@@ -13,6 +13,7 @@ import { useActiveSprint } from "@/hooks/useActiveSprint";
 import { useBurndownData } from "@/hooks/useBurndownData";
 import { useVelocityData } from "@/hooks/useVelocityData";
 import { useDueSoonTasks } from "@/hooks/useDueSoonTasks";
+import { useMemberPerformanceData } from "@/hooks/useMemberPerformanceData";
 import { useCreateTask } from "@/hooks/useTaskQueries";
 import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -53,11 +54,20 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     queryFn: () => ProjectService.getById(projectId),
     enabled: !!projectId,
   });
+  const kanbanRole = projectData?.data
+    ? toKanbanUserRole(projectData.data.myRole, projectData.data.isOwner)
+    : null;
+  const canViewMemberPerformance = kanbanRole === "PROJECT_MANAGER";
 
   const { data: overviewData, isLoading: isOverviewLoading } = useProjectOverview(projectId);
   const { data: activeSprint } = useActiveSprint(projectId);
   const { data: burndownData } = useBurndownData(activeSprint?.id);
   const { data: velocityData } = useVelocityData(projectId);
+  const { data: memberPerformanceData } = useMemberPerformanceData(
+    projectId,
+    activeSprint?.id,
+    canViewMemberPerformance
+  );
   const { data: dueSoonTasks } = useDueSoonTasks(projectId);
   const { data: membersData } = useQuery({
     queryKey: ["project-members", projectId],
@@ -77,7 +87,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     );
   }
 
-  const kr = toKanbanUserRole(projectData.data.myRole, projectData.data.isOwner);
+  const kr = kanbanRole ?? toKanbanUserRole(projectData.data.myRole, projectData.data.isOwner);
   const userRole: UiRole =
     kr === "SYSTEM_ADMIN" || kr === "PROJECT_MANAGER"
       ? "PROJECT_MANAGER"
@@ -96,9 +106,9 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     ?? activeSprint?.totalStoryPoints
     ?? 0
   );
-  const latestBurndownActual = burndownData?.data?.length
-    ? burndownData.data[burndownData.data.length - 1]?.actual
-    : null;
+  const latestBurndownActual = [...(burndownData?.data ?? [])]
+    .reverse()
+    .find((point) => point.actual != null)?.actual ?? null;
   const activeSprintCompletedStoryPoints = Math.max(
     0,
     Number(
@@ -113,11 +123,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     activeSprint?.inProgressTasks
     ?? Math.max(activeSprintTotalTasks - activeSprintDoneTasks, 0)
   );
-  const velocityFromApi = (velocityData?.sprints ?? []).map((item, idx, arr) => ({
+  const velocityFromApi = [...(velocityData?.sprints ?? [])].reverse().map((item) => ({
     sprintId: item.sprintId,
     sprintName: item.sprintName,
     velocity: item.velocity,
-    status: idx === arr.length - 1 ? ("active" as const) : ("completed" as const),
+    status: "completed" as const,
   }));
   const velocity =
     velocityFromApi.length > 0
@@ -203,7 +213,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     burndown: (burndownData?.data ?? []).map((item) => ({
       day: item.day,
       ideal: item.ideal,
-      actual: item.actual ?? 0,
+      actual: item.actual,
       date: item.date,
     })),
     velocity,
@@ -223,6 +233,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
         ? { fullName: task.assignee.fullName, avatarUrl: task.assignee.avatarUrl }
         : null,
     })),
+    memberPerformance: memberPerformanceData?.members ?? [],
+    canViewMemberPerformance,
     userRole,
     currentUserId,
     onCreateTask: () => setShowCreateTask(true),

@@ -43,7 +43,7 @@ export interface ProjectOverviewPageProps {
   burndown: {
     day: number;
     ideal: number;
-    actual: number;
+    actual: number | null;
     date: string;
   }[];
   velocity: {
@@ -69,6 +69,21 @@ export interface ProjectOverviewPageProps {
       avatarUrl: string | null;
     } | null;
   }[];
+  memberPerformance: {
+    user: {
+      id: string;
+      fullName: string;
+      avatarUrl: string | null;
+    };
+    tasksAssigned: number;
+    tasksDone: number;
+    tasksInProgress: number;
+    tasksOverdue: number;
+    storyPointsCompleted: number;
+    completionRate: number;
+    avgCompletionDays: number;
+  }[];
+  canViewMemberPerformance: boolean;
   userRole: "PROJECT_MANAGER" | "MEMBER" | "VIEWER";
   currentUserId: string;
   onCreateTask: () => void;
