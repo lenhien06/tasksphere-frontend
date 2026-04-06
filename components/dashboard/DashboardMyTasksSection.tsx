@@ -33,14 +33,16 @@ export function DashboardMyTasksSection({
   const { t } = useTranslation();
   return (
     <Card className="border-slate-200 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
         <div>
-          <CardTitle className="text-xl font-semibold text-slate-950">{t("dashboard.sections.myTasks")}</CardTitle>
-          <p className="mt-1 text-sm text-slate-500">
+          <CardTitle className="text-lg font-semibold leading-none text-slate-950">
+            {t("dashboard.sections.myTasks")}
+          </CardTitle>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
             {t("dashboard.sections.myTasksDesc")}
           </p>
         </div>
-        <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-600">
+        <div className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
           {t("dashboard.common.visibleCount", { count: tasks.length })}
         </div>
       </CardHeader>

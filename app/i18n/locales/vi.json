@@ -975,7 +975,7 @@
     },
     "sections": {
       "myTasks": "Việc của tôi",
-      "myTasksDesc": "Hàng đợi công việc cá nhân, ưu tiên phần khẩn cấp trước.",
+      "myTasksDesc": "Việc cá nhân theo mức ưu tiên.",
       "upcoming": "Hạn sắp tới",
       "upcomingDesc": "Các việc đến hạn trong {{count}} ngày tới.",
       "recentActivity": "Hoạt động gần đây",

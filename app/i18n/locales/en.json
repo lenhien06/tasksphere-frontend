@@ -975,7 +975,7 @@
     },
     "sections": {
       "myTasks": "My Tasks",
-      "myTasksDesc": "Personal work queue with urgency surfaced first.",
+      "myTasksDesc": "Priority-sorted personal tasks.",
       "upcoming": "Upcoming Deadlines",
       "upcomingDesc": "Tasks due in the next {{count}} days.",
       "recentActivity": "Recent Activity",
