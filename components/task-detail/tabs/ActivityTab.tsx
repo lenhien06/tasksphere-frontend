@@ -88,12 +88,12 @@ function toDisplayDateTimeUtc7(iso: string): string {
 }
 
 function actorInitials(name: string): string {
-  if (!name || typeof name !== 'string') return \"?\"
+  if (!name || typeof name !== 'string') return "?"
   const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return \"?\"
+  if (parts.length === 0) return "?"
   if (parts.length === 1) {
     const firstPart = parts[0];
-    return (firstPart && typeof firstPart === 'string' ? firstPart.slice(0, 2) : \"?\").toUpperCase()
+    return (firstPart && typeof firstPart === 'string' ? firstPart.slice(0, 2) : "?").toUpperCase()
   }
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
 }
