@@ -5,20 +5,11 @@ import NotificationPreferences from "@/components/settings/NotificationPreferenc
 import { useTranslation } from "react-i18next"
 
 export default function UserSettingsPage() {
-  const { t } = useTranslation()
+  useTranslation()
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            {t('settings.notifications')}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {t('settings.manageNotifications', { defaultValue: 'Quản lý cách bạn nhận thông báo.' })}
-          </p>
-        </div>
-
+    <div className="min-h-screen bg-[#F8F9FA] px-4 py-6 md:px-6">
+      <div className="max-w-5xl mx-auto">
         <NotificationPreferences />
       </div>
     </div>

@@ -122,11 +122,13 @@ export default function WorkspaceListPage() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8 text-[#1f2328]">
-      <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex h-full flex-col bg-transparent text-[#1f2328]">
+      <div className="mb-4 flex flex-col gap-3 px-2 py-2 md:px-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-[32px] font-medium text-[#1f2328]">Workspaces</h1>
-          <p className="mt-1 text-sm text-[#57606a]">
+          <h1 className="text-[24px] md:text-[28px] font-extrabold tracking-tight text-[#1f2328]">
+            Workspaces
+          </h1>
+          <p className="mt-1 text-[13px] font-medium text-[#57606a]">
             Quản lý các workspace tổ chức của bạn theo một nơi thống nhất.
           </p>
         </div>
@@ -141,6 +143,7 @@ export default function WorkspaceListPage() {
         </button>
       </div>
 
+      <div className="px-2 pb-6 md:px-4">
       {isLoading && (
         <div className="flex items-center justify-center py-24">
           <Loader2 size={32} className="animate-spin text-[#0969da]" />
@@ -193,6 +196,7 @@ export default function WorkspaceListPage() {
           </div>
         </section>
       )}
+      </div>
     </div>
   );
 }
