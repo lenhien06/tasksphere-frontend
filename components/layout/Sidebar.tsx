@@ -5,24 +5,18 @@ import Link from "next/link";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Archive,
-  BarChart2,
   Building2,
-  Calendar,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Columns4,
   FolderKanban,
   Home,
-  LayoutDashboard,
   Loader2,
   LogOut,
   LucideIcon,
   Plus,
   Settings,
   Sparkles,
-  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/app/services/auth.service";
@@ -173,9 +167,6 @@ export default function Sidebar({
     selectedContext.kind === "workspace"
       ? "Organization workspace"
       : "Personal workspace";
-  const currentProjectBadge =
-    (currentProject?.key?.trim() || currentProject?.name?.trim() || "PR").slice(0, 2).toUpperCase();
-
   const primaryNav = [
     {
       icon: Home,
@@ -422,92 +413,6 @@ export default function Sidebar({
             />
           ))}
 
-          <AnimatePresence>
-            {currentProject && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
-                className="overflow-hidden"
-              >
-                {!isCollapsed ? (
-                  <div className="mb-2 mt-4 px-2">
-                    <div className="flex items-center gap-2 rounded-xl border border-[#1E293B] bg-[#111827]/80 px-2.5 py-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 text-[10px] font-black text-white">
-                        {currentProjectBadge}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-[#64748B]">
-                          Project Space
-                        </div>
-                        <div className="truncate text-[13px] font-semibold text-[#E2E8F0]">
-                          {currentProject.name}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mx-auto my-3 w-6 border-t border-[#1E293B]" />
-                )}
-
-                <MenuItem
-                  icon={LayoutDashboard}
-                  label={t("common.overview")}
-                  path={`/projects/${currentProject.id}`}
-                  active={activeItem === `/projects/${currentProject.id}`}
-                  onClick={onNavigate}
-                  isCollapsed={isCollapsed}
-                  indent
-                />
-                <MenuItem
-                  icon={Columns4}
-                  label={t("kanban.board")}
-                  path={`/projects/${currentProject.id}/board`}
-                  active={activeItem.includes("/board")}
-                  onClick={onNavigate}
-                  isCollapsed={isCollapsed}
-                  indent
-                />
-                <MenuItem
-                  icon={Zap}
-                  label={t("sprint.management")}
-                  path={`/projects/${currentProject.id}/sprints`}
-                  active={activeItem.includes("/sprints")}
-                  onClick={onNavigate}
-                  isCollapsed={isCollapsed}
-                  indent
-                />
-                <MenuItem
-                  icon={Archive}
-                  label={t("common.backlog")}
-                  path={`/projects/${currentProject.id}/backlog`}
-                  active={activeItem.includes("/backlog")}
-                  onClick={onNavigate}
-                  isCollapsed={isCollapsed}
-                  indent
-                />
-                <MenuItem
-                  icon={Calendar}
-                  label={t("calendar.title")}
-                  path={`/projects/${currentProject.id}/calendar`}
-                  active={activeItem.includes("/calendar")}
-                  onClick={onNavigate}
-                  isCollapsed={isCollapsed}
-                  indent
-                />
-                <MenuItem
-                  icon={BarChart2}
-                  label={t("nav.reports")}
-                  path={`/projects/${currentProject.id}/reports`}
-                  active={activeItem.includes("/reports")}
-                  onClick={onNavigate}
-                  isCollapsed={isCollapsed}
-                  indent
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         <div className="mt-auto border-t border-[#1E293B] bg-[#0F172A] pb-6 pt-4">
