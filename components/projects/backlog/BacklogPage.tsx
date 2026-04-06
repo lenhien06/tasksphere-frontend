@@ -382,115 +382,9 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     return (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[#F7F8F9]">
-            {/* Sprint vùng trên */}
-            <div className="shrink-0 border-b border-[#DFE1E6] bg-white">
-                <div className="flex items-center justify-between border-b border-[#EBECF0] px-4 py-3">
-                    <h2 className="flex items-center gap-2 text-sm font-bold text-gray-800">
-                        <Layers size={18} className="text-blue-500" />
-                        {t("sprint.title")}
-                    </h2>
-                    {isPM && (
-                        <Link
-                            href={`/projects/${projectId}/sprints`}
-                            className="text-[11px] font-bold uppercase tracking-wider text-blue-600 hover:text-blue-700"
-                        >
-                            {t("backlog.manage")} →
-                        </Link>
-                    )}
-                </div>
-                <div className="px-4 py-4">
-                    {sprintsQuery.isError && (
-                        <div className="mb-3 flex items-center justify-between rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">
-                            <span>{t("backlog.sprintsLoadError")}</span>
-                            <button
-                                type="button"
-                                onClick={() => sprintsQuery.refetch()}
-                                className="flex items-center gap-1 font-bold text-red-900 underline"
-                            >
-                                <RefreshCw size={14} /> {t("common.retry")}
-                            </button>
-                        </div>
-                    )}
-                    {sprintsQuery.isLoading && (
-                        <div className="space-y-2">
-                            {[1, 2].map(i => (
-                                <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />
-                            ))}
-                        </div>
-                    )}
-                    {!sprintsQuery.isLoading && !sprintsQuery.isError && sprints.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/50 px-4 py-6 text-center">
-                            <p className="text-sm font-semibold text-amber-900">{t("backlog.emptySprintsBanner")}</p>
-                            {isPM && (
-                                <Link
-                                    href={`/projects/${projectId}/sprints`}
-                                    className="mt-3 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700"
-                                >
-                                    <Plus size={14} /> {t("sprint.create")}
-                                </Link>
-                            )}
-                        </div>
-                    )}
-                    {!sprintsQuery.isLoading &&
-                        orderedSprints.map(sprint => (
-                            <SprintSection
-                                key={sprint.id}
-                                projectId={projectId}
-                                sprint={sprint}
-                                isOpen={sprintOpen[sprint.id] ?? sprint.status === "ACTIVE"}
-                                onToggle={() =>
-                                    setSprintOpen(p => {
-                                        const defOpen = sprint.status === "ACTIVE"
-                                        const cur = p[sprint.id] !== undefined ? p[sprint.id]! : defOpen
-                                        return { ...p, [sprint.id]: !cur }
-                                    })
-                                }
-                                isPM={isPM}
-                                isMemberOnly={isMemberOnly}
-                                anyActiveSprint={!!activeSprint}
-                                onStartSprint={() => onClickStart(sprint.id)}
-                                onCompleteSprint={() => setCompleteTargetId(sprint.id)}
-                                onOpenTask={setSelectedTaskId}
-                                onMoveTaskToBacklog={handleMoveTaskToBacklog}
-                                dragEnabled={canDragBetweenSections}
-                            />
-                        ))}
-                </div>
-            </div>
-
-            {/* Backlog vùng dưới */}
-            <div className="flex min-h-0 flex-1 flex-col bg-white">
-                <div className="flex flex-shrink-0 flex-wrap items-start justify-between gap-3 border-b border-[#EBECF0] px-4 py-4">
-                    <div>
-                        <h1 className="text-xl font-bold text-gray-900">
-                            {t("common.backlog")}{" "}
-                            <span className="text-base font-semibold text-gray-500">
-                                ({totalElements} {t("nav.tasks").toLowerCase()})
-                            </span>
-                        </h1>
-                        {!positionSortActive && canReorderBacklog && (
-                            <p className="mt-1 text-xs text-amber-700">{t("backlog.reorderNeedsDefaultSort")}</p>
-                        )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        {totalStoryPoints > 0 && (
-                            <div className="flex items-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-600">
-                                <Zap size={14} className="fill-blue-500" />
-                                {totalStoryPoints} pts
-                            </div>
-                        )}
-                        <TaskPrimaryActions
-                            canCreateTask={isPM || isMemberOnly}
-                            canUseAi={isPM}
-                            onCreateTask={() => setShowCreateModal(true)}
-                            onAiGenerate={() => setShowAiGenerator(true)}
-                            onAiAssign={() => setShowAiAssign(true)}
-                        />
-                    </div>
-                </div>
-
-                <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-[#EBECF0] bg-[#FAFBFC] px-4 py-3">
-                    <div className="relative min-w-[240px] flex-1 md:max-w-sm">
+            <div className="sticky top-0 z-20 border-b border-[#DFE1E6] bg-white/95 px-4 py-3 backdrop-blur">
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative min-w-[260px] flex-1 md:max-w-sm">
                         <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
                             value={filters.search}
@@ -542,6 +436,123 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                         <option value="dueDate,asc">{t("backlog.sortNearestDue")}</option>
                         <option value="storyPoints,desc">{t("backlog.sortHighestPoints")}</option>
                     </select>
+                </div>
+            </div>
+
+            {/* Sprint vùng trên */}
+            <div className="shrink-0 border-b border-[#DFE1E6] bg-white">
+                <div className="flex items-center justify-between border-b border-[#EBECF0] px-4 py-3">
+                    <div>
+                        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-800">
+                            <Layers size={18} className="text-blue-500" />
+                            {t("sprint.title")}
+                        </h2>
+                        <p className="mt-1 text-xs text-gray-500">
+                            Sap xep task trong backlog vao sprint de lap ke hoach nhanh hon.
+                        </p>
+                    </div>
+                    {isPM && (
+                        <Link
+                            href={`/projects/${projectId}/sprints`}
+                            className="text-[11px] font-bold uppercase tracking-wider text-blue-600 hover:text-blue-700"
+                        >
+                            {t("backlog.manage")} →
+                        </Link>
+                    )}
+                </div>
+                <div className="px-4 py-4">
+                    {sprintsQuery.isError && (
+                        <div className="mb-3 flex items-center justify-between rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">
+                            <span>{t("backlog.sprintsLoadError")}</span>
+                            <button
+                                type="button"
+                                onClick={() => sprintsQuery.refetch()}
+                                className="flex items-center gap-1 font-bold text-red-900 underline"
+                            >
+                                <RefreshCw size={14} /> {t("common.retry")}
+                            </button>
+                        </div>
+                    )}
+                    {sprintsQuery.isLoading && (
+                        <div className="space-y-2">
+                            {[1, 2].map(i => (
+                                <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />
+                            ))}
+                        </div>
+                    )}
+                    {!sprintsQuery.isLoading && !sprintsQuery.isError && sprints.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/50 px-4 py-6 text-center">
+                            <p className="text-sm font-semibold text-amber-900">{t("backlog.emptySprintsBanner")}</p>
+                        </div>
+                    )}
+                    {!sprintsQuery.isLoading &&
+                        orderedSprints.map(sprint => (
+                            <SprintSection
+                                key={sprint.id}
+                                projectId={projectId}
+                                sprint={sprint}
+                                isOpen={sprintOpen[sprint.id] ?? sprint.status === "ACTIVE"}
+                                onToggle={() =>
+                                    setSprintOpen(p => {
+                                        const defOpen = sprint.status === "ACTIVE"
+                                        const cur = p[sprint.id] !== undefined ? p[sprint.id]! : defOpen
+                                        return { ...p, [sprint.id]: !cur }
+                                    })
+                                }
+                                isPM={isPM}
+                                isMemberOnly={isMemberOnly}
+                                anyActiveSprint={!!activeSprint}
+                                onStartSprint={() => onClickStart(sprint.id)}
+                                onCompleteSprint={() => setCompleteTargetId(sprint.id)}
+                                onOpenTask={setSelectedTaskId}
+                                onMoveTaskToBacklog={handleMoveTaskToBacklog}
+                                dragEnabled={canDragBetweenSections}
+                            />
+                        ))}
+                </div>
+            </div>
+
+            {/* Backlog vùng dưới */}
+            <div className="flex min-h-0 flex-1 flex-col bg-white">
+                <div className="flex flex-shrink-0 flex-wrap items-start justify-between gap-3 border-b border-[#EBECF0] px-4 py-4">
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-900">
+                            {t("common.backlog")}{" "}
+                            <span className="text-base font-semibold text-gray-500">
+                                ({totalElements} {t("nav.tasks").toLowerCase()})
+                            </span>
+                        </h1>
+                        <p className="mt-1 text-sm text-gray-500">
+                            Quan ly backlog va tao sprint moi tu cung mot khu vuc, giong cach lam viec cua Jira.
+                        </p>
+                        {!positionSortActive && canReorderBacklog && (
+                            <p className="mt-1 text-xs text-amber-700">{t("backlog.reorderNeedsDefaultSort")}</p>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {totalStoryPoints > 0 && (
+                            <div className="flex items-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-600">
+                                <Zap size={14} className="fill-blue-500" />
+                                {totalStoryPoints} pts
+                            </div>
+                        )}
+                        {isPM && (
+                            <Link
+                                href={`/projects/${projectId}/sprints`}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                            >
+                                <Plus size={16} strokeWidth={3} />
+                                {t("sprint.create")}
+                            </Link>
+                        )}
+                        <TaskPrimaryActions
+                            canCreateTask={isPM || isMemberOnly}
+                            canUseAi={isPM}
+                            onCreateTask={() => setShowCreateModal(true)}
+                            onAiGenerate={() => setShowAiGenerator(true)}
+                            onAiAssign={() => setShowAiAssign(true)}
+                        />
+                    </div>
                 </div>
 
                 <div
