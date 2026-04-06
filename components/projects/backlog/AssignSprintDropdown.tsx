@@ -40,9 +40,12 @@ export function AssignSprintDropdown({
                         type="button"
                         onClick={() => onAssign(sprint.id)}
                         className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50"
+                        style={{ color: "#0f172a" }}
                     >
                         <span className={sprint.status === "ACTIVE" ? "h-2 w-2 shrink-0 rounded-full bg-emerald-500" : "h-2 w-2 shrink-0 rounded-full bg-slate-400"} />
-                        <span className="min-w-0 flex-1 truncate font-medium text-slate-800">{sprint.name}</span>
+                        <span className="min-w-0 flex-1 truncate font-semibold" style={{ color: "#0f172a" }}>
+                            {sprint.name}
+                        </span>
                         <span
                             className={
                                 sprint.status === "ACTIVE"

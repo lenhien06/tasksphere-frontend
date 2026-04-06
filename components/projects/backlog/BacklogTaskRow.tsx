@@ -167,7 +167,7 @@ function BacklogTaskRowInner({
                     <AssigneeCell task={task} />
                 </div>
                 <div
-                    className="flex w-32 shrink-0 items-center justify-end gap-1 xl:w-36"
+                    className="flex w-28 shrink-0 items-center justify-end gap-1 xl:w-32"
                     onClick={e => e.stopPropagation()}
                 >
                     {showAssign && (
@@ -179,7 +179,7 @@ function BacklogTaskRowInner({
                                         e.stopPropagation()
                                         setShowSprintMenu(!showSprintMenu)
                                     }}
-                                    className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-500 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
+                                    className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-500 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
                                 >
                                     <Layers size={11} />
                                     {t("backlog.assignToSprintShort")}

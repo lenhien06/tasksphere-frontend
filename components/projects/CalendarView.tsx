@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 import {
   ChevronLeft,
   ChevronRight,
-  LayoutGrid,
   Calendar as CalendarIcon,
   Plus,
   ClipboardList,
@@ -18,7 +17,6 @@ import {
   Users,
   Tag,
   Layers,
-  MoreHorizontal,
   ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -71,23 +69,6 @@ type CalendarTaskPayload = CalendarApiTask & { overdue?: boolean }
 // ════════════════════════════════════════
 // COMPONENTS
 // ════════════════════════════════════════
-
-function Chip({ active, label, icon, onClick }: { active?: boolean; label: string; icon?: React.ReactNode; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "h-9 rounded-lg px-3 text-xs border transition-all whitespace-nowrap inline-flex items-center gap-1.5 font-bold tracking-tight shadow-sm",
-        active
-          ? "border-blue-200 bg-blue-50 text-blue-700"
-          : "border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300"
-      )}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
 
 function FilterMenu({
   label,
@@ -438,9 +419,7 @@ export default function CalendarView({
     [selectedDate, tasksByDate]
   )
 
-  const totalTaskCount = filteredTasks.length
-  const overdueCount   = filteredTasks.filter(t => t.isOverdue).length
-  const completedCount = filteredTasks.filter(t => t.taskStatus === 'DONE').length
+  const hasMoreFilters = filters.onlyMy || !!filters.sprint
 
   const days = useMemo(
     () => buildCalendarDays(currentYear, currentMonth),
@@ -495,208 +474,184 @@ export default function CalendarView({
 
         {/* ── TOOLBAR ── */}
         <div className="mb-4 sticky top-14 z-20">
-          <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible rounded-xl border border-gray-200 bg-white p-2 shadow-sm hide-scrollbar">
-            
-            {/* Search */}
-            <div className="relative min-w-[240px]">
+          <div className="flex items-center justify-between gap-3 overflow-x-auto overflow-y-visible rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm hide-scrollbar">
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-[240px]">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 value={filters.search}
                 onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-                placeholder={t('kanban.searchTasks', { defaultValue: "Tìm kiếm task..." })}
-                className="h-8 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                placeholder={t('calendar.title', { defaultValue: 'Calendar' }) === 'Calendar' ? 'Search calendar' : 'Tìm kiếm lịch'}
+                className="h-9 w-full rounded-md border border-gray-300 bg-white pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
               />
+              </div>
+              <FilterMenu
+                label={t('common.assignee')}
+                active={!!filters.assigneeId}
+                icon={<Users size={13} />}
+              >
+                <button
+                  onClick={() => setFilters(f => ({ ...f, assigneeId: '' }))}
+                  className={cn(
+                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    !filters.assigneeId ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  {t('common.all')} {t('common.assignee')}
+                </button>
+                {derivedFilters.assignees.map(a => (
+                  <button
+                    key={a.id}
+                    onClick={() => setFilters(f => ({ ...f, assigneeId: a.id }))}
+                    className={cn(
+                      "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                      filters.assigneeId === a.id ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                    )}
+                  >
+                    {a.fullName}
+                  </button>
+                ))}
+              </FilterMenu>
+
+              <FilterMenu
+                label="Priority"
+                active={!!filters.priority}
+                icon={<Tag size={13} />}
+              >
+                <button
+                  onClick={() => setFilters(f => ({ ...f, priority: '' }))}
+                  className={cn(
+                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    !filters.priority ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  All Priorities
+                </button>
+                {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setFilters(f => ({ ...f, priority: p }))}
+                    className={cn(
+                      "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                      filters.priority === p ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                    )}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </FilterMenu>
+
+              <FilterMenu
+                label="Status"
+                active={!!filters.status}
+                icon={<ListFilter size={13} />}
+              >
+                <button
+                  onClick={() => setFilters(f => ({ ...f, status: '' }))}
+                  className={cn(
+                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    !filters.status ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  All Statuses
+                </button>
+                {Object.entries(STATUS_LABEL).map(([k, v]) => (
+                  <button
+                    key={k}
+                    onClick={() => setFilters(f => ({ ...f, status: k as TaskStatus }))}
+                    className={cn(
+                      "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                      filters.status === k ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                    )}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </FilterMenu>
+
+              <FilterMenu
+                label="More filters"
+                active={hasMoreFilters}
+                icon={<Layers size={13} />}
+              >
+                <button
+                  onClick={() => setFilters(f => ({ ...f, onlyMy: !f.onlyMy }))}
+                  className={cn(
+                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    filters.onlyMy ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <User size={12} />
+                    {t('backlog.me', { defaultValue: "Tôi" })}
+                  </span>
+                </button>
+                <div className="my-1 h-px bg-gray-100" />
+                <button
+                  onClick={() => setFilters(f => ({ ...f, sprint: '' }))}
+                  className={cn(
+                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                    !filters.sprint ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  All Sprints
+                </button>
+                {derivedFilters.sprints.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => setFilters(f => ({ ...f, sprint: s.id }))}
+                    className={cn(
+                      "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
+                      filters.sprint === s.id ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
+                    )}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              </FilterMenu>
+
+              {(filters.search || filters.assigneeId || filters.priority || filters.status || hasMoreFilters) && (
+                <button
+                  onClick={() => setFilters({
+                    search: '',
+                    assigneeId: '',
+                    priority: '',
+                    status: '',
+                    sprint: '',
+                    onlyMy: false,
+                  })}
+                  className="h-9 rounded-md border border-transparent px-3 text-xs font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
             </div>
 
-            {/* Navigation */}
-            <div className="flex items-center gap-1.5 px-1.5 border-r border-gray-100 mr-1.5">
-              <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-100">
-                <button onClick={goPrev} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-gray-600 transition-all">
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={goToday}
+                className="h-9 rounded-md border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                {t('calendar.today')}
+              </button>
+              <div className="flex items-center rounded-md border border-gray-300 bg-white">
+                <button onClick={goPrev} className="px-2.5 py-2 text-gray-500 hover:bg-gray-50 transition-colors">
                   <ChevronLeft size={16} />
                 </button>
-                <div className="px-3 font-bold text-xs min-w-[120px] text-center text-gray-900 uppercase tracking-tight">
+                <div className="min-w-[116px] px-3 text-center text-sm font-semibold text-gray-800">
                   {new Date(currentYear, currentMonth - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                 </div>
-                <button onClick={goNext} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-gray-600 transition-all">
+                <button onClick={goNext} className="px-2.5 py-2 text-gray-500 hover:bg-gray-50 transition-colors">
                   <ChevronRight size={16} />
                 </button>
               </div>
               <button
-                onClick={goToday}
-                className="h-9 px-4 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
+                className="h-9 rounded-md border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 inline-flex items-center gap-1.5 hover:bg-gray-50 transition-colors"
               >
-                {t('calendar.today')}
+                <CalendarIcon size={14} />
+                Month
+                <ChevronDown size={13} className="opacity-60" />
               </button>
-            </div>
-
-            {/* Filters */}
-            <Chip
-              active={filters.onlyMy}
-              icon={<User size={13} />}
-              label={t('backlog.me', { defaultValue: "Tôi" })}
-              onClick={() => setFilters(f => ({ ...f, onlyMy: !f.onlyMy }))}
-            />
-
-            <FilterMenu
-              label={t('common.assignee')}
-              active={!!filters.assigneeId}
-              icon={<Users size={13} />}
-            >
-              <button
-                onClick={() => setFilters(f => ({ ...f, assigneeId: '' }))}
-                className={cn(
-                  "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
-                  !filters.assigneeId ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
-                )}
-              >
-                {t('common.all')} {t('common.assignee')}
-              </button>
-              {derivedFilters.assignees.map(a => (
-                <button
-                  key={a.id}
-                  onClick={() => setFilters(f => ({ ...f, assigneeId: a.id }))}
-                  className={cn(
-                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
-                    filters.assigneeId === a.id ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
-                  )}
-                >
-                  {a.fullName}
-                </button>
-              ))}
-            </FilterMenu>
-
-            <FilterMenu
-              label="Priority"
-              active={!!filters.priority}
-              icon={<Tag size={13} />}
-            >
-              <button
-                onClick={() => setFilters(f => ({ ...f, priority: '' }))}
-                className={cn(
-                  "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
-                  !filters.priority ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
-                )}
-              >
-                All Priorities
-              </button>
-              {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map(p => (
-                <button
-                  key={p}
-                  onClick={() => setFilters(f => ({ ...f, priority: p }))}
-                  className={cn(
-                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
-                    filters.priority === p ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
-                  )}
-                >
-                  {p}
-                </button>
-              ))}
-            </FilterMenu>
-
-            <FilterMenu
-              label="Status"
-              active={!!filters.status}
-              icon={<ListFilter size={13} />}
-            >
-              <button
-                onClick={() => setFilters(f => ({ ...f, status: '' }))}
-                className={cn(
-                  "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
-                  !filters.status ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
-                )}
-              >
-                All Statuses
-              </button>
-              {Object.entries(STATUS_LABEL).map(([k, v]) => (
-                <button
-                  key={k}
-                  onClick={() => setFilters(f => ({ ...f, status: k as TaskStatus }))}
-                  className={cn(
-                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
-                    filters.status === k ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
-                  )}
-                >
-                  {v}
-                </button>
-              ))}
-            </FilterMenu>
-
-            <FilterMenu
-              label="Sprint"
-              active={!!filters.sprint}
-              icon={<Layers size={13} />}
-            >
-              <button
-                onClick={() => setFilters(f => ({ ...f, sprint: '' }))}
-                className={cn(
-                  "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
-                  !filters.sprint ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
-                )}
-              >
-                All Sprints
-              </button>
-              {derivedFilters.sprints.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => setFilters(f => ({ ...f, sprint: s.id }))}
-                  className={cn(
-                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors font-medium",
-                    filters.sprint === s.id ? "bg-blue-50 text-blue-700 font-bold" : "text-gray-600 hover:bg-gray-100"
-                  )}
-                >
-                  {s.name}
-                </button>
-              ))}
-            </FilterMenu>
-
-            <div className="ml-auto flex items-center gap-2">
-              {!isReadOnly && (
-                <button
-                  className="h-8 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/20 inline-flex items-center gap-2 shrink-0 active:scale-95"
-                >
-                  <Plus size={14} strokeWidth={3} />
-                  {t('kanban.addTask', { defaultValue: "Thêm công việc" })}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── SUMMARY ROW ── */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-4 md:gap-6 overflow-x-auto hide-scrollbar shrink-0">
-          <div className="flex-1 min-w-[180px] bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm border border-blue-100 shrink-0">
-              <ClipboardList size={20} />
-            </div>
-            <div>
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">{t('report.totalTasks')}</div>
-              <div className="text-[16px] font-bold text-gray-900 leading-tight">
-                {isLoading ? '...' : totalTaskCount} {t('nav.tasks').toLowerCase()}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 min-w-[180px] bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center text-red-600 shadow-sm border border-red-100 shrink-0">
-              <AlertCircle size={20} />
-            </div>
-            <div>
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">{t('task.overdue')}</div>
-              <div className="text-[16px] font-bold text-gray-900 leading-tight">
-                {isLoading ? '...' : overdueCount} {t('nav.tasks').toLowerCase()}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 min-w-[180px] bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100 shrink-0">
-              <CheckCircle2 size={20} />
-            </div>
-            <div>
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">{t('sprint.status_COMPLETED')}</div>
-              <div className="text-[16px] font-bold text-gray-900 leading-tight">
-                {isLoading ? '...' : completedCount} {t('nav.tasks').toLowerCase()}
-              </div>
             </div>
           </div>
         </div>

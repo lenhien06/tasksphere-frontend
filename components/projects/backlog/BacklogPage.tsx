@@ -53,6 +53,7 @@ import { cn } from "@/lib/utils"
 import { SprintSection } from "./SprintSection"
 import { StartSprintModal } from "./StartSprintModal"
 import { CompleteSprintModal } from "./CompleteSprintModal"
+import { CreateSprintModal } from "./CreateSprintModal"
 import { BacklogTaskRow, SortableBacklogTaskRow } from "./BacklogTaskRow"
 import { AiTaskGenerator } from "@/components/ai/AiTaskGenerator"
 import { AiAssignReview } from "@/components/ai/AiAssignReview"
@@ -106,6 +107,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
     const [showBatchSprintMenu, setShowBatchSprintMenu] = useState(false)
     const [showCreateModal, setShowCreateModal] = useState(false)
+    const [showCreateSprintModal, setShowCreateSprintModal] = useState(false)
     const [activeDraggedTask, setActiveDraggedTask] = useState<TaskResponse | null>(null)
     const [sprintOpen, setSprintOpen] = useState<Record<string, boolean>>({})
     const [startTargetId, setStartTargetId] = useState<string | null>(null)
@@ -464,13 +466,10 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
             <div className="shrink-0 border-b border-[#DFE1E6] bg-white">
                 <div className="flex items-center justify-between border-b border-[#EBECF0] px-4 py-3">
                     <div>
-                        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-800">
+                        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
                             <Layers size={18} className="text-blue-500" />
                             {t("sprint.title")}
                         </h2>
-                        <p className="mt-1 text-xs text-gray-500">
-                            Sap xep task trong backlog vao sprint de lap ke hoach nhanh hon.
-                        </p>
                     </div>
                     {isPM && (
                         <Link
@@ -543,9 +542,6 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                 ({totalElements} {t("nav.tasks").toLowerCase()})
                             </span>
                         </h1>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Quan ly backlog va tao sprint moi tu cung mot khu vuc, giong cach lam viec cua Jira.
-                        </p>
                         {!positionSortActive && canReorderBacklog && (
                             <p className="mt-1 text-xs text-amber-700">{t("backlog.reorderNeedsDefaultSort")}</p>
                         )}
@@ -558,13 +554,14 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                             </div>
                         )}
                         {isPM && (
-                            <Link
-                                href={`/projects/${projectId}/sprints`}
+                            <button
+                                type="button"
+                                onClick={() => setShowCreateSprintModal(true)}
                                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
                             >
                                 <Plus size={16} strokeWidth={3} />
                                 {t("sprint.create")}
-                            </Link>
+                            </button>
                         )}
                         <TaskPrimaryActions
                             canCreateTask={isPM || isMemberOnly}
@@ -811,6 +808,12 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                 onSuccess={sprintId => {
                     setSprintOpen(p => ({ ...p, [sprintId]: false }))
                 }}
+            />
+
+            <CreateSprintModal
+                projectId={projectId}
+                open={showCreateSprintModal}
+                onClose={() => setShowCreateSprintModal(false)}
             />
 
             {selectedTaskId && (

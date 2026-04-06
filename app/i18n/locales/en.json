@@ -547,7 +547,7 @@
   },
 
   "calendar": {
-    "title": "Task Calendar",
+    "title": "Calendar",
     "loadError": "Unable to load calendar. Please try again.",
     "mon": "Mon",
     "tue": "Tue",

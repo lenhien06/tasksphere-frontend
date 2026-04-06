@@ -547,7 +547,7 @@
   },
 
   "calendar": {
-    "title": "Lịch công việc",
+    "title": "Calendar",
     "loadError": "Không thể tải lịch. Vui lòng thử lại.",
     "mon": "Thứ 2",
     "tue": "Thứ 3",
