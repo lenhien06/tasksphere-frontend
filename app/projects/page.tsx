@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
     Plus,
     Search,
@@ -279,7 +279,8 @@ export default function ProjectsPage() {
     
     // UI state
     const [showCreate, setShowCreate] = useState(false);
-    const { selectedContext, selectedWorkspace } = useWorkspace();
+    const searchParams = useSearchParams();
+    const { selectedContext, selectedWorkspace, selectPersonal } = useWorkspace();
     const [activeProject, setActiveProject] = useState<any>(null);
     const [modalType, setModalType] = useState<"edit" | "archive" | "delete" | "restore" | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -287,6 +288,17 @@ export default function ProjectsPage() {
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [isResettingFilters, setIsResettingFilters] = useState(false);
     const isArchiveView = statusFilter === "Archived";
+    const workspaceMode = searchParams.get("context") === "workspace";
+    const effectiveWorkspace =
+        workspaceMode && selectedContext.kind === "workspace"
+            ? selectedContext.workspace
+            : null;
+
+    useEffect(() => {
+        if (!workspaceMode && selectedContext.kind === "workspace") {
+            selectPersonal();
+        }
+    }, [selectPersonal, selectedContext.kind, workspaceMode]);
 
     async function handleCopyProjectLink(projectId: string) {
         if (typeof window === "undefined") return;
@@ -312,7 +324,7 @@ export default function ProjectsPage() {
 
     // Queries
     const { data: apiResponse, isLoading, isError, isFetching } = useQuery({
-        queryKey: ["projects", { page, statusFilter, visibilityFilter, debouncedSearch, contextKind: selectedContext.kind, workspaceId: selectedWorkspace?.id ?? null }],
+        queryKey: ["projects", { page, statusFilter, visibilityFilter, debouncedSearch, contextKind: effectiveWorkspace ? "workspace" : "personal", workspaceId: effectiveWorkspace?.id ?? null }],
         queryFn: () => {
             let vBE = undefined;
             if (visibilityFilter === "Public") vBE = "public";
@@ -330,8 +342,8 @@ export default function ProjectsPage() {
                 size: PAGE_SIZE,
                 status: sBE,
                 visibility: vBE,
-                workspaceId: selectedContext.kind === "workspace" ? selectedContext.workspace.id : undefined,
-                scope: selectedContext.kind === "workspace" ? undefined : "personal",
+                workspaceId: effectiveWorkspace?.id,
+                scope: effectiveWorkspace ? undefined : "personal",
                 q: debouncedSearch || undefined,
                 sort: "createdAt,desc"
             });
@@ -440,7 +452,7 @@ export default function ProjectsPage() {
         await createMutation.mutateAsync({
             ...data,
             name: data.name.trim(),
-            workspaceId: selectedContext.kind === "workspace" ? selectedContext.workspace.id : undefined,
+            workspaceId: effectiveWorkspace?.id,
         });
     }
 
@@ -561,13 +573,13 @@ export default function ProjectsPage() {
                         <p className="text-[13px] text-gray-500 font-medium">{t('project.trackProgress')}</p>
                         <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-700">
                             <Building2 className="h-3.5 w-3.5" />
-                            {selectedContext.kind === "workspace"
-                                ? `Workspace: ${selectedContext.workspace.name}`
+                            {effectiveWorkspace
+                                ? `Workspace: ${effectiveWorkspace.name}`
                                 : "Personal Workspace"}
                         </div>
                     </div>
                     <div className="flex items-start gap-3">
-                        {selectedContext.kind === "workspace" && selectedWorkspace && (
+                        {effectiveWorkspace && selectedWorkspace && (
                             <button
                                 onClick={() => router.push(`/ws/${selectedWorkspace.slug}/projects/new-with-ai`)}
                                 className="flex items-center gap-2 h-[38px] px-4 rounded-xl text-[13px] font-bold border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition-all"

@@ -649,7 +649,7 @@ export default function WorkspaceDetailPage() {
                 type="button"
                 onClick={() => {
                   selectWorkspace(workspace);
-                  router.push("/projects");
+                  router.push("/projects?context=workspace");
                 }}
                 className="inline-flex h-10 items-center gap-2 rounded-md border border-[#1f883d] bg-[#2da44e] px-4 text-sm font-medium text-white shadow-sm transition hover:bg-[#2c974b]"
               >
@@ -689,7 +689,7 @@ export default function WorkspaceDetailPage() {
                     type="button"
                     onClick={() => {
                       selectWorkspace(workspace);
-                      router.push("/projects");
+                      router.push("/projects?context=workspace");
                     }}
                     className="rounded-md border border-[#1f883d] bg-[#2da44e] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#2c974b]"
                   >
@@ -746,19 +746,6 @@ export default function WorkspaceDetailPage() {
                   {workspace.projectCount}
                 </span>
               </div>
-              {canManage && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    selectWorkspace(workspace);
-                    router.push("/projects");
-                  }}
-                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-md border border-[#d0d7de] bg-white px-3 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
-                >
-                  <FolderKanban size={14} />
-                  Mở danh sách dự án
-                </button>
-              )}
             </div>
               </SidebarCard>
 

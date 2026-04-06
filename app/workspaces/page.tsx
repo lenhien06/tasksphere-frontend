@@ -108,7 +108,7 @@ function WorkspaceRow({
 
 export default function WorkspaceListPage() {
   const router = useRouter();
-  const { selectPersonal, selectWorkspace } = useWorkspace();
+  const { selectWorkspace } = useWorkspace();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["my-workspaces"],
@@ -117,8 +117,6 @@ export default function WorkspaceListPage() {
   });
 
   const workspaces: Workspace[] = (data?.data as Workspace[]) ?? [];
-  const personalWorkspace =
-    workspaces.find((workspace) => workspace.type === "PERSONAL") ?? null;
   const organizationWorkspaces = workspaces.filter(
     (workspace) => workspace.type !== "PERSONAL"
   );
@@ -129,7 +127,7 @@ export default function WorkspaceListPage() {
         <div>
           <h1 className="text-[32px] font-medium text-[#1f2328]">Workspaces</h1>
           <p className="mt-1 text-sm text-[#57606a]">
-            Quản lý personal workspace và các workspace tổ chức theo một nơi thống nhất.
+            Quản lý các workspace tổ chức của bạn theo một nơi thống nhất.
           </p>
         </div>
 
@@ -173,24 +171,6 @@ export default function WorkspaceListPage() {
             Tạo workspace đầu tiên
           </button>
         </div>
-      )}
-
-      {!isLoading && !isError && personalWorkspace && (
-        <section className="mb-8">
-          <div className="mb-3 text-sm font-semibold text-[#1f2328]">
-            Personal workspace
-          </div>
-          <div className="overflow-hidden rounded-xl border border-[#d0d7de] bg-white shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
-            <WorkspaceRow
-              workspace={personalWorkspace}
-              actionLabel="Mở dự án"
-              onOpen={() => {
-                selectPersonal();
-                router.push("/projects");
-              }}
-            />
-          </div>
-        </section>
       )}
 
       {!isLoading && !isError && organizationWorkspaces.length > 0 && (
