@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback } from "react";
 import {
-  Camera, Pencil, Plus, X, Check, Globe, Loader2, Sparkles
+  Camera, Pencil, Plus, X, Check, Loader2, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/common/UserAvatar";
@@ -26,11 +26,6 @@ const DOMAIN_COLORS: Record<SkillDomain, string> = {
   DevOps: "bg-orange-500  text-white",
   Other:  "bg-slate-500   text-white",
 };
-
-const PROJECT_COLORS = [
-  "#6366f1", "#3b82f6", "#10b981", "#f59e0b",
-  "#ef4444", "#8b5cf6", "#06b6d4", "#f97316",
-] as const;
 
 const FE_KW  = ["react","vue","angular","next","svelte","html","css","tailwind","nuxt","redux","expo","flutter","typescript","javascript","vite","webpack"];
 const BE_KW  = ["node","java","spring","django","python","go","rust","php","laravel","express","rails","kotlin","c#",".net","sql","postgres","mysql","mongo","redis","grpc","graphql"];
@@ -70,37 +65,6 @@ function SkillChip({ label, onRemove }: { label: string; onRemove: () => void })
         <X size={10} strokeWidth={3} />
       </button>
     </span>
-  );
-}
-
-function ProjectCard({ project, colorHex }: {
-  project: UserProfileResponse["participatedProjects"][0];
-  colorHex: string;
-}) {
-  const initial = (project.name[0] || "?").toUpperCase();
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer group">
-      <div className="flex items-center gap-3 mb-2">
-        <div
-          className="h-9 w-9 rounded-xl flex items-center justify-center text-white font-extrabold text-base shrink-0 shadow-sm"
-          style={{ backgroundColor: colorHex }}
-        >
-          {initial}
-        </div>
-        <h3 className="font-bold text-[13px] text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-          {project.name}
-        </h3>
-      </div>
-      <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-2 mb-3">
-        {project.description || "Không có mô tả."}
-      </p>
-      <div className="flex items-center gap-1 text-emerald-600">
-        <Globe size={11} />
-        <span className="text-[11px] font-bold">
-          {project.visibility === "public" ? "Công khai" : project.visibility}
-        </span>
-      </div>
-    </div>
   );
 }
 
@@ -191,7 +155,6 @@ export default function UserProfilePage() {
 
   // ── Derived values ──
   const skillTags = profile?.skillTags || [];
-  const projects  = profile?.participatedProjects || [];
   const capacity  = capacityDraft ?? profile?.workCapacityHours ?? 40;
 
   if (isLoading) {
@@ -204,10 +167,11 @@ export default function UserProfilePage() {
 
   return (
     <div className="min-h-screen bg-slate-100/70">
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+      <div className="mx-auto w-full max-w-[1680px] px-4 pb-6 pt-4 sm:px-6 sm:pt-5 lg:px-8 lg:pt-6 2xl:px-10">
+        <div className="space-y-5">
 
-        {/* ══════════════════ IDENTITY BANNER ══════════════════ */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-5">
+          {/* ══════════════════ IDENTITY BANNER ══════════════════ */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-5">
               <div className="relative shrink-0">
@@ -254,10 +218,10 @@ export default function UserProfilePage() {
               {t("profile.editBasicInfo", { defaultValue: "Chỉnh sửa thông tin cơ bản" })}
             </button>
           </div>
-        </div>
+          </div>
 
-        {/* ══════════════════ EDIT BASIC INFO MODAL ══════════════════ */}
-        {editingBasic && (
+          {/* ══════════════════ EDIT BASIC INFO MODAL ══════════════════ */}
+          {editingBasic && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
               <div className="flex items-center justify-between">
@@ -306,173 +270,143 @@ export default function UserProfilePage() {
               </div>
             </div>
           </div>
-        )}
-
-        {/* ══════════════════ SKILLS + BIO ROW ══════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-
-          {/* ── LEFT: Skills Card ── */}
-          <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-            <div>
-              <h2 className="text-[15px] font-extrabold text-slate-900 flex items-center gap-2">
-                <Sparkles size={16} className="text-purple-500" />
-                {t("profile.skillsTitle", { defaultValue: "Kỹ năng chuyên môn & Năng lực AI" })}
-              </h2>
-              <p className="text-[12px] text-slate-400 font-medium mt-0.5">
-                {t("profile.skillsDesc", { defaultValue: "Quản lý kỹ năng để AI phân công việc chính xác." })}
-              </p>
-            </div>
-
-            {/* Tag input */}
-            <div className="flex items-center gap-2">
-              <input
-                value={newSkillLabel}
-                onChange={e => setNewSkillLabel(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleAddSkill(); }}
-                placeholder={t("profile.addSkillPlaceholder", { defaultValue: "Thêm kỹ năng..." }) as string}
-                disabled={updateSkillsMut.isPending}
-                className="flex-1 h-9 px-3 rounded-xl border border-slate-200 text-[13px] font-medium outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-slate-50 focus:bg-white transition-all placeholder:text-slate-300 disabled:opacity-60"
-              />
-              <button
-                onClick={handleAddSkill}
-                disabled={updateSkillsMut.isPending}
-                className="h-9 w-9 flex items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-90 disabled:opacity-60"
-                aria-label="Add skill"
-              >
-                {updateSkillsMut.isPending
-                  ? <Loader2 size={14} className="animate-spin" />
-                  : <Plus size={16} strokeWidth={3} />}
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-2 min-h-[36px]">
-              {skillTags.map(tag => (
-                <SkillChip
-                  key={tag}
-                  label={tag}
-                  onRemove={() => handleRemoveSkill(tag)}
-                />
-              ))}
-              {skillTags.length === 0 && (
-                <span className="text-[12px] text-slate-300 font-medium">
-                  {t("profile.noSkills", { defaultValue: "Chưa có kỹ năng nào. Hãy thêm kỹ năng đầu tiên!" })}
-                </span>
-              )}
-            </div>
-
-            <div className="border-t border-slate-100" />
-
-            {/* Work Capacity */}
-            <div>
-              <p className="text-[13px] font-extrabold text-slate-800 mb-2">Work Capacity</p>
-              <div className="flex items-center gap-3">
-                <span className="text-[13px] font-medium text-slate-500">
-                  {t("profile.workCapacity", { defaultValue: "Năng lực làm việc:" })}
-                </span>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min={1}
-                    max={168}
-                    value={capacity}
-                    onChange={e => setCapacityDraft(Math.max(1, Math.min(168, Number(e.target.value))))}
-                    onBlur={handleCapacityBlur}
-                    className="w-16 h-8 px-2 rounded-lg border border-slate-200 text-[14px] font-bold text-center outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
-                  />
-                  <span className="text-[13px] font-bold text-slate-500">h</span>
-                </div>
-                <span className="text-[11px] text-slate-400 font-medium">
-                  {t("profile.hoursPerWeek", { defaultValue: "(giờ / tuần)" })}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center pt-1">
-              <span className="text-[11px] text-slate-400">
-                {skillTags.length} {t("profile.skillsCount", { defaultValue: "kỹ năng" })} &middot; {capacity}{t("profile.aiReady", { defaultValue: "h/tuần → sẵn sàng cho AI phân công" })}
-              </span>
-            </div>
-          </div>
-
-          {/* ── RIGHT: About Me Card ── */}
-          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
-            <h2 className="text-[15px] font-extrabold text-slate-900">
-              {t("profile.aboutMe", { defaultValue: "Giới thiệu" })}
-            </h2>
-
-            <textarea
-              value={editingBio ? editBio : (profile?.bio || "")}
-              onChange={e => editingBio && setEditBio(e.target.value)}
-              disabled={!editingBio}
-              rows={7}
-              maxLength={500}
-              placeholder={t("profile.bioPlaceholder", { defaultValue: "Mô tả bản thân, kinh nghiệm, mục tiêu..." }) as string}
-              className={cn(
-                "flex-1 w-full p-3 rounded-xl border text-[13px] font-medium leading-relaxed resize-none outline-none transition-all",
-                editingBio
-                  ? "border-blue-400 bg-white ring-2 ring-blue-100 text-slate-800"
-                  : "border-slate-200 bg-slate-50 text-slate-600"
-              )}
-            />
-
-            {editingBio ? (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setEditingBio(false)}
-                  className="flex-1 h-9 rounded-xl border border-slate-200 text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-all"
-                >
-                  {t("common.cancel", { defaultValue: "Hủy" })}
-                </button>
-                <button
-                  onClick={saveBio}
-                  disabled={updateProfileMut.isPending}
-                  className="flex-1 flex items-center justify-center gap-2 h-9 rounded-xl bg-blue-600 text-white text-[13px] font-bold hover:bg-blue-700 transition-all shadow-sm disabled:opacity-60"
-                >
-                  <Check size={14} /> {t("common.save", { defaultValue: "Lưu" })}
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={openEditBio}
-                className="flex items-center justify-center gap-2 h-9 w-full rounded-xl border border-slate-200 bg-white text-[13px] font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all"
-              >
-                <Pencil size={13} />
-                {t("profile.editBio", { defaultValue: "Chỉnh sửa Giới thiệu" })}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ══════════════════ PARTICIPATED PROJECTS ══════════════════ */}
-        <div className="space-y-4">
-          <h2 className="text-[15px] font-extrabold text-slate-900 px-0.5">
-            {t("profile.publicProjects", { defaultValue: "Projects" })}{" "}
-            <span className="text-slate-400 font-semibold">
-              {t("profile.participatedProjects", { defaultValue: "(Dự án tham gia)" })}
-            </span>
-          </h2>
-
-          {isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-xl border border-slate-200 p-4 animate-pulse h-28" />
-              ))}
-            </div>
-          ) : projects.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {projects.map((p, i) => (
-                <ProjectCard key={p.id} project={p} colorHex={PROJECT_COLORS[i % PROJECT_COLORS.length]} />
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
-              <p className="text-[13px] text-slate-400 font-medium">
-                {t("profile.noProjects", { defaultValue: "Bạn chưa tham gia dự án nào." })}
-              </p>
-            </div>
           )}
-        </div>
 
+          {/* ══════════════════ SKILLS + BIO ROW ══════════════════ */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+
+            {/* ── LEFT: Skills Card ── */}
+            <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+              <div>
+                <h2 className="text-[15px] font-extrabold text-slate-900 flex items-center gap-2">
+                  <Sparkles size={16} className="text-purple-500" />
+                  {t("profile.skillsTitle", { defaultValue: "Kỹ năng chuyên môn & Năng lực AI" })}
+                </h2>
+                <p className="text-[12px] text-slate-400 font-medium mt-0.5">
+                  {t("profile.skillsDesc", { defaultValue: "Quản lý kỹ năng để AI phân công việc chính xác." })}
+                </p>
+              </div>
+
+              {/* Tag input */}
+              <div className="flex items-center gap-2">
+                <input
+                  value={newSkillLabel}
+                  onChange={e => setNewSkillLabel(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleAddSkill(); }}
+                  placeholder={t("profile.addSkillPlaceholder", { defaultValue: "Thêm kỹ năng..." }) as string}
+                  disabled={updateSkillsMut.isPending}
+                  className="flex-1 h-9 px-3 rounded-xl border border-slate-200 text-[13px] font-medium outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-slate-50 focus:bg-white transition-all placeholder:text-slate-300 disabled:opacity-60"
+                />
+                <button
+                  onClick={handleAddSkill}
+                  disabled={updateSkillsMut.isPending}
+                  className="h-9 w-9 flex items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-90 disabled:opacity-60"
+                  aria-label="Add skill"
+                >
+                  {updateSkillsMut.isPending
+                    ? <Loader2 size={14} className="animate-spin" />
+                    : <Plus size={16} strokeWidth={3} />}
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 min-h-[36px]">
+                {skillTags.map(tag => (
+                  <SkillChip
+                    key={tag}
+                    label={tag}
+                    onRemove={() => handleRemoveSkill(tag)}
+                  />
+                ))}
+                {skillTags.length === 0 && (
+                  <span className="text-[12px] text-slate-300 font-medium">
+                    {t("profile.noSkills", { defaultValue: "Chưa có kỹ năng nào. Hãy thêm kỹ năng đầu tiên!" })}
+                  </span>
+                )}
+              </div>
+
+              <div className="border-t border-slate-100" />
+
+              {/* Work Capacity */}
+              <div>
+                <p className="text-[13px] font-extrabold text-slate-800 mb-2">Work Capacity</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-[13px] font-medium text-slate-500">
+                    {t("profile.workCapacity", { defaultValue: "Năng lực làm việc:" })}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={1}
+                      max={168}
+                      value={capacity}
+                      onChange={e => setCapacityDraft(Math.max(1, Math.min(168, Number(e.target.value))))}
+                      onBlur={handleCapacityBlur}
+                      className="w-16 h-8 px-2 rounded-lg border border-slate-200 text-[14px] font-bold text-center outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                    />
+                    <span className="text-[13px] font-bold text-slate-500">h</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    {t("profile.hoursPerWeek", { defaultValue: "(giờ / tuần)" })}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center pt-1">
+                <span className="text-[11px] text-slate-400">
+                  {skillTags.length} {t("profile.skillsCount", { defaultValue: "kỹ năng" })} &middot; {capacity}{t("profile.aiReady", { defaultValue: "h/tuần → sẵn sàng cho AI phân công" })}
+                </span>
+              </div>
+            </div>
+
+            {/* ── RIGHT: About Me Card ── */}
+            <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
+              <h2 className="text-[15px] font-extrabold text-slate-900">
+                {t("profile.aboutMe", { defaultValue: "Giới thiệu" })}
+              </h2>
+
+              <textarea
+                value={editingBio ? editBio : (profile?.bio || "")}
+                onChange={e => editingBio && setEditBio(e.target.value)}
+                disabled={!editingBio}
+                rows={7}
+                maxLength={500}
+                placeholder={t("profile.bioPlaceholder", { defaultValue: "Mô tả bản thân, kinh nghiệm, mục tiêu..." }) as string}
+                className={cn(
+                  "flex-1 w-full p-3 rounded-xl border text-[13px] font-medium leading-relaxed resize-none outline-none transition-all",
+                  editingBio
+                    ? "border-blue-400 bg-white ring-2 ring-blue-100 text-slate-800"
+                    : "border-slate-200 bg-slate-50 text-slate-600"
+                )}
+              />
+
+              {editingBio ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditingBio(false)}
+                    className="flex-1 h-9 rounded-xl border border-slate-200 text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                  >
+                    {t("common.cancel", { defaultValue: "Hủy" })}
+                  </button>
+                  <button
+                    onClick={saveBio}
+                    disabled={updateProfileMut.isPending}
+                    className="flex-1 flex items-center justify-center gap-2 h-9 rounded-xl bg-blue-600 text-white text-[13px] font-bold hover:bg-blue-700 transition-all shadow-sm disabled:opacity-60"
+                  >
+                    <Check size={14} /> {t("common.save", { defaultValue: "Lưu" })}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={openEditBio}
+                  className="flex items-center justify-center gap-2 h-9 w-full rounded-xl border border-slate-200 bg-white text-[13px] font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all"
+                >
+                  <Pencil size={13} />
+                  {t("profile.editBio", { defaultValue: "Chỉnh sửa Giới thiệu" })}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
