@@ -571,17 +571,6 @@ export default function WorkspaceDetailPage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              selectWorkspace(workspace);
-              router.push(`/ws/${slug}/projects/new-with-ai`);
-            }}
-            className="inline-flex items-center gap-2 rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
-          >
-            <Sparkles size={15} />
-            Tạo với AI
-          </button>
         </div>
 
         <div className="mt-6 flex gap-1 overflow-x-auto">
@@ -613,11 +602,6 @@ export default function WorkspaceDetailPage() {
         {activeTab === "projects" && (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <main className="min-w-0">
-          <div className="mb-4 flex items-center gap-2 text-[22px] font-semibold text-[#1f2328]">
-            <FolderKanban size={20} />
-            Dự án
-          </div>
-
           <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="relative min-w-0 flex-1">
               <Search
@@ -671,6 +655,17 @@ export default function WorkspaceDetailPage() {
               >
                 <Plus size={15} />
                 Tạo dự án
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  selectWorkspace(workspace);
+                  router.push(`/ws/${slug}/projects/new-with-ai`);
+                }}
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-[#d0d7de] bg-white px-4 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
+              >
+                <Sparkles size={15} />
+                Tạo với AI
               </button>
             </div>
           </div>
@@ -818,11 +813,7 @@ export default function WorkspaceDetailPage() {
         {activeTab === "members" && (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
             <main className="min-w-0">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-[22px] font-semibold text-[#1f2328]">
-                  <Users size={20} />
-                  Thành viên
-                </div>
+              <div className="mb-4 flex items-center justify-end gap-3">
                 {canManage && (
                   <button
                     type="button"
@@ -923,11 +914,6 @@ export default function WorkspaceDetailPage() {
         {activeTab === "settings" && (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
             <main className="min-w-0">
-              <div className="mb-4 flex items-center gap-2 text-[22px] font-semibold text-[#1f2328]">
-                <Settings size={20} />
-                Settings
-              </div>
-
               <div className="rounded-xl border border-[#d0d7de] bg-white p-6 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-[#d8dee4] p-4">
@@ -974,29 +960,6 @@ export default function WorkspaceDetailPage() {
                     </p>
                   </div>
                 )}
-
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      selectWorkspace(workspace);
-                      router.push("/projects");
-                    }}
-                    className="rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
-                  >
-                    Mở dự án
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      selectWorkspace(workspace);
-                      router.push(`/ws/${slug}/projects/new-with-ai`);
-                    }}
-                    className="rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
-                  >
-                    Tạo với AI
-                  </button>
-                </div>
               </div>
             </main>
 
