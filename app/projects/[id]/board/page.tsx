@@ -81,18 +81,10 @@ export default function ProjectBoardPage() {
     openTask(task.id)
   }
 
-  const handleViewChange = (view: string) => {
-    if (view === "calendar") {
-      router.push(`/projects/${projectId}/calendar`)
-    }
-  }
-
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <KanbanBoard
         onTaskClick={handleTaskClick}
-        onViewChange={handleViewChange}
-        currentView="board"
         currentUserRole={kanbanRole}
       />
 

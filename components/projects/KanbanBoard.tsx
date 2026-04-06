@@ -28,7 +28,8 @@ import {
   normalizeSavedTaskFilterCriteria,
   toSavedTaskFilterCriteria,
 } from "@/components/projects/task-filter-utils";
-import CalendarView from "./CalendarView";
+import { AiAssignReview } from "@/components/ai/AiAssignReview";
+import { AiTaskGenerator } from "@/components/ai/AiTaskGenerator";
 import TaskDetailPanel, { type Member } from "./TaskDetailPanel";
 import {
     FullCreateTask,
@@ -41,8 +42,6 @@ export interface KanbanBoardProps {
   projectKey?: string;
   currentUserRole?: "PROJECT_MANAGER" | "MEMBER" | "VIEWER" | "SYSTEM_ADMIN";
   onTaskClick?: (task: TaskCardData) => void;
-  onViewChange?: (view: "board" | "list" | "calendar") => void;
-  currentView?: "board" | "list" | "calendar";
 }
 
 interface ProjectMemberLike {
@@ -156,10 +155,8 @@ const moveTaskInCache = (old: any, payload: MoveTaskPayload, nextStatus?: string
 };
 
 export default function KanbanBoard({
-    currentUserRole = "VIEWER",
+  currentUserRole = "VIEWER",
   onTaskClick,
-    onViewChange: externalOnViewChange,
-    currentView: externalCurrentView,
 }: KanbanBoardProps = {}) {
   const { t } = useTranslation();
   const params = useParams();
@@ -167,18 +164,10 @@ export default function KanbanBoard({
   const projectId = params.id as string;
 
   const currentUserId = useAuthStore((s) => String(s.user?.id ?? ""));
-  const [internalView, setInternalView] = useState<"board" | "calendar">("board");
-  const view = externalCurrentView === "calendar" ? "calendar" : externalCurrentView === "board" ? "board" : internalView;
-  const setView = (next: "board" | "calendar") => {
-    if (externalOnViewChange) {
-      externalOnViewChange(next);
-      return;
-    }
-    setInternalView(next);
-  };
-
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showAiGenerator, setShowAiGenerator] = useState(false);
+  const [showAiAssign, setShowAiAssign] = useState(false);
   const [createDefaults, setCreateDefaults] = useState<{ columnId?: string; title?: string; parentTask?: ParentTask }>({});
   const [filters, setFilters] = useState<ToolbarFilterState>(DEFAULT_TASK_FILTER_STATE);
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -456,46 +445,37 @@ export default function KanbanBoard({
       : effectiveKanbanRole === "MEMBER"
         ? "MEMBER"
         : "VIEWER";
+  const canUseAi = effectiveKanbanRole === "PROJECT_MANAGER" || effectiveKanbanRole === "SYSTEM_ADMIN";
 
   return (
     <div className="h-full">
-      {view === "board" ? (
-        <KanbanBoardUI
-          projectId={projectId}
-          columns={columns}
-          tasks={tasks}
-          userRole={
-            effectiveKanbanRole === "SYSTEM_ADMIN" ? "PROJECT_MANAGER" : effectiveKanbanRole
-          }
-          currentUserId={currentUserId}
-          onDeleteTask={deleteTaskMutation.mutate}
-          onStatusChange={handleStatusChange}
-          onCreateTask={(columnId) => {
-            setCreateDefaults({ columnId });
-            setShowCreate(true);
-          }}
-          onCardClick={openTaskById}
-          onViewChange={setView}
-          view={view}
-          filterValue={filters}
-          onFilterChange={setFilters}
-          sprints={sprintOptions}
-          members={members}
-          savedFilters={savedFilters.map((f) => ({ id: f.id, name: f.name, filterCriteria: f.filterCriteria }))}
-          onApplySavedFilter={applySavedFilter}
-          onSaveCurrentFilter={saveCurrentFilter}
-          onDeleteSavedFilter={deleteSavedFilter}
-          isFetching={tasksFetching}
-        />
-      ) : (
-        <CalendarView
-          projectId={projectId}
-          onTaskClick={openTaskById}
-          onViewChange={setView}
-          currentView="calendar"
-          currentUserRole={currentUserRole}
-        />
-      )}
+      <KanbanBoardUI
+        projectId={projectId}
+        columns={columns}
+        tasks={tasks}
+        userRole={
+          effectiveKanbanRole === "SYSTEM_ADMIN" ? "PROJECT_MANAGER" : effectiveKanbanRole
+        }
+        currentUserId={currentUserId}
+        onDeleteTask={deleteTaskMutation.mutate}
+        onStatusChange={handleStatusChange}
+        onCreateTask={(columnId) => {
+          setCreateDefaults({ columnId });
+          setShowCreate(true);
+        }}
+        onCardClick={openTaskById}
+        filterValue={filters}
+        onFilterChange={setFilters}
+        sprints={sprintOptions}
+        members={members}
+        savedFilters={savedFilters.map((f) => ({ id: f.id, name: f.name, filterCriteria: f.filterCriteria }))}
+        onApplySavedFilter={applySavedFilter}
+        onSaveCurrentFilter={saveCurrentFilter}
+        onDeleteSavedFilter={deleteSavedFilter}
+        isFetching={tasksFetching}
+        onAiGenerate={() => setShowAiGenerator(true)}
+        onAiAssign={() => setShowAiAssign(true)}
+      />
 
       <TaskDetailPanel
         taskId={selectedTaskId}
@@ -544,6 +524,31 @@ export default function KanbanBoard({
                     />
                 )}
             </AnimatePresence>
+
+      {showAiGenerator && canUseAi && (
+        <AiTaskGenerator
+          projectId={projectId}
+          projectName={projectData?.data?.name ?? ""}
+          onSuccess={(count) => {
+            toast.success(`Da tao ${count} task thanh cong!`);
+            queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
+          }}
+          onClose={() => setShowAiGenerator(false)}
+        />
+      )}
+
+      {showAiAssign && canUseAi && (
+        <AiAssignReview
+          projectId={projectId}
+          onSuccess={(result) => {
+            toast.success(`Da phan cong ${result.totalAssigned} task (${result.aiConfirmed} AI · ${result.pmOverridden} override)`);
+            queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
+          }}
+          onClose={() => setShowAiAssign(false)}
+        />
+      )}
         </div>
   );
 }

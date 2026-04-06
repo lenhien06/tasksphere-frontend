@@ -58,6 +58,7 @@ interface TaskFilterPopoverProps {
   showSmartFilters?: boolean;
   showSprintFilter?: boolean;
   showTypeFilter?: boolean;
+  showSearchInput?: boolean;
   align?: "start" | "center" | "end";
 }
 
@@ -123,6 +124,7 @@ export default function TaskFilterPopover({
   showSmartFilters = false,
   showSprintFilter = false,
   showTypeFilter = false,
+  showSearchInput = true,
   align = "start",
 }: TaskFilterPopoverProps) {
   const { t } = useTranslation();
@@ -192,8 +194,6 @@ export default function TaskFilterPopover({
     });
     return items;
   }, [savedFilters.length, showSmartFilters, showSprintFilter, showTypeFilter, t, value.assigneeId, value.priorities.length, value.smartFilter, value.sprintScope, value.type]);
-
-  const searchPlaceholder = t("filter.searchTasks", { defaultValue: "Tìm theo tên task, mã task..." });
 
   const clearAll = () => {
     onChange({
@@ -485,26 +485,28 @@ export default function TaskFilterPopover({
       <PopoverContent align={align} className="w-[min(92vw,760px)] rounded-2xl border border-slate-200 p-0 shadow-2xl">
         <div className="grid min-h-[430px] grid-cols-[220px_minmax(0,1fr)]">
           <div className="border-r border-slate-200 bg-slate-50/60 p-3">
-            <div className="mb-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-              <div className="relative">
-                <Search size={14} className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={value.search}
-                  onChange={(event) => onChange({ ...value, search: event.target.value })}
-                  placeholder={searchPlaceholder}
-                  className="w-full border-0 bg-transparent pl-6 text-sm outline-none placeholder:text-slate-400"
-                />
-                {value.search ? (
-                  <button
-                    type="button"
-                    onClick={() => onChange({ ...value, search: "" })}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-                  >
-                    <X size={14} />
-                  </button>
-                ) : null}
+            {showSearchInput ? (
+              <div className="mb-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <div className="relative">
+                  <Search size={14} className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={value.search}
+                    onChange={(event) => onChange({ ...value, search: event.target.value })}
+                    placeholder={t("filter.searchTasks", { defaultValue: "Tìm theo tên task, mã task..." })}
+                    className="w-full border-0 bg-transparent pl-6 text-sm outline-none placeholder:text-slate-400"
+                  />
+                  {value.search ? (
+                    <button
+                      type="button"
+                      onClick={() => onChange({ ...value, search: "" })}
+                      className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                    >
+                      <X size={14} />
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            ) : null}
             <div className="space-y-1">
               {sections.map((section) => (
                 <SidebarButton

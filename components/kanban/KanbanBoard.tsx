@@ -53,8 +53,6 @@ export interface KanbanBoardProps {
   }) => void;
   onCreateTask: (columnId: string) => void;
   onCardClick: (taskId: string) => void;
-  onViewChange?: (view: "board" | "calendar") => void;
-  view?: "board" | "calendar";
   filterValue: ToolbarFilterState;
   onFilterChange: (next: ToolbarFilterState) => void;
   sprints?: Array<{ id: string; name: string; isActive?: boolean }>;
@@ -65,6 +63,8 @@ export interface KanbanBoardProps {
   onDeleteSavedFilter?: (filterId: string) => Promise<void> | void;
   isFetching?: boolean;
   onDeleteTask?: (taskId: string) => void;
+  onAiGenerate?: () => void;
+  onAiAssign?: () => void;
 }
 
 const DEFAULT_COLUMNS_FALLBACK: Column[] = [
@@ -83,8 +83,6 @@ export default function KanbanBoard({
   onStatusChange,
   onCreateTask,
   onCardClick,
-  onViewChange,
-  view = "board",
   filterValue,
   onFilterChange,
   sprints = [],
@@ -95,6 +93,8 @@ export default function KanbanBoard({
   onDeleteSavedFilter,
   isFetching = false,
   onDeleteTask,
+  onAiGenerate,
+  onAiAssign,
 }: KanbanBoardProps) {
   const { t } = useTranslation();
   const [localTasks, setLocalTasks] = useState(initialTasks);
@@ -272,8 +272,6 @@ export default function KanbanBoard({
         onChange={onFilterChange}
         onCreateTask={() => onCreateTask(sortedColumns[0]?.id ?? "")}
         canCreateTask={userRole !== "VIEWER"}
-        isBoardView={view === "board"}
-        onToggleView={(next) => onViewChange?.(next)}
         sprints={sprints}
         members={members}
         savedFilters={savedFilters}
@@ -282,6 +280,8 @@ export default function KanbanBoard({
         onDeleteSavedFilter={onDeleteSavedFilter}
         userRole={userRole}
         isFetching={isFetching}
+        onAiGenerate={onAiGenerate}
+        onAiAssign={onAiAssign}
       />
 
       <div className="pt-3 overflow-x-auto overflow-y-hidden kanban-scroll-x">

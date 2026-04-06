@@ -8,6 +8,7 @@ import Link from "next/link"
 import {
     Plus,
     Zap,
+    Search,
     ChevronLeft,
     ChevronRight,
     X,
@@ -54,6 +55,7 @@ import { AiTaskGenerator } from "@/components/ai/AiTaskGenerator"
 import { AiAssignReview } from "@/components/ai/AiAssignReview"
 import { orderSprintsForBacklogUi } from "./utils"
 import TaskFilterPopover from "@/components/projects/TaskFilterPopover"
+import TaskPrimaryActions from "@/components/projects/TaskPrimaryActions"
 import {
     DEFAULT_TASK_FILTER_STATE,
     countActiveTaskFilters,
@@ -477,37 +479,26 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                 {totalStoryPoints} pts
                             </div>
                         )}
-                        {(isPM || isMemberOnly) && (
-                            <button
-                                type="button"
-                                onClick={() => setShowCreateModal(true)}
-                                className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-blue-700"
-                            >
-                                <Plus size={16} strokeWidth={3} /> {t("backlog.createTaskCta")}
-                            </button>
-                        )}
-                        {isPM && (
-                            <button
-                                type="button"
-                                onClick={() => setShowAiGenerator(true)}
-                                className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-indigo-700"
-                            >
-                                ✨ AI tạo task
-                            </button>
-                        )}
-                        {isPM && (
-                            <button
-                                type="button"
-                                onClick={() => setShowAiAssign(true)}
-                                className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-purple-700"
-                            >
-                                🤖 AI phân công
-                            </button>
-                        )}
+                        <TaskPrimaryActions
+                            canCreateTask={isPM || isMemberOnly}
+                            canUseAi={isPM}
+                            onCreateTask={() => setShowCreateModal(true)}
+                            onAiGenerate={() => setShowAiGenerator(true)}
+                            onAiAssign={() => setShowAiAssign(true)}
+                        />
                     </div>
                 </div>
 
                 <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-[#EBECF0] bg-[#FAFBFC] px-4 py-3">
+                    <div className="relative min-w-[240px] flex-1 md:max-w-sm">
+                        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                            value={filters.search}
+                            onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+                            placeholder={t("filter.searchTasks", { defaultValue: "Tìm theo tên task, mã task..." })}
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm outline-none transition-colors placeholder:text-slate-400 focus:border-blue-400"
+                        />
+                    </div>
                     <TaskFilterPopover
                         value={filters}
                         onChange={setFilters}
@@ -528,6 +519,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                         onSaveCurrentFilter={saveCurrentFilter}
                         onDeleteSavedFilter={deleteSavedFilter}
                         showTypeFilter
+                        showSearchInput={false}
                         align="start"
                     />
                     {hasActiveFilters && (
