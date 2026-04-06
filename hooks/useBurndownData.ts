@@ -44,10 +44,9 @@ function normalizeBurndown(raw: any): BurndownData {
     totalPoints: toNumber(source.totalStoryPoints ?? source.totalPoints, 0),
     data: idealArr.map((point: any, idx: number) => {
       const date = String(point?.date ?? '');
-      const fallbackActual = point?.remainingPoints;
       const mappedActual = hasActualLine
         ? (actualByDate.get(date) ?? (actualArr[idx]?.remainingPoints == null ? null : toNumber(actualArr[idx].remainingPoints, 0)))
-        : (fallbackActual == null ? null : toNumber(fallbackActual, 0));
+        : null;
 
       return {
         day: idx,
