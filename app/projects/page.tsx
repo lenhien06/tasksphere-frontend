@@ -57,6 +57,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { canActAsProjectManager, normalizeProjectMyRole } from "@/lib/projectRole";
 import { getRealtimeAccessToken, getStompConnectHeaders } from "@/lib/realtime/stompAuth";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { Sparkles } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & MOCK DATA (Fallback/Types)
@@ -279,6 +281,7 @@ export default function ProjectsPage() {
     // UI state
     const [showCreate, setShowCreate] = useState(false);
     const openAIModal = useAIModalStore((s) => s.open);
+    const { currentWorkspace, currentSlug } = useWorkspace();
     const [activeProject, setActiveProject] = useState<any>(null);
     const [modalType, setModalType] = useState<"edit" | "archive" | "delete" | "restore" | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -557,6 +560,15 @@ export default function ProjectsPage() {
                         <p className="text-[13px] text-gray-500 font-medium">{t('project.trackProgress')}</p>
                     </div>
                     <div className="flex items-start gap-3">
+                        {currentWorkspace && currentSlug && (
+                            <button
+                                onClick={() => router.push(`/ws/${currentSlug}/projects/new-with-ai`)}
+                                className="flex items-center gap-2 h-[38px] px-4 rounded-xl text-[13px] font-bold border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition-all"
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                Tạo với AI
+                            </button>
+                        )}
                         <AIProjectTriggerButton onClick={openAIModal} />
                         <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 h-[38px] px-4 bg-[#111827] text-white rounded-xl text-[13px] font-bold hover:bg-gray-800 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)] active:scale-95">
                             <Plus className="w-4 h-4 stroke-[3px]" /> <span>{t('project.newProject')}</span>

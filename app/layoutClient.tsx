@@ -19,6 +19,8 @@ import { useAIModalStore } from '@/stores/useAIModalStore'
 import { AISkillAllocationModal } from '@/components/projects/AISkillAllocationModal'
 import { useAISkillModalStore } from '@/stores/useAISkillModalStore'
 import { NotificationRealtimeBootstrap } from '@/components/notifications/NotificationRealtimeBootstrap'
+import { WorkspaceProvider, useWorkspace } from '@/contexts/WorkspaceContext'
+import WorkspaceBreadcrumb from '@/components/layout/WorkspaceBreadcrumb'
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -99,16 +101,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         "flex flex-col flex-1 overflow-hidden transition-[margin] duration-300 ease-in-out",
         isCollapsed ? "lg:ml-[68px]" : "lg:ml-[240px]"
       )}>
-        <Header 
+        <Header
           onMenuToggle={() => {
             if (window.innerWidth >= 1024) {
               setIsCollapsed(!isCollapsed);
             } else {
               setSidebarOpen(prev => !prev);
             }
-          }} 
-          currentUser={currentUser || undefined} 
+          }}
+          currentUser={currentUser || undefined}
         />
+        <WorkspaceBreadcrumb currentProject={currentProject} />
         <main className={`flex-1 bg-[#F9FAFB] ${isFullHeightPage ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar'}`}>
           {isFullHeightPage ? (
             children
@@ -189,7 +192,9 @@ export default function LayoutClient({ children }: Readonly<{ children: React.Re
           theme='colored'
         />
 
-        <LayoutContent>{children}</LayoutContent>
+        <WorkspaceProvider>
+          <LayoutContent>{children}</LayoutContent>
+        </WorkspaceProvider>
         <NotificationRealtimeBootstrap />
 
         <Toaster position='top-right' />
