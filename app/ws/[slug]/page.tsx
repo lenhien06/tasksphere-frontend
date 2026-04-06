@@ -55,7 +55,7 @@ function MemberCard({
 }) {
   const queryClient = useQueryClient();
   const RoleIcon = ROLE_ICON[member.role];
-  const initials = member.fullName.slice(0, 2).toUpperCase();
+  const initials = (member.fullName && typeof member.fullName === 'string' ? member.fullName.slice(0, 2) : "??").toUpperCase();
 
   const removeMutation = useMutation({
     mutationFn: () => WorkspaceService.removeMember(wsId, member.userId),
@@ -208,7 +208,7 @@ export default function WorkspaceDashboardPage() {
     );
   }
 
-  const initials = workspace.name.slice(0, 2).toUpperCase();
+  const initials = (workspace.name && typeof workspace.name === 'string' ? workspace.name.slice(0, 2) : "WS").toUpperCase();
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">

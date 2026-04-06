@@ -48,7 +48,7 @@ function MemberAvatar({ member }: { member?: MemberOption }) {
     <img src={member.avatarUrl} alt={member.fullName} className="h-6 w-6 rounded-full object-cover" title={member.fullName} />
   ) : (
     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-violet-500 text-[9px] font-bold text-white" title={member.fullName}>
-      {member.fullName.slice(0, 2).toUpperCase()}
+      {(member.fullName && typeof member.fullName === 'string' ? member.fullName.slice(0, 2) : \"??\").toUpperCase()}
     </div>
   );
 }

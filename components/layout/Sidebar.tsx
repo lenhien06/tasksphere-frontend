@@ -71,7 +71,7 @@ interface SidebarProps {
 
 const getProjectBadgeLabel = (name?: string, key?: string) => {
   const badgeSource = key?.trim() || name?.trim() || "PR";
-  return badgeSource.slice(0, 2).toUpperCase();
+  return (badgeSource && typeof badgeSource === 'string' ? badgeSource.slice(0, 2) : "PR").toUpperCase();
 };
 
 // ——————————————————————————————————————————————————————————————————————————————————
@@ -410,7 +410,7 @@ export default function Sidebar({
 
         <div className="mt-1">
           {sidebarWorkspaces.slice(0, 5).map((ws) => {
-            const wsInitials = ws.name.slice(0, 2).toUpperCase();
+            const wsInitials = (ws.name && typeof ws.name === 'string' ? ws.name.slice(0, 2) : "WS").toUpperCase();
             const isActive = activeItem.startsWith(`/ws/${ws.slug}`);
             return (
               <motion.button

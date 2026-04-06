@@ -157,7 +157,7 @@ function MemberSelectQuestion({
               <img src={m.avatarUrl} alt={m.fullName} className="h-9 w-9 rounded-full object-cover" />
             ) : (
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-violet-500 text-xs font-bold text-white">
-                {m.fullName.slice(0, 2).toUpperCase()}
+                {(m.fullName && typeof m.fullName === 'string' ? m.fullName.slice(0, 2) : "??").toUpperCase()}
               </div>
             )}
 

@@ -51,7 +51,7 @@ function WorkspaceCard({
 }) {
   const role = workspace.role ?? "MEMBER";
   const RoleIcon = ROLE_ICON[role];
-  const initials = workspace.name.slice(0, 2).toUpperCase();
+  const initials = (workspace.name && typeof workspace.name === 'string' ? workspace.name.slice(0, 2) : "WS").toUpperCase();
 
   return (
     <button
