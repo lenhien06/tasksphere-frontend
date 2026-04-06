@@ -14,6 +14,7 @@ import {
   Lock,
   Plus,
   Search,
+  Settings,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -172,12 +173,50 @@ function ProjectRow({
   );
 }
 
+type WorkspaceTab = "projects" | "members" | "settings";
+
+function MemberListRow({ member }: { member: WorkspaceMember }) {
+  return (
+    <div className="flex items-center gap-3 border-t border-[#d8dee4] px-5 py-4 first:border-t-0">
+      {member.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={member.avatarUrl}
+          alt={member.fullName}
+          className="h-10 w-10 rounded-full border border-[#d0d7de] object-cover"
+        />
+      ) : (
+        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d0d7de] bg-[#f6f8fa] text-xs font-semibold text-[#57606a]">
+          {getInitials(member.fullName)}
+        </div>
+      )}
+
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-semibold text-[#1f2328]">
+          {member.fullName}
+        </div>
+        <div className="truncate text-xs text-[#57606a]">{member.email}</div>
+      </div>
+
+      <div className="text-right">
+        <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
+          {member.role}
+        </div>
+        <div className="mt-1 text-[11px] text-[#8c959f]">
+          {member.activeTaskCount} task mở
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function WorkspaceDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
   const { selectWorkspace } = useWorkspace();
 
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("projects");
   const [search, setSearch] = useState("");
   const [visibilityFilter, setVisibilityFilter] = useState<"all" | Project["visibility"]>(
     "all"
@@ -298,10 +337,15 @@ export default function WorkspaceDetailPage() {
   }
 
   const initials = getInitials(workspace.name);
+  const tabs: { id: WorkspaceTab; label: string; icon: React.ReactNode }[] = [
+    { id: "projects", label: "Tất cả dự án", icon: <FolderKanban size={14} /> },
+    { id: "members", label: "Thành viên", icon: <Users size={14} /> },
+    { id: "settings", label: "Settings", icon: <Settings size={14} /> },
+  ];
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8 text-[#1f2328]">
-      <section className="rounded-2xl border border-[#d0d7de] bg-white px-7 py-7 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+      <section className="rounded-2xl border border-[#d0d7de] bg-white px-7 pb-0 pt-7 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
           <div className="flex min-w-0 items-start gap-6">
             {workspace.avatarUrl ? (
@@ -352,9 +396,35 @@ export default function WorkspaceDetailPage() {
             Tạo với AI
           </button>
         </div>
+
+        <div className="mt-6 flex gap-1 overflow-x-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "relative flex items-center gap-1.5 whitespace-nowrap px-4 pb-3 text-[14px] font-semibold tracking-tight transition-all",
+                activeTab === tab.id
+                  ? "text-blue-600"
+                  : "text-slate-400 hover:text-slate-900"
+              )}
+            >
+              <span className={cn(activeTab === tab.id ? "opacity-100" : "opacity-70")}>
+                {tab.icon}
+              </span>
+              {tab.label}
+              {activeTab === tab.id && (
+                <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-t-full bg-blue-600 shadow-[0_-2px_6px_rgba(37,99,235,0.2)]" />
+              )}
+            </button>
+          ))}
+        </div>
       </section>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="mt-8">
+        {activeTab === "projects" && (
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
         <main className="min-w-0">
           <div className="mb-4 flex items-center gap-2 text-[22px] font-semibold text-[#1f2328]">
             <FolderKanban size={20} />
@@ -603,6 +673,160 @@ export default function WorkspaceDetailPage() {
             </div>
           </div>
         </aside>
+          </div>
+        )}
+
+        {activeTab === "members" && (
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <main className="min-w-0">
+              <div className="mb-4 flex items-center gap-2 text-[22px] font-semibold text-[#1f2328]">
+                <Users size={20} />
+                Thành viên
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-[#d0d7de] bg-white shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+                {membersLoading ? (
+                  <div className="flex items-center justify-center px-6 py-16">
+                    <Loader2 size={24} className="animate-spin text-[#0969da]" />
+                  </div>
+                ) : members.length === 0 ? (
+                  <div className="px-6 py-16 text-center text-sm text-[#57606a]">
+                    Workspace này chưa có thành viên nào.
+                  </div>
+                ) : (
+                  members.map((member) => (
+                    <MemberListRow key={member.userId} member={member} />
+                  ))
+                )}
+              </div>
+            </main>
+
+            <aside className="space-y-4">
+              <div className="rounded-xl border border-[#d0d7de] bg-white p-5 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+                <h2 className="text-sm font-semibold text-[#1f2328]">Tóm tắt đội ngũ</h2>
+                <div className="mt-4 space-y-3 text-sm text-[#57606a]">
+                  <div className="flex items-center justify-between">
+                    <span>Tổng thành viên</span>
+                    <span className="font-medium text-[#1f2328]">{workspace.memberCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Owner</span>
+                    <span className="font-medium text-[#1f2328]">
+                      {members.filter((member) => member.role === "OWNER").length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Admin</span>
+                    <span className="font-medium text-[#1f2328]">
+                      {members.filter((member) => member.role === "ADMIN").length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Member</span>
+                    <span className="font-medium text-[#1f2328]">
+                      {members.filter((member) => member.role === "MEMBER").length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        )}
+
+        {activeTab === "settings" && (
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <main className="min-w-0">
+              <div className="mb-4 flex items-center gap-2 text-[22px] font-semibold text-[#1f2328]">
+                <Settings size={20} />
+                Settings
+              </div>
+
+              <div className="rounded-xl border border-[#d0d7de] bg-white p-6 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border border-[#d8dee4] p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
+                      Tên workspace
+                    </div>
+                    <div className="mt-2 text-base font-semibold text-[#1f2328]">
+                      {workspace.name}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#d8dee4] p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
+                      Slug
+                    </div>
+                    <div className="mt-2 text-base font-semibold text-[#1f2328]">
+                      /{workspace.slug}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#d8dee4] p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
+                      Loại
+                    </div>
+                    <div className="mt-2 text-base font-semibold text-[#1f2328]">
+                      {workspace.type === "PERSONAL" ? "Personal" : "Organization"}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#d8dee4] p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
+                      Gói
+                    </div>
+                    <div className="mt-2 text-base font-semibold text-[#1f2328]">
+                      {PLAN_LABELS[workspace.plan]}
+                    </div>
+                  </div>
+                </div>
+
+                {workspace.description && (
+                  <div className="mt-4 rounded-xl border border-[#d8dee4] p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
+                      Mô tả
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-[#57606a]">
+                      {workspace.description}
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      selectWorkspace(workspace);
+                      router.push("/projects");
+                    }}
+                    className="rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
+                  >
+                    Mở dự án
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      selectWorkspace(workspace);
+                      router.push(`/ws/${slug}/projects/new-with-ai`);
+                    }}
+                    className="rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
+                  >
+                    Tạo với AI
+                  </button>
+                </div>
+              </div>
+            </main>
+
+            <aside className="space-y-4">
+              <div className="rounded-xl border border-[#d0d7de] bg-white p-5 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+                <h2 className="text-sm font-semibold text-[#1f2328]">Quyền hiện tại</h2>
+                <div className="mt-4 text-sm text-[#57606a]">
+                  Bạn đang ở vai trò{" "}
+                  <span className="font-semibold text-[#1f2328]">
+                    {workspace.role ?? "MEMBER"}
+                  </span>{" "}
+                  trong workspace này.
+                </div>
+              </div>
+            </aside>
+          </div>
+        )}
       </div>
     </div>
   );
