@@ -102,8 +102,8 @@ function BacklogTaskRowInner({
                 tabIndex={0}
                 onKeyDown={e => e.key === "Enter" && onClick()}
                 className={cn(
-                    "group flex cursor-pointer items-center gap-3 border-b border-gray-50 px-3 py-3 transition-colors",
-                    isSelected ? "bg-blue-50/70" : "hover:bg-gray-50/80",
+                    "group flex cursor-pointer items-center gap-3 border-b border-[#EBECF0] px-3 py-2.5 transition-colors",
+                    isSelected ? "bg-[#E9F2FF]" : "hover:bg-[#F7F8FA]",
                     taskRowOverdueBg(task),
                 )}
                 onClick={onClick}
@@ -294,6 +294,11 @@ export function SortableBacklogTaskRow(props: BacklogTaskRowBaseProps) {
     } = useSortable({
         id: props.task.id,
         disabled: !props.sortable || props.dragDisabled,
+        data: {
+            type: "backlog-task",
+            taskId: props.task.id,
+            sourceSprintId: null,
+        },
     })
     const style = {
         transform: CSS.Transform.toString(transform),

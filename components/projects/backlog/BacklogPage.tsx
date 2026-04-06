@@ -21,6 +21,7 @@ import {
     DndContext,
     PointerSensor,
     closestCenter,
+    useDroppable,
     useSensor,
     useSensors,
     type DragEndEvent,
@@ -102,6 +103,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     const [sprintOpen, setSprintOpen] = useState<Record<string, boolean>>({})
     const [startTargetId, setStartTargetId] = useState<string | null>(null)
     const [completeTargetId, setCompleteTargetId] = useState<string | null>(null)
+    const backlogDropId = "backlog-drop"
 
     const debouncedSearch = useDebounce(filters.search, 300)
 
@@ -319,32 +321,68 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
             activationConstraint: { distance: 8 },
         }),
     )
+    const { setNodeRef: setBacklogDropRef, isOver: isOverBacklog } = useDroppable({
+        id: backlogDropId,
+        disabled: !(isPM || isMemberOnly),
+        data: {
+            type: "backlog-drop",
+        },
+    })
 
     const positionSortActive = sortBy === "taskPosition,asc"
-    const useSortableList = canReorderBacklog && positionSortActive && !backlogQuery.isLoading && tasks.length > 0
+    const canDragBetweenSections = isPM
+    const useSortableList = canReorderBacklog && !backlogQuery.isLoading && tasks.length > 0
+    const backlogTaskIds = useMemo(() => new Set(tasks.map(task => task.id)), [tasks])
 
     const handleDragEnd = (e: DragEndEvent) => {
         const { active, over } = e
-        if (!over || active.id === over.id) return
-        const oldIndex = tasks.findIndex(x => x.id === active.id)
-        const newIndex = tasks.findIndex(x => x.id === over.id)
-        if (oldIndex < 0 || newIndex < 0) return
-        const moved = tasks[oldIndex]
-        const reordered = arrayMove(tasks, oldIndex, newIndex)
-        const nid = reordered[newIndex]?.id
-        if (nid !== moved.id) return
-        reorderMutation.mutate({
-            taskId: moved.id,
-            columnId: moved.columnId,
-            newPosition: newIndex,
-        })
+        if (!over) return
+
+        const activeData = active.data.current as { taskId?: string; sourceSprintId?: string | null } | undefined
+        const taskId = String(activeData?.taskId ?? active.id)
+        const sourceSprintId = activeData?.sourceSprintId ?? null
+        const overId = String(over.id)
+
+        if (!sourceSprintId && positionSortActive && backlogTaskIds.has(overId) && active.id !== over.id) {
+            const oldIndex = tasks.findIndex(x => x.id === active.id)
+            const newIndex = tasks.findIndex(x => x.id === over.id)
+            if (oldIndex >= 0 && newIndex >= 0) {
+                const moved = tasks[oldIndex]
+                const reordered = arrayMove(tasks, oldIndex, newIndex)
+                const nid = reordered[newIndex]?.id
+                if (nid === moved.id) {
+                    reorderMutation.mutate({
+                        taskId: moved.id,
+                        columnId: moved.columnId,
+                        newPosition: newIndex,
+                    })
+                    return
+                }
+            }
+        }
+
+        if (!canDragBetweenSections) return
+
+        if (overId === backlogDropId || backlogTaskIds.has(overId)) {
+            if (sourceSprintId) {
+                void handleMoveTaskToBacklog(taskId)
+            }
+            return
+        }
+
+        if (overId.startsWith("sprint-drop-")) {
+            const targetSprintId = overId.replace("sprint-drop-", "")
+            if (!targetSprintId || targetSprintId === sourceSprintId) return
+            void handleAssignToSprint(taskId, targetSprintId)
+        }
     }
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-slate-50">
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[#F7F8F9]">
             {/* Sprint vùng trên */}
-            <div className="flex max-h-[45vh] min-h-[120px] shrink-0 flex-col border-b border-gray-200 bg-white">
-                <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+            <div className="shrink-0 border-b border-[#DFE1E6] bg-white">
+                <div className="flex items-center justify-between border-b border-[#EBECF0] px-4 py-3">
                     <h2 className="flex items-center gap-2 text-sm font-bold text-gray-800">
                         <Layers size={18} className="text-blue-500" />
                         {t("sprint.title")}
@@ -358,7 +396,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                         </Link>
                     )}
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+                <div className="px-4 py-4">
                     {sprintsQuery.isError && (
                         <div className="mb-3 flex items-center justify-between rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">
                             <span>{t("backlog.sprintsLoadError")}</span>
@@ -412,14 +450,15 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                 onCompleteSprint={() => setCompleteTargetId(sprint.id)}
                                 onOpenTask={setSelectedTaskId}
                                 onMoveTaskToBacklog={handleMoveTaskToBacklog}
+                                dragEnabled={canDragBetweenSections}
                             />
                         ))}
                 </div>
             </div>
 
             {/* Backlog vùng dưới */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
-                <div className="flex flex-shrink-0 flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-4 py-4">
+            <div className="flex min-h-0 flex-1 flex-col bg-white">
+                <div className="flex flex-shrink-0 flex-wrap items-start justify-between gap-3 border-b border-[#EBECF0] px-4 py-4">
                     <div>
                         <h1 className="text-xl font-bold text-gray-900">
                             {t("common.backlog")}{" "}
@@ -468,7 +507,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                     </div>
                 </div>
 
-                <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-gray-50 px-4 py-3">
+                <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-[#EBECF0] bg-[#FAFBFC] px-4 py-3">
                     <TaskFilterPopover
                         value={filters}
                         onChange={setFilters}
@@ -513,8 +552,14 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                     </select>
                 </div>
 
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 sm:px-4">
-                    <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/80 py-2 pl-2 pr-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <div
+                    ref={setBacklogDropRef}
+                    className={cn(
+                        "flex min-h-0 flex-1 flex-col px-2 sm:px-4",
+                        isOverBacklog && "bg-[#E9F2FF]/60"
+                    )}
+                >
+                    <div className="flex items-center gap-2 border-b border-[#EBECF0] bg-[#F7F8F9] py-2 pl-2 pr-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                         {useSortableList && <span className="w-6" />}
                         {isPM && <span className="w-4" />}
                         <span className="hidden w-[88px] md:block">{t("task.type")}</span>
@@ -526,7 +571,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                         <span className="w-28" />
                     </div>
 
-                    <div className="min-h-0 flex-1 overflow-y-auto">
+                    <div className="min-h-[180px] flex-1 overflow-y-auto">
                         {backlogQuery.isError && (
                             <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                                 <p className="text-sm text-red-700">{t("backlog.loadError")}</p>
@@ -581,29 +626,27 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                         {!backlogQuery.isLoading && !backlogQuery.isError && tasks.length > 0 && (
                             <>
                                 {useSortableList ? (
-                                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                                        <SortableContext items={tasks.map(x => x.id)} strategy={verticalListSortingStrategy}>
-                                            {tasks.map(task => (
-                                                <SortableBacklogTaskRow
-                                                    key={task.id}
-                                                    task={task}
-                                                    isSelected={selectedIds.includes(task.id)}
-                                                    onSelect={handleSelect}
-                                                    onClick={() => setSelectedTaskId(task.id)}
-                                                    isPM={isPM}
-                                                    isMemberOnly={isMemberOnly}
-                                                    isViewer={isViewer}
-                                                    currentUserId={currentUserId}
-                                                    projectId={projectId}
-                                                    sprintOptions={assignableSprints}
-                                                    onAssignToSprint={handleAssignToSprint}
-                                                    onDeleteTask={deleteTaskMutation.mutate}
-                                                    sortable
-                                                    dragDisabled={!positionSortActive}
-                                                />
-                                            ))}
-                                        </SortableContext>
-                                    </DndContext>
+                                    <SortableContext items={tasks.map(x => x.id)} strategy={verticalListSortingStrategy}>
+                                        {tasks.map(task => (
+                                            <SortableBacklogTaskRow
+                                                key={task.id}
+                                                task={task}
+                                                isSelected={selectedIds.includes(task.id)}
+                                                onSelect={handleSelect}
+                                                onClick={() => setSelectedTaskId(task.id)}
+                                                isPM={isPM}
+                                                isMemberOnly={isMemberOnly}
+                                                isViewer={isViewer}
+                                                currentUserId={currentUserId}
+                                                projectId={projectId}
+                                                sprintOptions={assignableSprints}
+                                                onAssignToSprint={handleAssignToSprint}
+                                                onDeleteTask={deleteTaskMutation.mutate}
+                                                sortable
+                                                dragDisabled={!positionSortActive && !canDragBetweenSections}
+                                            />
+                                        ))}
+                                    </SortableContext>
                                 ) : (
                                     tasks.map(task => (
                                         <BacklogTaskRow
@@ -620,8 +663,8 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                             sprintOptions={assignableSprints}
                                             onAssignToSprint={handleAssignToSprint}
                                             onDeleteTask={deleteTaskMutation.mutate}
-                                            sortable={false}
-                                            dragDisabled
+                                            sortable={canDragBetweenSections}
+                                            dragDisabled={!canDragBetweenSections}
                                         />
                                     ))
                                 )}
@@ -630,7 +673,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                     </div>
 
                     {totalPages > 1 && !backlogQuery.isError && (
-                        <div className="flex flex-shrink-0 items-center justify-between border-t border-gray-100 bg-gray-50/50 px-4 py-3">
+                        <div className="flex flex-shrink-0 items-center justify-between border-t border-[#EBECF0] bg-[#FAFBFC] px-4 py-3">
                             <span className="text-xs font-medium text-gray-500">
                                 {t("backlog.showing")}{" "}
                                 <span className="font-bold text-gray-900">
@@ -803,5 +846,6 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                 />
             )}
         </div>
+        </DndContext>
     )
 }

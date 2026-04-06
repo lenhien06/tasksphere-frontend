@@ -10,10 +10,11 @@ import {
     Flag,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useDroppable } from "@dnd-kit/core"
 import type { SprintDetail, SprintStatus, TaskResponse } from "@/app/types/task.schema"
 import { useSprintTasks } from "@/hooks/useSprintTasks"
 import { formatSprintDateRange } from "./utils"
-import { SprintTaskRow } from "./SprintTaskRow"
+import { DraggableSprintTaskRow } from "./SprintTaskRow"
 
 function SprintStatusBadge({ status }: { status: SprintStatus }) {
     const { t } = useTranslation()
@@ -52,6 +53,7 @@ export function SprintSection({
     onCompleteSprint,
     onOpenTask,
     onMoveTaskToBacklog,
+    dragEnabled,
 }: {
     projectId: string
     sprint: SprintDetail
@@ -65,14 +67,10 @@ export function SprintSection({
     onCompleteSprint: () => void
     onOpenTask: (taskId: string) => void
     onMoveTaskToBacklog: (taskId: string) => Promise<void>
+    dragEnabled: boolean
 }) {
     const { t } = useTranslation()
     const { data: page, isLoading } = useSprintTasks(projectId, sprint.id, isOpen)
-
-    const tasks: TaskResponse[] = page?.content ?? []
-    const totalPts = tasks.reduce((s, x) => s + (x.storyPoints ?? 0), 0)
-    const dateLabel = formatSprintDateRange(sprint.startDate, sprint.endDate)
-    const statsLabel = `${sprint.taskCount} ${t("nav.tasks").toLowerCase()} · ${totalPts || "—"} pts`
 
     const readOnly = sprint.status === "COMPLETED"
     const sprintLockedForMember = sprint.status === "ACTIVE" && isMemberOnly
@@ -82,15 +80,30 @@ export function SprintSection({
     const canMoveTaskToBacklogRow =
         isPM && !readOnly && !(sprint.status === "ACTIVE" && sprintLockedForMember)
 
+    const { setNodeRef, isOver } = useDroppable({
+        id: `sprint-drop-${sprint.id}`,
+        disabled: readOnly || !dragEnabled,
+        data: {
+            type: "sprint-drop",
+            sprintId: sprint.id,
+        },
+    })
+
+    const tasks: TaskResponse[] = page?.content ?? []
+    const totalPts = tasks.reduce((s, x) => s + (x.storyPoints ?? 0), 0)
+    const dateLabel = formatSprintDateRange(sprint.startDate, sprint.endDate)
+    const statsLabel = `${sprint.taskCount} ${t("nav.tasks").toLowerCase()} · ${totalPts || "—"} pts`
+
     return (
         <div
             className={cn(
-                "mb-2 overflow-hidden rounded-xl border bg-white shadow-sm transition-colors",
-                sprint.status === "ACTIVE" && "border-blue-200 shadow-blue-500/5",
-                sprint.status === "COMPLETED" && "opacity-80",
+                "mb-4 overflow-hidden rounded-md border border-[#DFE1E6] bg-white transition-colors",
+                sprint.status === "ACTIVE" && "border-[#85B8FF]",
+                sprint.status === "COMPLETED" && "opacity-85",
+                isOver && "ring-2 ring-[#0C66E4] ring-inset",
             )}
         >
-            <div className="flex items-start gap-2 px-3 py-3 sm:px-4">
+            <div className="flex items-start gap-2 bg-[#FAFBFC] px-3 py-3 sm:px-4">
                 <button
                     type="button"
                     onClick={onToggle}
@@ -109,7 +122,7 @@ export function SprintSection({
                         )}
                         <h3
                             className={cn(
-                                "text-sm font-bold sm:text-base",
+                                "text-sm font-semibold sm:text-base",
                                 sprint.status === "COMPLETED" ? "text-gray-500" : "text-gray-900",
                             )}
                         >
@@ -165,7 +178,13 @@ export function SprintSection({
             </div>
 
             {isOpen && (
-                <div className="border-t border-gray-100">
+                <div
+                    ref={setNodeRef}
+                    className={cn(
+                        "border-t border-[#EBECF0]",
+                        isOver && "bg-[#E9F2FF]/60"
+                    )}
+                >
                     {isLoading ? (
                         <div className="space-y-2 p-3">
                             {[1, 2, 3].map(i => (
@@ -173,13 +192,13 @@ export function SprintSection({
                             ))}
                         </div>
                     ) : tasks.length === 0 ? (
-                        <div className="flex flex-col items-center py-8 text-center text-sm text-gray-400">
+                        <div className="flex min-h-[76px] flex-col items-center justify-center py-6 text-center text-sm text-gray-400">
                             <Flag className="mb-2 h-8 w-8 text-gray-200" />
                             {readOnly ? t("backlog.sprintNoTasksHistorical") : t("backlog.sprintDropHint")}
                         </div>
                     ) : (
                         <>
-                            <div className="hidden bg-gray-50/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 sm:flex sm:gap-3 sm:px-3">
+                            <div className="hidden bg-[#F7F8F9] px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 sm:flex sm:gap-3 sm:px-3">
                                 <span className="hidden w-[88px] sm:block">{t("task.type")}</span>
                                 <span className="w-20">{t("backlog.taskId", { defaultValue: "ID" })}</span>
                                 <span className="flex-1">{t("backlog.taskTitle", { defaultValue: "Title" })}</span>
@@ -192,13 +211,15 @@ export function SprintSection({
                                 {canMoveTaskToBacklogRow && <span className="w-8" />}
                             </div>
                             {tasks.map(task => (
-                                <SprintTaskRow
+                                <DraggableSprintTaskRow
                                     key={task.id}
                                     task={task}
                                     onRowClick={() => onOpenTask(task.id)}
                                     readOnly={readOnly}
                                     canMoveToBacklog={canMoveTaskToBacklogRow}
                                     onMoveToBacklog={() => onMoveTaskToBacklog(task.id)}
+                                    sourceSprintId={sprint.id}
+                                    dragDisabled={!dragEnabled || readOnly}
                                 />
                             ))}
                         </>

@@ -3,10 +3,13 @@
 import React, { useState } from "react"
 import {
     ArrowLeftToLine,
+    GripVertical,
     Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { TaskResponse } from "@/app/types/task.schema"
+import { useDraggable } from "@dnd-kit/core"
+import { CSS } from "@dnd-kit/utilities"
 import {
     AssigneeCell,
     PriorityDot,
@@ -15,18 +18,26 @@ import {
     taskRowOverdueBg,
 } from "./backlog-row-shared"
 
-export function SprintTaskRow({
+function SprintTaskRowInner({
     task,
     onRowClick,
     readOnly,
     canMoveToBacklog,
     onMoveToBacklog,
+    draggable = false,
+    dragAttributes,
+    dragListeners,
+    setDragHandleRef,
 }: {
     task: TaskResponse
     onRowClick: () => void
     readOnly: boolean
     canMoveToBacklog: boolean
     onMoveToBacklog?: () => void
+    draggable?: boolean
+    dragAttributes?: React.HTMLAttributes<HTMLElement>
+    dragListeners?: React.HTMLAttributes<HTMLElement>
+    setDragHandleRef?: (element: HTMLButtonElement | null) => void
 }) {
     const [pending, setPending] = useState(false)
 
@@ -39,10 +50,22 @@ export function SprintTaskRow({
             onClick={onRowClick}
             onKeyDown={e => e.key === "Enter" && onRowClick()}
             className={cn(
-                "flex cursor-pointer items-center gap-3 border-b border-gray-100 px-3 py-2.5 text-left transition-colors hover:bg-gray-50/80",
+                "group flex cursor-pointer items-center gap-3 border-b border-[#EBECF0] px-3 py-2.5 text-left transition-colors hover:bg-[#F7F8FA]",
                 overdueCls,
             )}
         >
+            {draggable && setDragHandleRef && (
+                <button
+                    type="button"
+                    ref={setDragHandleRef}
+                    className="flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center text-gray-300 opacity-0 transition-opacity hover:text-gray-500 active:cursor-grabbing group-hover:opacity-100"
+                    {...dragAttributes}
+                    {...dragListeners}
+                    onClick={e => e.stopPropagation()}
+                >
+                    <GripVertical size={14} />
+                </button>
+            )}
             <div className="hidden w-[88px] shrink-0 sm:block">
                 <TypeBadgeMini type={task.type} />
             </div>
@@ -92,6 +115,53 @@ export function SprintTaskRow({
                     {pending ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeftToLine size={16} />}
                 </button>
             )}
+        </div>
+    )
+}
+
+export function SprintTaskRow(props: {
+    task: TaskResponse
+    onRowClick: () => void
+    readOnly: boolean
+    canMoveToBacklog: boolean
+    onMoveToBacklog?: () => void
+}) {
+    return <SprintTaskRowInner {...props} />
+}
+
+export function DraggableSprintTaskRow(props: {
+    task: TaskResponse
+    onRowClick: () => void
+    readOnly: boolean
+    canMoveToBacklog: boolean
+    onMoveToBacklog?: () => void
+    sourceSprintId: string
+    dragDisabled?: boolean
+}) {
+    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({
+        id: props.task.id,
+        disabled: props.dragDisabled,
+        data: {
+            type: "sprint-task",
+            taskId: props.task.id,
+            sourceSprintId: props.sourceSprintId,
+        },
+    })
+
+    const style = {
+        transform: CSS.Translate.toString(transform),
+        opacity: isDragging ? 0.55 : undefined,
+    }
+
+    return (
+        <div ref={setNodeRef} style={style}>
+            <SprintTaskRowInner
+                {...props}
+                draggable={!props.dragDisabled}
+                dragAttributes={attributes}
+                dragListeners={listeners}
+                setDragHandleRef={setActivatorNodeRef}
+            />
         </div>
     )
 }
