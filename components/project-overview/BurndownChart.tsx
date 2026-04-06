@@ -30,10 +30,15 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
     1
   );
   const hasDrawableValues = safeData.some((point) => point.ideal > 0 || (point.actual ?? 0) > 0);
+  const formatTickDate = (date: string) => {
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return parsed.toLocaleDateString(locale, { month: "2-digit", day: "2-digit" });
+  };
 
   const width = 700;
   const height = 220;
-  const padding = { top: 16, right: 18, bottom: 28, left: 34 };
+  const padding = { top: 12, right: 18, bottom: 36, left: 34 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
 
@@ -47,32 +52,49 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
     return padding.top + (1 - clamped / maxValue) * plotHeight;
   };
 
-  const idealPath = safeData
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${xForIndex(index)} ${yForValue(point.ideal)}`)
-    .join(" ");
-
-  const buildActualSegments = () => {
+  const buildActualStepSegments = () => {
     const segments: string[] = [];
     let current = "";
+    let lastY: number | null = null;
 
     safeData.forEach((point, index) => {
       if (point.actual == null) {
         if (current) {
           segments.push(current.trim());
           current = "";
+          lastY = null;
         }
         return;
       }
 
-      const cmd = current ? "L" : "M";
-      current += `${cmd} ${xForIndex(index)} ${yForValue(point.actual)} `;
+      const x = xForIndex(index);
+      const y = yForValue(point.actual);
+
+      if (!current || lastY == null) {
+        current = `M ${x} ${y} `;
+        lastY = y;
+        return;
+      }
+
+      // Jira-like step line: move horizontally first, then vertically at day boundary.
+      current += `L ${x} ${lastY} L ${x} ${y} `;
+      lastY = y;
     });
 
     if (current) segments.push(current.trim());
     return segments;
   };
 
-  const actualSegments = buildActualSegments();
+  const actualSegments = buildActualStepSegments();
+
+  const actualPoints = safeData.filter((point) => point.actual != null);
+  const firstIdeal = safeData[0]?.ideal ?? maxValue;
+  const lastIdeal = safeData[safeData.length - 1]?.ideal ?? 0;
+  const idealPath = safeData.length > 1
+    ? `M ${xForIndex(0)} ${yForValue(firstIdeal)} L ${xForIndex(safeData.length - 1)} ${yForValue(lastIdeal)}`
+    : `M ${xForIndex(0)} ${yForValue(firstIdeal)} L ${xForIndex(0)} ${yForValue(firstIdeal)}`;
+
+  const tickStep = safeData.length <= 8 ? 1 : Math.ceil(safeData.length / 6);
 
   if (isLoading) {
     return (
@@ -135,8 +157,8 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
           <path
             d={idealPath}
             fill="none"
-            stroke="#94A3B8"
-            strokeWidth="2"
+            stroke="#7C8BA1"
+            strokeWidth="1.8"
             strokeDasharray="6 6"
           />
         )}
@@ -145,14 +167,15 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
           <path key={`actual-${idx}`} d={segment} fill="none" stroke="#3B82F6" strokeWidth="2.5" />
         ))}
 
-        {safeData.map((point, index) => {
+        {actualPoints.map((point) => {
+          const index = point.idx;
           if (point.actual == null) return null;
           return (
             <circle
               key={`dot-${point.idx}`}
               cx={xForIndex(index)}
               cy={yForValue(point.actual)}
-              r="2.8"
+              r="3"
               fill="#2563EB"
             >
               <title>
@@ -162,18 +185,24 @@ export default function BurndownChart({ data, isLoading = false }: BurndownChart
           );
         })}
 
-        {safeData.map((point, index) => (
-          <text
-            key={`x-${point.idx}`}
-            x={xForIndex(index)}
-            y={height - 10}
-            textAnchor="middle"
-            fill="#94A3B8"
-            fontSize="10"
-          >
-            {point.day}
-          </text>
-        ))}
+        {safeData.map((point, index) => {
+          const isEdge = index === 0 || index === safeData.length - 1;
+          const shouldShow = isEdge || index % tickStep === 0;
+          if (!shouldShow) return null;
+
+          return (
+            <text
+              key={`x-${point.idx}`}
+              x={xForIndex(index)}
+              y={height - 12}
+              textAnchor="middle"
+              fill="#94A3B8"
+              fontSize="10"
+            >
+              {formatTickDate(point.date) || `${t("sprint.days", { defaultValue: "Day" })} ${point.day}`}
+            </text>
+          );
+        })}
       </svg>
     </div>
   );
