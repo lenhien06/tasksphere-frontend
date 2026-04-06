@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -17,22 +17,35 @@ import type {
   TaskAssignmentSuggestion,
 } from '@/app/types/ai';
 import { MemberScoreCard } from './MemberScoreCard';
+import { TaskService } from '@/app/services/TaskService';
+import type { TaskResponse } from '@/app/types/task.schema';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+type Step = 'intro' | 'select-tasks' | 'review';
 
 interface TaskAssignment {
   taskId:       string;
   assigneeId:   string | null;
   suggestionId: string | null;
-  /** Display name of selected assignee (for UI) */
   assigneeName: string | null;
 }
 
 interface Props {
-  projectId: string;
-  onClose:   () => void;
-  onSuccess?: (result: { totalAssigned: number; aiConfirmed: number; pmOverridden: number }) => void;
+  projectId:          string;
+  preSelectedTaskIds?: string[];
+  onClose:            () => void;
+  onSuccess?:         (result: { totalAssigned: number; aiConfirmed: number; pmOverridden: number }) => void;
 }
+
+const PRIORITY_ORDER = ['critical', 'high', 'medium', 'low'] as const;
+
+const PRIORITY_STYLE: Record<string, string> = {
+  critical: 'bg-red-50 text-red-600 border-red-200',
+  high:     'bg-orange-50 text-orange-600 border-orange-200',
+  medium:   'bg-yellow-50 text-yellow-600 border-yellow-200',
+  low:      'bg-green-50 text-green-600 border-green-200',
+};
 
 // ── Droppable task row ────────────────────────────────────────────────────────
 
@@ -80,11 +93,17 @@ function DroppableTaskSlot({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
+export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSuccess }: Props) {
+  // ── Step state ──────────────────────────────────────────────────────────────
+  const [step, setStep]                         = useState<Step>('intro');
+  const [availableTasks, setAvailableTasks]     = useState<TaskResponse[]>([]);
+  const [loadingTasks, setLoadingTasks]         = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds]   = useState<Set<string>>(new Set());
+  const [priorityFilter, setPriorityFilter]     = useState<string>('all');
+
+  // ── Review state ────────────────────────────────────────────────────────────
   const [suggestions, setSuggestions] = useState<TaskAssignmentSuggestion[]>([]);
-  // taskId → selected assignment
   const [assignments, setAssignments] = useState<Map<string, TaskAssignment>>(new Map());
-  // Currently dragged member data (for DragOverlay)
   const [draggingMember, setDraggingMember] = useState<MemberSuggestion | null>(null);
 
   const suggestMutation = useSuggestAssignments(projectId);
@@ -94,13 +113,40 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  // ── Load suggestions ──────────────────────────────────────────────────────
+  // ── Handle preSelectedTaskIds — skip to review immediately ────────────────
+  useEffect(() => {
+    if (preSelectedTaskIds && preSelectedTaskIds.length > 0) {
+      runAnalysis(preSelectedTaskIds);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  function handleLoadSuggestions() {
-    suggestMutation.mutate(undefined, {
+  // ── Step 1 → 2: load unassigned tasks for checklist ───────────────────────
+  async function handleStartAnalysis() {
+    setLoadingTasks(true);
+    try {
+      const res = await TaskService.getTasks(projectId, {
+        assigneeId: 'null',
+        size: 100,
+      });
+      const unassigned = res.content.filter(
+        (t) => t.taskStatus !== 'DONE' && t.taskStatus !== 'CANCELLED',
+      );
+      setAvailableTasks(unassigned);
+      // Select all by default
+      setSelectedTaskIds(new Set(unassigned.map((t) => t.id)));
+      setStep('select-tasks');
+    } finally {
+      setLoadingTasks(false);
+    }
+  }
+
+  // ── Step 2 → 3: run AI analysis for selected tasks ────────────────────────
+  function runAnalysis(taskIds: string[]) {
+    setStep('review');
+    suggestMutation.mutate(taskIds, {
       onSuccess: (data) => {
         setSuggestions(data.suggestions);
-        // Pre-select rank-1 suggestion for each task
         const initialAssignments = new Map<string, TaskAssignment>();
         data.suggestions.forEach((t) => {
           if (t.topSuggestions.length > 0) {
@@ -118,31 +164,37 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
     });
   }
 
-  // ── Drag and drop ─────────────────────────────────────────────────────────
+  // ── Task selection helpers ─────────────────────────────────────────────────
+  const filteredTasks = availableTasks.filter(
+    (t) => priorityFilter === 'all' || t.priority?.toLowerCase() === priorityFilter,
+  );
 
+  function toggleTask(id: string) {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  // ── Drag and drop ─────────────────────────────────────────────────────────
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       setDraggingMember(null);
       const { active, over } = event;
       if (!over) return;
-
       const overId = String(over.id);
       if (!overId.startsWith('task-slot-')) return;
-
       const targetTaskId = overId.replace('task-slot-', '');
-      const dragData     = active.data.current as {
+      const dragData = active.data.current as {
         type: string; taskId: string; assigneeId: string; suggestionId: string;
       };
       if (dragData.type !== 'member') return;
-
-      // Find member's full name from suggestions
       const memberName = suggestions
         .flatMap((s) => s.topSuggestions)
         .find((m) => m.userId === dragData.assigneeId)?.fullName ?? dragData.assigneeId;
-
       setAssignments((prev) => {
         const next = new Map(prev);
-        // If the dragged member belongs to the target task's AI suggestions → CONFIRMED
         const targetTask = suggestions.find((s) => s.taskId === targetTaskId);
         const matchedSugg = targetTask?.topSuggestions.find(
           (m) => m.userId === dragData.assigneeId,
@@ -160,23 +212,17 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
   );
 
   function handleDragStart(event: { active: { data: { current: unknown } } }) {
-    const data = event.active.data.current as {
-      type: string; taskId: string; assigneeId: string;
-    };
+    const data = event.active.data.current as { type: string; assigneeId: string };
     if (data.type !== 'member') return;
-    const member = suggestions
-      .flatMap((s) => s.topSuggestions)
+    const member = suggestions.flatMap((s) => s.topSuggestions)
       .find((m) => m.userId === data.assigneeId);
     setDraggingMember(member ?? null);
   }
-
-  // ── Select from AI list ────────────────────────────────────────────────────
 
   function handleSelectMember(taskId: string, member: MemberSuggestion) {
     setAssignments((prev) => {
       const next = new Map(prev);
       const current = next.get(taskId);
-      // Clicking the already-selected member deselects
       if (current?.assigneeId === member.userId) {
         next.delete(taskId);
       } else {
@@ -191,8 +237,6 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
     });
   }
 
-  // ── Confirm ────────────────────────────────────────────────────────────────
-
   function handleConfirm() {
     const assignmentList: AssignmentItem[] = [];
     assignments.forEach((a) => {
@@ -204,7 +248,6 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
         });
       }
     });
-
     confirmMutation.mutate(
       { assignments: assignmentList },
       {
@@ -220,8 +263,8 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
     );
   }
 
-  const isLoading  = suggestMutation.isPending;
-  const hasSuggs   = suggestions.length > 0;
+  const isLoading     = suggestMutation.isPending;
+  const hasSuggs      = suggestions.length > 0;
   const assignedCount = Array.from(assignments.values()).filter((a) => a.assigneeId).length;
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -236,7 +279,9 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
           <div>
             <h2 className="text-lg font-bold text-gray-900">🤖 AI gợi ý phân công</h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              Click để chọn, hoặc kéo thả member sang task khác để override
+              {step === 'intro'        ? 'AI sẽ chấm điểm từng cặp (task, member) và đề xuất top-3 cho mỗi task.' :
+               step === 'select-tasks' ? 'Chọn task muốn AI phân công' :
+                                         'Click để chọn, hoặc kéo thả member sang task khác để override'}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl">✕</button>
@@ -245,24 +290,115 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
         {/* Body */}
         <div className="flex-1 px-6 py-5">
 
-          {/* Start button */}
-          {!hasSuggs && !isLoading && (
+          {/* ── Step: intro ── */}
+          {step === 'intro' && (
             <div className="text-center py-12">
               <p className="text-gray-500 mb-4">
                 AI sẽ chấm điểm từng cặp (task, member) và đề xuất top-3 cho mỗi task.
               </p>
               <button
-                onClick={handleLoadSuggestions}
+                onClick={handleStartAnalysis}
+                disabled={loadingTasks}
                 className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold
-                           hover:bg-indigo-700 transition-colors"
+                           hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
-                🚀 Bắt đầu phân tích
+                {loadingTasks ? 'Đang tải task...' : '🚀 Bắt đầu phân tích'}
               </button>
             </div>
           )}
 
-          {/* Loading skeleton */}
-          {isLoading && (
+          {/* ── Step: select-tasks ── */}
+          {step === 'select-tasks' && (
+            <div>
+              {availableTasks.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  Tất cả task đã được phân công rồi.
+                </div>
+              ) : (
+                <>
+                  {/* Header row */}
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-gray-500">
+                      {availableTasks.length} task chưa được phân công
+                    </span>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setSelectedTaskIds(new Set(availableTasks.map((t) => t.id)))}
+                        className="text-xs text-indigo-600 hover:underline"
+                      >
+                        Chọn tất cả
+                      </button>
+                      <span className="text-gray-300">|</span>
+                      <button
+                        onClick={() => setSelectedTaskIds(new Set())}
+                        className="text-xs text-gray-500 hover:underline"
+                      >
+                        Bỏ chọn
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Priority filter */}
+                  <div className="flex gap-1 mb-3 flex-wrap">
+                    {(['all', ...PRIORITY_ORDER] as string[]).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setPriorityFilter(p)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                          priorityFilter === p
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'
+                        }`}
+                      >
+                        {p === 'all' ? 'Tất cả' : p.charAt(0).toUpperCase() + p.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Task checklist */}
+                  <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
+                    {filteredTasks.length === 0 ? (
+                      <p className="text-center text-sm text-gray-400 py-6">
+                        Không có task với priority này.
+                      </p>
+                    ) : (
+                      filteredTasks.map((task) => {
+                        const pri = task.priority?.toLowerCase() ?? 'medium';
+                        return (
+                          <label
+                            key={task.id}
+                            className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100
+                                       hover:bg-gray-50 cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedTaskIds.has(task.id)}
+                              onChange={() => toggleTask(task.id)}
+                              className="w-4 h-4 accent-indigo-600"
+                            />
+                            <span className="flex-1 text-sm text-gray-800 truncate">{task.title}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0
+                              ${PRIORITY_STYLE[pri] ?? PRIORITY_STYLE.medium}`}>
+                              {pri}
+                            </span>
+                            {task.storyPoints != null && (
+                              <span className="text-xs text-purple-600 font-mono bg-purple-50
+                                               px-2 py-0.5 rounded border border-purple-200 shrink-0">
+                                {task.storyPoints} SP
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Step: review — loading skeleton ── */}
+          {step === 'review' && isLoading && (
             <div className="space-y-4">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="border border-gray-200 rounded-xl p-4 animate-pulse">
@@ -277,8 +413,8 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
             </div>
           )}
 
-          {/* Suggestion table with DnD */}
-          {hasSuggs && (
+          {/* ── Step: review — suggestion table ── */}
+          {step === 'review' && hasSuggs && (
             <DndContext
               sensors={sensors}
               onDragStart={handleDragStart}
@@ -289,13 +425,9 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
                   const assignment = assignments.get(taskSugg.taskId);
                   return (
                     <div key={taskSugg.taskId} className="border border-gray-200 rounded-xl p-4">
-                      {/* Task header */}
                       <div className="flex items-center gap-3 mb-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full border font-medium
-                          ${taskSugg.taskPriority === 'critical' ? 'bg-red-50 text-red-600 border-red-200' :
-                            taskSugg.taskPriority === 'high'     ? 'bg-orange-50 text-orange-600 border-orange-200' :
-                            taskSugg.taskPriority === 'medium'   ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
-                                                                   'bg-green-50 text-green-600 border-green-200'}`}>
+                          ${PRIORITY_STYLE[taskSugg.taskPriority] ?? PRIORITY_STYLE.medium}`}>
                           {taskSugg.taskPriority}
                         </span>
                         <h3 className="font-semibold text-gray-900 text-sm">{taskSugg.taskTitle}</h3>
@@ -306,13 +438,9 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
                           </span>
                         )}
                       </div>
-
-                      {/* Droppable assignment slot */}
                       <DroppableTaskSlot taskId={taskSugg.taskId} assignment={assignment}>
                         <div />
                       </DroppableTaskSlot>
-
-                      {/* Top-3 member cards */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                         {taskSugg.topSuggestions.map((member, idx) => (
                           <MemberScoreCard
@@ -329,8 +457,6 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
                   );
                 })}
               </div>
-
-              {/* Drag overlay */}
               <DragOverlay>
                 {draggingMember && (
                   <div className="opacity-90 shadow-2xl rotate-2 scale-105">
@@ -361,30 +487,64 @@ export function AiAssignReview({ projectId, onClose, onSuccess }: Props) {
         </div>
 
         {/* Footer */}
-        {hasSuggs && (
-          <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-between
-                          bg-gray-50 rounded-b-2xl">
-            <span className="text-sm text-gray-500">
-              Đã phân công <strong>{assignedCount}</strong> / {suggestions.length} task
-            </span>
-            <div className="flex gap-3">
-              <button onClick={onClose}
-                      className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700
-                                 hover:bg-gray-100 transition-colors">
-                Hủy
+        <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-between
+                        bg-gray-50 rounded-b-2xl">
+          {step === 'select-tasks' && (
+            <>
+              <button
+                onClick={() => setStep('intro')}
+                className="text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                ← Quay lại
               </button>
               <button
-                onClick={handleConfirm}
-                disabled={assignedCount === 0 || confirmMutation.isPending}
-                className="px-5 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold
-                           hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed
+                disabled={selectedTaskIds.size === 0}
+                onClick={() => runAnalysis(Array.from(selectedTaskIds))}
+                className="px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold
+                           hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed
                            transition-colors"
               >
-                {confirmMutation.isPending ? 'Đang xác nhận...' : `Xác nhận ${assignedCount} phân công`}
+                🤖 Phân tích {selectedTaskIds.size} task đã chọn
               </button>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+
+          {step === 'review' && hasSuggs && (
+            <>
+              <span className="text-sm text-gray-500">
+                Đã phân công <strong>{assignedCount}</strong> / {suggestions.length} task
+              </span>
+              <div className="flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700
+                             hover:bg-gray-100 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={assignedCount === 0 || confirmMutation.isPending}
+                  className="px-5 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold
+                             hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed
+                             transition-colors"
+                >
+                  {confirmMutation.isPending ? 'Đang xác nhận...' : `Xác nhận ${assignedCount} phân công`}
+                </button>
+              </div>
+            </>
+          )}
+
+          {(step === 'intro' || (step === 'review' && !hasSuggs && !isLoading)) && (
+            <button
+              onClick={onClose}
+              className="ml-auto px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700
+                         hover:bg-gray-100 transition-colors"
+            >
+              Đóng
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
