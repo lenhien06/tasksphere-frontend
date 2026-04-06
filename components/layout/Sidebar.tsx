@@ -22,11 +22,15 @@ import {
   HelpCircle,
   Sparkles,
   Loader2,
+  Building2,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/app/services/auth.service";
 import { ProjectService } from "@/app/services/ProjectService";
+import { WorkspaceService } from "@/app/services/workspace.service";
 import { Project as ApiProject } from "@/app/types/project..schema";
+import { Workspace } from "@/app/types/workspace.schema";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useAIModalStore } from "@/stores/useAIModalStore";
 import { toast } from "sonner";
@@ -250,6 +254,15 @@ export default function Sidebar({
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: sidebarWorkspaces = [] } = useQuery<Workspace[]>({
+    queryKey: ["sidebar-workspaces"],
+    queryFn: async () => {
+      const response = await WorkspaceService.getMyWorkspaces();
+      return (response.data as Workspace[]) ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   const handleLogout = async () => {
     try {
       await AuthService.logoutNext();
@@ -374,6 +387,93 @@ export default function Sidebar({
         <MenuItem icon={Home} label={t('nav.dashboard')} path="/dashboard" active={activeItem === "/dashboard"} onClick={onNavigate} isCollapsed={isCollapsed} />
         <MenuItem icon={FolderKanban} label={t('project.myProjects')} path="/projects" active={activeItem === "/projects" || activeItem === "/projects/all"} badge={{ count: sidebarProjects.length, variant: "count" }} onClick={onNavigate} isCollapsed={isCollapsed} />
         <MenuItem icon={Inbox} label={t('nav.inbox')} path="/inbox" active={activeItem === "/inbox"} onClick={onNavigate} isCollapsed={isCollapsed} />
+
+        {/* WORKSPACES SECTION */}
+        {!isCollapsed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mb-1 mt-5 px-2"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-medium uppercase tracking-widest text-[#475569]">
+                Workspaces
+              </span>
+              {sidebarWorkspaces.length > 0 && (
+                <span className="rounded-full border border-[#1E293B] bg-[#111827] px-1.5 py-0.5 text-[10px] font-semibold text-[#64748B]">
+                  {sidebarWorkspaces.length}
+                </span>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        <div className="mt-1">
+          {sidebarWorkspaces.slice(0, 5).map((ws) => {
+            const wsInitials = ws.name.slice(0, 2).toUpperCase();
+            const isActive = activeItem.startsWith(`/ws/${ws.slug}`);
+            return (
+              <motion.button
+                key={ws.id}
+                type="button"
+                whileHover={{ x: isCollapsed ? 0 : 4 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                onClick={() => onNavigate(`/ws/${ws.slug}`)}
+                title={isCollapsed ? ws.name : ""}
+                className={cn(
+                  "group mx-1 flex items-center rounded-xl border transition-all mb-1",
+                  isCollapsed
+                    ? "mx-auto h-10 w-10 justify-center px-0"
+                    : "w-[calc(100%-8px)] gap-3 px-2.5 py-2 text-left",
+                  isActive
+                    ? "border-blue-500/30 bg-gradient-to-r from-blue-500/15 via-sky-500/10 to-violet-500/10 text-[#E2E8F0]"
+                    : "border-transparent text-[#94A3B8] hover:border-[#1E293B] hover:bg-[#111827]"
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex shrink-0 items-center justify-center rounded-lg text-[10px] font-black tracking-wide text-white shadow-sm",
+                    isCollapsed ? "h-7 w-7" : "h-8 w-8",
+                    isActive
+                      ? "bg-gradient-to-br from-violet-500 to-blue-600"
+                      : "bg-gradient-to-br from-slate-600 to-slate-700 group-hover:from-violet-500/80 group-hover:to-blue-600/80"
+                  )}
+                >
+                  <Building2 size={isCollapsed ? 13 : 11} />
+                </div>
+                {!isCollapsed && (
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[12px] font-semibold text-[#E2E8F0]">
+                      {ws.name}
+                    </div>
+                    <div className="mt-0.5 text-[10px] text-[#64748B]">
+                      /{ws.slug}
+                    </div>
+                  </div>
+                )}
+              </motion.button>
+            );
+          })}
+
+          {/* Create workspace link */}
+          <motion.button
+            type="button"
+            whileHover={{ x: isCollapsed ? 0 : 4 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            onClick={() => onNavigate("/workspaces/new")}
+            title={isCollapsed ? "Tạo Workspace" : ""}
+            className={cn(
+              "mx-1 flex h-9 cursor-pointer items-center rounded-lg gap-2.5 px-2 mb-0.5",
+              isCollapsed ? "justify-center px-0 w-9 mx-auto mb-1" : "",
+              "text-[#475569] hover:bg-[#1E293B] hover:text-[#CBD5E1]"
+            )}
+          >
+            <Plus size={isCollapsed ? 18 : 13} className="shrink-0 text-[#475569]" />
+            {!isCollapsed && (
+              <span className="truncate text-[12px]">Tạo Workspace</span>
+            )}
+          </motion.button>
+        </div>
 
         {!isCollapsed && (
           <motion.div
