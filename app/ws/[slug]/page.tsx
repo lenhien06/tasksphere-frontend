@@ -300,6 +300,7 @@ export default function WorkspaceDashboardPage() {
               {/* AI project creation */}
               <button
                 type="button"
+                onClick={() => router.push(`/ws/${slug}/projects/new-with-ai`)}
                 className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
               >
                 <Sparkles size={15} />
@@ -326,6 +327,7 @@ export default function WorkspaceDashboardPage() {
               </p>
               <button
                 type="button"
+                onClick={() => router.push(`/ws/${slug}/projects/new-with-ai`)}
                 className="mt-5 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-5 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
               >
                 <Sparkles size={15} />
