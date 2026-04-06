@@ -49,6 +49,7 @@ import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import ForbiddenPage from "@/components/common/ForbiddenPage";
 import { AISkillTriggerButton } from "@/components/projects/AISkillAllocationModal";
 import { useAISkillModalStore } from "@/stores/useAISkillModalStore";
+import { ProfileService } from "@/app/services/profile.service";
 import { canActAsProjectManager, toKanbanUserRole, toLegacyMyRoleLower, toTaskPanelRole } from "@/lib/projectRole";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -473,31 +474,42 @@ function TabMembers({ project }: { project: Project }) {
     const queryClient = useQueryClient();
     const openSkillModal = useAISkillModalStore((s) => s.open);
 
-    // --- SKILL MOCK & STATE ---
+    // --- SKILL STATE ---
     const [addingSkillToMemberId, setAddingSkillToMemberId] = useState<string | null>(null);
     const [newSkillText, setNewSkillText] = useState("");
-    const [mockSkills, setMockSkills] = useState<Record<string, string[]>>({
-        'dev4@tasksphere.local': ['React', 'Vue.js'],
-        'dev1@tasksphere.local': ['Python', 'Django'],
-        'admin@tasksphere.local': ['Linux', 'AWS'],
-        'qa@tasksphere.local': ['Selenium', 'JMeter'],
-        'pm@tasksphere.local': ['Scrum', 'Jira'],
-        'ba@tasksphere.local': ['SQL', 'Tableau'],
-        'dev3@tasksphere.local': ['Node.js', 'MongoDB'],
+
+    const { data: memberSkills, isLoading: isSkillsLoading } = useQuery({
+        queryKey: ["project-member-skills", project.id],
+        queryFn: () => ProfileService.getProjectMemberSkills(project.id),
+        enabled: !!project.id,
     });
 
-    const handleRemoveSkill = (memberId: string, email: string, skill: string) => {
-        toast.success(`Đã xóa skill ${skill}`);
-        setMockSkills(prev => ({ ...prev, [email]: (prev[email] || []).filter(s => s !== skill) }));
+    // Map userId → skillTags[]
+    const skillMap: Record<string, string[]> = Object.fromEntries(
+        (memberSkills || []).map(ms => [ms.userId, ms.skillTags || []])
+    );
+
+    const updateSkillMutation = useMutation({
+        mutationFn: ({ userId, skillTags }: { userId: string; skillTags: string[] }) =>
+            ProfileService.updateMemberSkills(project.id, userId, skillTags),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["project-member-skills", project.id] });
+        },
+        onError: () => toast.error("Không thể cập nhật skill"),
+    });
+
+    const handleRemoveSkill = (userId: string, skill: string) => {
+        const current = skillMap[userId] || [];
+        updateSkillMutation.mutate({ userId, skillTags: current.filter(s => s !== skill) });
     };
 
-    const handleAddSkill = (memberId: string, email: string) => {
-        if (!newSkillText.trim()) {
-            setAddingSkillToMemberId(null);
-            return;
+    const handleAddSkill = (userId: string) => {
+        const trimmed = newSkillText.trim();
+        if (!trimmed) { setAddingSkillToMemberId(null); return; }
+        const current = skillMap[userId] || [];
+        if (!current.includes(trimmed)) {
+            updateSkillMutation.mutate({ userId, skillTags: [...current, trimmed] });
         }
-        toast.success(`Đã thêm skill ${newSkillText.trim()}`);
-        setMockSkills(prev => ({ ...prev, [email]: [...(prev[email] || []), newSkillText.trim()] }));
         setNewSkillText("");
         setAddingSkillToMemberId(null);
     };
@@ -674,7 +686,9 @@ function TabMembers({ project }: { project: Project }) {
                                         </td>
                                         <td className="px-6 py-4 min-w-[200px]">
                                             <div className="flex flex-wrap items-center gap-1.5">
-                                                {(mockSkills[m.user.email] || m.user.skills || []).map((skill: string) => (
+                                                {isSkillsLoading ? (
+                                                    <Loader2 size={12} className="animate-spin text-slate-300" />
+                                                ) : (skillMap[m.user.id] || []).map((skill: string) => (
                                                     <span
                                                         key={skill}
                                                         className={cn("px-2.5 py-1 text-[11px] font-bold rounded-full flex items-center gap-1.5 whitespace-nowrap", SKILL_COLORS[skill] || "bg-slate-500 text-white")}
@@ -682,7 +696,7 @@ function TabMembers({ project }: { project: Project }) {
                                                         {skill}
                                                         {canManageMembers && (
                                                             <button
-                                                                onClick={() => handleRemoveSkill(m.id, m.user.email, skill)}
+                                                                onClick={() => handleRemoveSkill(m.user.id, skill)}
                                                                 className="hover:bg-black/20 rounded-full p-0.5 transition-colors"
                                                             >
                                                                 <X size={10} strokeWidth={3} />
@@ -696,10 +710,10 @@ function TabMembers({ project }: { project: Project }) {
                                                         value={newSkillText}
                                                         onChange={(e) => setNewSkillText(e.target.value)}
                                                         onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') handleAddSkill(m.id, m.user.email);
+                                                            if (e.key === 'Enter') handleAddSkill(m.user.id);
                                                             if (e.key === 'Escape') setAddingSkillToMemberId(null);
                                                         }}
-                                                        onBlur={() => handleAddSkill(m.id, m.user.email)}
+                                                        onBlur={() => handleAddSkill(m.user.id)}
                                                         className="h-6 w-24 text-[11px] font-bold px-2 py-0 border border-blue-300 rounded-full outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700 placeholder:text-slate-300 placeholder:font-normal"
                                                         placeholder="Add..."
                                                     />
