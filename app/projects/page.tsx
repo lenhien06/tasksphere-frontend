@@ -8,6 +8,7 @@ import {
     Plus,
     Search,
     ChevronDown,
+    Building2,
     LayoutGrid,
     List,
     MoreVertical,
@@ -30,6 +31,7 @@ import {
     X,
     Loader2,
     Link2,
+    Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -58,7 +60,6 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { canActAsProjectManager, normalizeProjectMyRole } from "@/lib/projectRole";
 import { getRealtimeAccessToken, getStompConnectHeaders } from "@/lib/realtime/stompAuth";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { Sparkles } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & MOCK DATA (Fallback/Types)
@@ -281,7 +282,7 @@ export default function ProjectsPage() {
     // UI state
     const [showCreate, setShowCreate] = useState(false);
     const openAIModal = useAIModalStore((s) => s.open);
-    const { currentWorkspace, currentSlug } = useWorkspace();
+    const { selectedContext, selectedWorkspace } = useWorkspace();
     const [activeProject, setActiveProject] = useState<any>(null);
     const [modalType, setModalType] = useState<"edit" | "archive" | "delete" | "restore" | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -314,7 +315,7 @@ export default function ProjectsPage() {
 
     // Queries
     const { data: apiResponse, isLoading, isError, isFetching } = useQuery({
-        queryKey: ["projects", { page, statusFilter, visibilityFilter, debouncedSearch }],
+        queryKey: ["projects", { page, statusFilter, visibilityFilter, debouncedSearch, contextKind: selectedContext.kind, workspaceId: selectedWorkspace?.id ?? null }],
         queryFn: () => {
             let vBE = undefined;
             if (visibilityFilter === "Public") vBE = "public";
@@ -332,6 +333,8 @@ export default function ProjectsPage() {
                 size: PAGE_SIZE,
                 status: sBE,
                 visibility: vBE,
+                workspaceId: selectedContext.kind === "workspace" ? selectedContext.workspace.id : undefined,
+                scope: selectedContext.kind === "workspace" ? undefined : "personal",
                 q: debouncedSearch || undefined,
                 sort: "createdAt,desc"
             });
@@ -440,6 +443,7 @@ export default function ProjectsPage() {
         await createMutation.mutateAsync({
             ...data,
             name: data.name.trim(),
+            workspaceId: selectedContext.kind === "workspace" ? selectedContext.workspace.id : undefined,
         });
     }
 
@@ -558,11 +562,17 @@ export default function ProjectsPage() {
                     <div>
                         <h1 className="text-[24px] md:text-[28px] font-extrabold text-gray-900 tracking-tight">{t('project.myProjects')}</h1>
                         <p className="text-[13px] text-gray-500 font-medium">{t('project.trackProgress')}</p>
+                        <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-700">
+                            <Building2 className="h-3.5 w-3.5" />
+                            {selectedContext.kind === "workspace"
+                                ? `Workspace: ${selectedContext.workspace.name}`
+                                : "Personal Workspace"}
+                        </div>
                     </div>
                     <div className="flex items-start gap-3">
-                        {currentWorkspace && currentSlug && (
+                        {selectedContext.kind === "workspace" && selectedWorkspace && (
                             <button
-                                onClick={() => router.push(`/ws/${currentSlug}/projects/new-with-ai`)}
+                                onClick={() => router.push(`/ws/${selectedWorkspace.slug}/projects/new-with-ai`)}
                                 className="flex items-center gap-2 h-[38px] px-4 rounded-xl text-[13px] font-bold border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition-all"
                             >
                                 <Sparkles className="w-4 h-4" />

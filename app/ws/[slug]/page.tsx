@@ -23,6 +23,7 @@ import { WorkspaceService } from "@/app/services/workspace.service";
 import { Workspace, WorkspaceMember, WorkspaceRole } from "@/app/types/workspace.schema";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -150,6 +151,7 @@ export default function WorkspaceDashboardPage() {
   const router = useRouter();
   const slug = params.slug as string;
   const [activeTab, setActiveTab] = useState<Tab>("projects");
+  const { selectWorkspace } = useWorkspace();
 
   const { data: currentUser } = useCurrentUser();
 
@@ -300,7 +302,12 @@ export default function WorkspaceDashboardPage() {
               {/* AI project creation */}
               <button
                 type="button"
-                onClick={() => router.push(`/ws/${slug}/projects/new-with-ai`)}
+                onClick={() => {
+                  if (workspace) {
+                    selectWorkspace(workspace);
+                  }
+                  router.push(`/ws/${slug}/projects/new-with-ai`);
+                }}
                 className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
               >
                 <Sparkles size={15} />
@@ -308,6 +315,12 @@ export default function WorkspaceDashboardPage() {
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  if (workspace) {
+                    selectWorkspace(workspace);
+                  }
+                  router.push("/projects");
+                }}
                 className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
               >
                 <Plus size={15} />
@@ -327,7 +340,12 @@ export default function WorkspaceDashboardPage() {
               </p>
               <button
                 type="button"
-                onClick={() => router.push(`/ws/${slug}/projects/new-with-ai`)}
+                onClick={() => {
+                  if (workspace) {
+                    selectWorkspace(workspace);
+                  }
+                  router.push(`/ws/${slug}/projects/new-with-ai`);
+                }}
                 className="mt-5 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-5 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
               >
                 <Sparkles size={15} />

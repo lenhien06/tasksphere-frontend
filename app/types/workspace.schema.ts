@@ -4,9 +4,11 @@ import { z } from "zod";
 
 export const WorkspaceRoleEnum = z.enum(["OWNER", "ADMIN", "MEMBER"]);
 export const WorkspacePlanEnum = z.enum(["free", "pro", "enterprise"]);
+export const WorkspaceTypeEnum = z.enum(["PERSONAL", "ORGANIZATION"]);
 
 export type WorkspaceRole = z.infer<typeof WorkspaceRoleEnum>;
 export type WorkspacePlan = z.infer<typeof WorkspacePlanEnum>;
+export type WorkspaceType = z.infer<typeof WorkspaceTypeEnum>;
 
 // ── Workspace ────────────────────────────────────────────────────────────────
 
@@ -17,6 +19,7 @@ export const WorkspaceSchema = z.object({
   description: z.string().nullable().optional(),
   avatarUrl: z.string().nullable().optional(),
   plan: WorkspacePlanEnum,
+  type: WorkspaceTypeEnum.default("ORGANIZATION"),
   memberCount: z.number().default(0),
   projectCount: z.number().default(0),
   role: WorkspaceRoleEnum.nullable().optional(),

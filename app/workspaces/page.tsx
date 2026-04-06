@@ -15,6 +15,7 @@ import {
 import { WorkspaceService } from "@/app/services/workspace.service";
 import { Workspace, WorkspaceRole } from "@/app/types/workspace.schema";
 import { cn } from "@/lib/utils";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -121,6 +122,7 @@ function WorkspaceCard({
 
 export default function WorkspaceListPage() {
   const router = useRouter();
+  const { selectPersonal, selectWorkspace } = useWorkspace();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["my-workspaces"],
@@ -129,6 +131,11 @@ export default function WorkspaceListPage() {
   });
 
   const workspaces: Workspace[] = (data?.data as Workspace[]) ?? [];
+  const personalWorkspace =
+    workspaces.find((workspace) => workspace.type === "PERSONAL") ?? null;
+  const organizationWorkspaces = workspaces.filter(
+    (workspace) => workspace.type !== "PERSONAL"
+  );
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -186,15 +193,38 @@ export default function WorkspaceListPage() {
         </div>
       )}
 
-      {!isLoading && !isError && workspaces.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {workspaces.map((ws) => (
-            <WorkspaceCard
-              key={ws.id}
-              workspace={ws}
-              onClick={() => router.push(`/ws/${ws.slug}`)}
-            />
-          ))}
+      {!isLoading && !isError && personalWorkspace && (
+        <div className="mb-8">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+            Personal Workspace
+          </div>
+          <WorkspaceCard
+            workspace={personalWorkspace}
+            onClick={() => {
+              selectPersonal();
+              router.push("/projects");
+            }}
+          />
+        </div>
+      )}
+
+      {!isLoading && !isError && organizationWorkspaces.length > 0 && (
+        <div>
+          <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+            Organization Workspaces
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {organizationWorkspaces.map((ws) => (
+              <WorkspaceCard
+                key={ws.id}
+                workspace={ws}
+                onClick={() => {
+                  selectWorkspace(ws);
+                  router.push(`/ws/${ws.slug}`);
+                }}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

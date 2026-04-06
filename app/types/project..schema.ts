@@ -14,6 +14,10 @@ export const ProjectSchema = z.object({
   visibility: ProjectVisibilityEnum,
   ownerId: z.string().uuid(),
   ownerName: z.string(),
+  workspaceId: z.string().uuid().nullable().optional(),
+  workspaceName: z.string().nullable().optional(),
+  workspaceSlug: z.string().nullable().optional(),
+  workspaceType: z.enum(["PERSONAL", "ORGANIZATION"]).nullable().optional(),
   memberCount: z.number().default(0),
   isOwner: z.boolean().optional(),
   progress: z.number().min(0).max(100).default(0),
@@ -52,6 +56,7 @@ export const ProjectRequestSchema = z
     status: ProjectStatusEnum.optional(),
     startDate: z.string().optional().nullable(),
     endDate: z.string().optional().nullable(),
+    workspaceId: z.string().uuid().optional().nullable(),
   })
   .superRefine((data, ctx) => {
     if (data.startDate && data.endDate) {

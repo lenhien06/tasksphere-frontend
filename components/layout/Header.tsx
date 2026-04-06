@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { LanguageToggle } from "@/components/common/LanguageToggle";
 import { ProjectService } from "@/app/services/ProjectService";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 const RECENT_SEARCHES = ["WRD-021", "Mobile design", "Meeting notes"];
 
@@ -55,6 +56,7 @@ export default function Header({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { selectedContext } = useWorkspace();
 
   const debouncedSearchTerm = useDebounce(searchTerm, 400);
   const displayName = currentUser?.fullName || currentUser?.displayName || "User";
@@ -88,6 +90,9 @@ export default function Header({
       try {
         const response = await ProjectService.search({
           q: debouncedSearchTerm,
+          workspaceId:
+            selectedContext.kind === "workspace" ? selectedContext.workspace.id : undefined,
+          scope: selectedContext.kind === "workspace" ? undefined : "personal",
           page: 0,
           size: 5,
         });
@@ -100,7 +105,7 @@ export default function Header({
     };
 
     void fetchProjects();
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, selectedContext]);
 
   const handleLogout = async () => {
     try {

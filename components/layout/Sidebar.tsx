@@ -15,7 +15,6 @@ import {
   ChevronRight,
   Columns4,
   FolderKanban,
-  HelpCircle,
   Home,
   LayoutDashboard,
   Loader2,
@@ -157,13 +156,24 @@ export default function Sidebar({
   const { t } = useTranslation();
   const { logout } = useAuthStore();
   const openAIModal = useAIModalStore((s) => s.open);
-  const { currentWorkspace, currentSlug, workspaces, isLoading } = useWorkspace();
+  const {
+    organizationWorkspaces,
+    personalWorkspace,
+    selectedContext,
+    isLoading,
+    selectPersonal,
+    selectWorkspace,
+  } = useWorkspace();
 
   const personalLabel = getPersonalLabel(currentUser);
-  const currentContextLabel = currentWorkspace?.name || personalLabel;
-  const currentContextMeta = currentWorkspace
-    ? `/ws/${currentWorkspace.slug}`
-    : "Personal workspace";
+  const currentContextLabel =
+    selectedContext.kind === "workspace"
+      ? selectedContext.workspace.name
+      : personalWorkspace?.name || personalLabel;
+  const currentContextMeta =
+    selectedContext.kind === "workspace"
+      ? "Organization workspace"
+      : "Personal workspace";
   const currentProjectBadge =
     (currentProject?.key?.trim() || currentProject?.name?.trim() || "PR").slice(0, 2).toUpperCase();
 
@@ -329,14 +339,19 @@ export default function Sidebar({
                       Switch Context
                     </DropdownMenuLabel>
                     <DropdownMenuItem
-                      onClick={() => onNavigate("/dashboard")}
+                      onClick={() => {
+                        selectPersonal();
+                        onNavigate("/projects");
+                      }}
                       className="rounded-lg px-3 py-2.5 text-sm font-medium text-[#E2E8F0] focus:bg-[#1E293B] focus:text-white"
                     >
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-700 text-white">
                         <Home size={14} />
                       </div>
                       <div className="min-w-0">
-                        <div className="truncate font-semibold">{personalLabel}</div>
+                        <div className="truncate font-semibold">
+                          {personalWorkspace?.name || personalLabel}
+                        </div>
                         <div className="text-xs text-[#64748B]">Personal workspace</div>
                       </div>
                     </DropdownMenuItem>
@@ -351,11 +366,14 @@ export default function Sidebar({
                         <Loader2 size={14} className="animate-spin" />
                         <span>{t("common.loading")}</span>
                       </div>
-                    ) : workspaces.length > 0 ? (
-                      workspaces.map((ws) => (
+                    ) : organizationWorkspaces.length > 0 ? (
+                      organizationWorkspaces.map((ws) => (
                         <DropdownMenuItem
                           key={ws.id}
-                          onClick={() => onNavigate(`/ws/${ws.slug}`)}
+                          onClick={() => {
+                            selectWorkspace(ws);
+                            onNavigate("/projects");
+                          }}
                           className="rounded-lg px-3 py-2.5 text-sm font-medium text-[#E2E8F0] focus:bg-[#1E293B] focus:text-white"
                         >
                           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-blue-600 text-white">
@@ -535,15 +553,6 @@ export default function Sidebar({
               <Sparkles size={16} />
             </button>
           )}
-
-          <MenuItem
-            icon={HelpCircle}
-            label={t("sidebar.helpFeedback")}
-            path="/help"
-            active={activeItem === "/help"}
-            onClick={onNavigate}
-            isCollapsed={isCollapsed}
-          />
 
           <div
             onClick={handleLogout}

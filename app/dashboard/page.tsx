@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 const DEFAULT_UPCOMING_DAYS = 5;
 
@@ -37,6 +38,7 @@ export default function DashboardPage() {
   const syncUnreadCount = useNotificationStore((state) => state.handleRealtimeUnreadCount);
   const [upcomingDays, setUpcomingDays] = useState(DEFAULT_UPCOMING_DAYS);
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const { selectedContext } = useWorkspace();
 
   const dashboardQuery = useQuery({
     queryKey: ["dashboard", "me", upcomingDays],
@@ -100,7 +102,11 @@ export default function DashboardPage() {
   };
 
   const handleCreateProject = async (payload: Parameters<typeof ProjectService.create>[0]) => {
-    await createProjectMutation.mutateAsync(payload);
+    await createProjectMutation.mutateAsync({
+      ...payload,
+      workspaceId:
+        selectedContext.kind === "workspace" ? selectedContext.workspace.id : undefined,
+    });
   };
 
   if (dashboardQuery.isLoading) {

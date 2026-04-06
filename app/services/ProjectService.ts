@@ -8,6 +8,8 @@ export const ProjectService = {
     q?: string;
     status?: string;
     visibility?: string;
+    workspaceId?: string;
+    scope?: "personal" | "all";
     page?: number;
     size?: number;
     sort?: string;
