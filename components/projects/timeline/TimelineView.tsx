@@ -136,6 +136,7 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
 
     const leftRef = useRef<HTMLDivElement>(null);
     const rightRef = useRef<HTMLDivElement>(null);
+    const syncingRef = useRef<"left" | "right" | null>(null);
 
     useEffect(() => {
         const left = leftRef.current;
@@ -143,10 +144,20 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
         if (!left || !right) return;
 
         const syncLeft = () => {
+            if (syncingRef.current === "right") {
+                syncingRef.current = null;
+                return;
+            }
+            syncingRef.current = "left";
             right.scrollTop = left.scrollTop;
         };
 
         const syncRight = () => {
+            if (syncingRef.current === "left") {
+                syncingRef.current = null;
+                return;
+            }
+            syncingRef.current = "right";
             left.scrollTop = right.scrollTop;
         };
 

@@ -1,10 +1,43 @@
 import { TimelineDate, TimelineTask } from "@/app/types/task.schema";
 import { addDays, differenceInCalendarDays, endOfMonth, eachDayOfInterval, eachMonthOfInterval, eachWeekOfInterval, startOfDay, startOfMonth, subDays } from "date-fns";
 
+const MIN_REASONABLE_YEAR = 2000;
+const MAX_REASONABLE_YEAR = 2100;
+
+function buildSafeDate(year: number, month: number, day: number): Date | null {
+    if (year < MIN_REASONABLE_YEAR || year > MAX_REASONABLE_YEAR) return null;
+    if (month < 1 || month > 12) return null;
+    if (day < 1 || day > 31) return null;
+
+    const parsed = startOfDay(new Date(year, month - 1, day));
+    if (
+        parsed.getFullYear() !== year ||
+        parsed.getMonth() !== month - 1 ||
+        parsed.getDate() !== day
+    ) {
+        return null;
+    }
+
+    return parsed;
+}
+
 export function parseTimelineDate(date: TimelineDate): Date | null {
     if (!date) return null;
-    const [year, month, day] = date;
-    return startOfDay(new Date(year, month - 1, day));
+    const [first, second, third] = date;
+
+    if ([first, second, third].some((value) => typeof value !== "number" || Number.isNaN(value))) {
+        return null;
+    }
+
+    if (first > 31) {
+        return buildSafeDate(first, second, third);
+    }
+
+    if (third > 31) {
+        return buildSafeDate(third, second, first);
+    }
+
+    return null;
 }
 
 export function getTaskDates(task: TimelineTask): { start: Date; end: Date; hasDates: boolean; durationDays: number } {
@@ -137,11 +170,21 @@ export function getTimelineInterval(tasks: TimelineTask[], zoom: ZoomLevel) {
     let minDate = new Date(8640000000000000);
     let maxDate = new Date(-8640000000000000);
 
+    let hasValidDates = false;
+
     tasks.forEach(t => {
-        const { start, end } = getTaskDates(t);
+        const { start, end, hasDates } = getTaskDates(t);
+        if (!hasDates) return;
+        hasValidDates = true;
         if (start < minDate) minDate = start;
         if (end > maxDate) maxDate = end;
     });
+
+    if (!hasValidDates) {
+        const start = startOfMonth(new Date());
+        const end = endOfMonth(addDays(start, 30));
+        return { start, end };
+    }
 
     // Buffer
     const start = startOfMonth(addDays(minDate, -7));
