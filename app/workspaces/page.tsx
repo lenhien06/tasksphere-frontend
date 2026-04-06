@@ -1,124 +1,110 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowRight,
+  Building2,
+  FolderKanban,
+  Loader2,
   Plus,
   Users,
-  FolderKanban,
-  Crown,
-  Shield,
-  User,
-  Loader2,
-  Building2,
 } from "lucide-react";
 import { WorkspaceService } from "@/app/services/workspace.service";
-import { Workspace, WorkspaceRole } from "@/app/types/workspace.schema";
-import { cn } from "@/lib/utils";
+import {
+  type Workspace,
+  type WorkspaceRole,
+} from "@/app/types/workspace.schema";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { cn } from "@/lib/utils";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-const ROLE_ICON: Record<WorkspaceRole, React.ElementType> = {
-  OWNER: Crown,
-  ADMIN: Shield,
-  MEMBER: User,
+const ROLE_STYLES: Record<WorkspaceRole, string> = {
+  OWNER: "border-[#bfd8ff] bg-[#ddf4ff] text-[#0969da]",
+  ADMIN: "border-[#c2e5c4] bg-[#dafbe1] text-[#1a7f37]",
+  MEMBER: "border-[#d0d7de] bg-[#f6f8fa] text-[#57606a]",
 };
 
-const ROLE_LABEL: Record<WorkspaceRole, string> = {
-  OWNER: "Owner",
-  ADMIN: "Admin",
-  MEMBER: "Member",
-};
+function getInitials(name?: string | null) {
+  return (name && typeof name === "string" ? name.slice(0, 2) : "WS").toUpperCase();
+}
 
-const ROLE_COLOR: Record<WorkspaceRole, string> = {
-  OWNER: "text-amber-600 bg-amber-50 border-amber-200",
-  ADMIN: "text-blue-600 bg-blue-50 border-blue-200",
-  MEMBER: "text-slate-600 bg-slate-50 border-slate-200",
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// WorkspaceCard
-// ─────────────────────────────────────────────────────────────────────────────
-
-function WorkspaceCard({
+function WorkspaceRow({
   workspace,
-  onClick,
+  onOpen,
+  actionLabel,
 }: {
   workspace: Workspace;
-  onClick: () => void;
+  onOpen: () => void;
+  actionLabel: string;
 }) {
   const role = workspace.role ?? "MEMBER";
-  const RoleIcon = ROLE_ICON[role];
-  const initials = (workspace.name && typeof workspace.name === 'string' ? workspace.name.slice(0, 2) : "WS").toUpperCase();
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex w-full flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
-    >
-      {/* Header */}
-      <div className="flex items-start gap-3">
+    <div className="flex flex-col gap-4 border-t border-[#d8dee4] px-4 py-4 first:border-t-0 md:flex-row md:items-center md:justify-between">
+      <div className="flex min-w-0 items-center gap-4">
         {workspace.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={workspace.avatarUrl}
             alt={workspace.name}
-            className="h-11 w-11 rounded-xl object-cover"
+            className="h-11 w-11 rounded-lg border border-[#d0d7de] object-cover"
           />
         ) : (
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 text-sm font-black text-white shadow-sm">
-            {initials}
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#d0d7de] bg-[#f6f8fa] text-sm font-semibold text-[#57606a]">
+            {getInitials(workspace.name)}
           </div>
         )}
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold text-slate-800 group-hover:text-blue-700">
-            {workspace.name}
+
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpen}
+              className="truncate text-left text-[18px] font-semibold text-[#0969da] hover:underline"
+            >
+              {workspace.name}
+            </button>
+            <span
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                ROLE_STYLES[role]
+              )}
+            >
+              {role}
+            </span>
           </div>
-          <div className="truncate text-xs text-slate-400">/{workspace.slug}</div>
-        </div>
-        <span
-          className={cn(
-            "flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-            ROLE_COLOR[role]
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#57606a]">
+            <span>/{workspace.slug}</span>
+            <span className="inline-flex items-center gap-1">
+              <Users size={14} />
+              {workspace.memberCount} thành viên
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <FolderKanban size={14} />
+              {workspace.projectCount} dự án
+            </span>
+          </div>
+          {workspace.description && (
+            <p className="mt-1 line-clamp-1 text-sm text-[#57606a]">
+              {workspace.description}
+            </p>
           )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 self-start md:self-center">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="inline-flex items-center gap-2 rounded-md border border-[#d0d7de] bg-white px-3 py-1.5 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
         >
-          <RoleIcon size={10} />
-          {ROLE_LABEL[role]}
-        </span>
+          {actionLabel}
+          <ArrowRight size={14} />
+        </button>
       </div>
-
-      {/* Description */}
-      {workspace.description && (
-        <p className="line-clamp-2 text-xs leading-relaxed text-slate-500">
-          {workspace.description}
-        </p>
-      )}
-
-      {/* Stats */}
-      <div className="flex items-center gap-4 border-t border-slate-100 pt-3 text-xs text-slate-500">
-        <span className="flex items-center gap-1">
-          <Users size={12} />
-          {workspace.memberCount} thành viên
-        </span>
-        <span className="flex items-center gap-1">
-          <FolderKanban size={12} />
-          {workspace.projectCount} dự án
-        </span>
-        <span className="ml-auto rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-          {workspace.plan}
-        </span>
-      </div>
-    </button>
+    </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function WorkspaceListPage() {
   const router = useRouter();
@@ -138,94 +124,94 @@ export default function WorkspaceListPage() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      {/* Page header */}
-      <div className="mb-8 flex items-center justify-between">
+    <div className="mx-auto max-w-6xl px-6 py-8 text-[#1f2328]">
+      <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800">
-            <Building2 size={24} className="text-blue-600" />
-            Workspaces
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Quản lý nhóm làm việc và các dự án con của bạn
+          <h1 className="text-[32px] font-medium text-[#1f2328]">Workspaces</h1>
+          <p className="mt-1 text-sm text-[#57606a]">
+            Quản lý personal workspace và các workspace tổ chức theo một nơi thống nhất.
           </p>
         </div>
+
         <button
           type="button"
           onClick={() => router.push("/workspaces/new")}
-          className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+          className="inline-flex items-center gap-2 rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
         >
-          <Plus size={16} />
-          Tạo Workspace
+          <Plus size={15} />
+          Tạo workspace
         </button>
       </div>
 
-      {/* Content */}
       {isLoading && (
         <div className="flex items-center justify-center py-24">
-          <Loader2 size={32} className="animate-spin text-blue-500" />
+          <Loader2 size={32} className="animate-spin text-[#0969da]" />
         </div>
       )}
 
       {isError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-600">
+        <div className="rounded-xl border border-[#ff818266] bg-[#ffebe9] px-6 py-5 text-sm text-[#cf222e]">
           Không thể tải danh sách workspace. Vui lòng thử lại.
         </div>
       )}
 
       {!isLoading && !isError && workspaces.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white py-20 text-center">
-          <Building2 size={48} className="mb-4 text-slate-300" />
-          <h3 className="text-base font-semibold text-slate-700">
+        <div className="rounded-xl border border-dashed border-[#d0d7de] bg-white px-6 py-16 text-center shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+          <Building2 size={42} className="mx-auto mb-3 text-[#8c959f]" />
+          <h2 className="text-lg font-semibold text-[#1f2328]">
             Bạn chưa có workspace nào
-          </h3>
-          <p className="mt-1 text-sm text-slate-400">
-            Tạo workspace để cộng tác với team và quản lý nhiều dự án cùng lúc
+          </h2>
+          <p className="mt-2 text-sm text-[#57606a]">
+            Tạo workspace đầu tiên để tách riêng không gian cá nhân và team.
           </p>
           <button
             type="button"
             onClick={() => router.push("/workspaces/new")}
-            className="mt-6 flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+            className="mt-5 inline-flex items-center gap-2 rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
           >
-            <Plus size={16} />
-            Tạo Workspace đầu tiên
+            <Plus size={15} />
+            Tạo workspace đầu tiên
           </button>
         </div>
       )}
 
       {!isLoading && !isError && personalWorkspace && (
-        <div className="mb-8">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Personal Workspace
+        <section className="mb-8">
+          <div className="mb-3 text-sm font-semibold text-[#1f2328]">
+            Personal workspace
           </div>
-          <WorkspaceCard
-            workspace={personalWorkspace}
-            onClick={() => {
-              selectPersonal();
-              router.push("/projects");
-            }}
-          />
-        </div>
+          <div className="overflow-hidden rounded-xl border border-[#d0d7de] bg-white shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+            <WorkspaceRow
+              workspace={personalWorkspace}
+              actionLabel="Mở dự án"
+              onOpen={() => {
+                selectPersonal();
+                router.push("/projects");
+              }}
+            />
+          </div>
+        </section>
       )}
 
       {!isLoading && !isError && organizationWorkspaces.length > 0 && (
-        <div>
-          <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Organization Workspaces
+        <section>
+          <div className="mb-3 text-sm font-semibold text-[#1f2328]">
+            Organization workspaces
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {organizationWorkspaces.map((ws) => (
-              <WorkspaceCard
-                key={ws.id}
-                workspace={ws}
-                onClick={() => {
-                  selectWorkspace(ws);
-                  router.push(`/ws/${ws.slug}`);
+          <div className="overflow-hidden rounded-xl border border-[#d0d7de] bg-white shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+            {organizationWorkspaces.map((workspace) => (
+              <WorkspaceRow
+                key={workspace.id}
+                workspace={workspace}
+                actionLabel="Xem chi tiết"
+                onOpen={() => {
+                  selectWorkspace(workspace);
+                  router.push(`/ws/${workspace.slug}`);
                 }}
               />
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

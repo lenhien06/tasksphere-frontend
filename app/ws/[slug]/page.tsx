@@ -1,327 +1,416 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Users,
-  FolderKanban,
-  Crown,
-  Shield,
-  User,
-  Loader2,
-  Plus,
-  Sparkles,
-  Tag,
-  Settings,
+  ArrowUpRight,
   Building2,
-  MoreVertical,
-  Trash2,
+  CalendarClock,
+  FolderKanban,
+  Globe,
+  Landmark,
+  Loader2,
+  Lock,
+  Plus,
+  Search,
+  Sparkles,
+  Users,
 } from "lucide-react";
 import { WorkspaceService } from "@/app/services/workspace.service";
-import { Workspace, WorkspaceMember, WorkspaceRole } from "@/app/types/workspace.schema";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { cn } from "@/lib/utils";
+import { ProjectService } from "@/app/services/ProjectService";
+import {
+  type Workspace,
+  type WorkspaceMember,
+  type WorkspacePlan,
+  type WorkspaceRole,
+} from "@/app/types/workspace.schema";
+import { type Project } from "@/app/types/project..schema";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { cn } from "@/lib/utils";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-const ROLE_ICON: Record<WorkspaceRole, React.ElementType> = {
-  OWNER: Crown,
-  ADMIN: Shield,
-  MEMBER: User,
+const ROLE_STYLES: Record<WorkspaceRole, string> = {
+  OWNER: "border-[#fff1c2] bg-[#fff8c5] text-[#9a6700]",
+  ADMIN: "border-[#b6e3ff] bg-[#ddf4ff] text-[#0969da]",
+  MEMBER: "border-[#d0d7de] bg-[#f6f8fa] text-[#57606a]",
 };
 
-const ROLE_COLOR: Record<WorkspaceRole, string> = {
-  OWNER: "text-amber-600 bg-amber-50 border-amber-200",
-  ADMIN: "text-blue-600 bg-blue-50 border-blue-200",
-  MEMBER: "text-slate-600 bg-slate-50 border-slate-200",
+const PLAN_LABELS: Record<WorkspacePlan, string> = {
+  free: "Free",
+  pro: "Pro",
+  enterprise: "Enterprise",
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Member Card
-// ─────────────────────────────────────────────────────────────────────────────
+const VISIBILITY_STYLES: Record<
+  Project["visibility"],
+  {
+    label: string;
+    className: string;
+    icon: typeof Lock;
+  }
+> = {
+  private: {
+    label: "Private",
+    className: "border-[#d0d7de] bg-white text-[#57606a]",
+    icon: Lock,
+  },
+  internal: {
+    label: "Internal",
+    className: "border-[#bfd8ff] bg-[#edf4ff] text-[#0969da]",
+    icon: Landmark,
+  },
+  public: {
+    label: "Public",
+    className: "border-[#c2e5c4] bg-[#dafbe1] text-[#1a7f37]",
+    icon: Globe,
+  },
+};
 
-function MemberCard({
-  member,
-  canEdit,
-  wsId,
+const STATUS_STYLES: Record<Project["status"], string> = {
+  active: "bg-[#dafbe1] text-[#1a7f37]",
+  completed: "bg-[#ddf4ff] text-[#0969da]",
+  archived: "bg-[#f6f8fa] text-[#57606a]",
+  deleted: "bg-[#ffebe9] text-[#cf222e]",
+};
+
+function getInitials(name?: string | null) {
+  return (name && typeof name === "string" ? name.slice(0, 2) : "WS").toUpperCase();
+}
+
+function formatDateLabel(value?: string | null) {
+  if (!value) return "Vừa cập nhật";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Vừa cập nhật";
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(parsed);
+}
+
+function ProjectRow({
+  project,
+  onOpen,
 }: {
-  member: WorkspaceMember;
-  canEdit: boolean;
-  wsId: string;
+  project: Project;
+  onOpen: () => void;
 }) {
-  const queryClient = useQueryClient();
-  const RoleIcon = ROLE_ICON[member.role];
-  const initials = (member.fullName && typeof member.fullName === 'string' ? member.fullName.slice(0, 2) : "??").toUpperCase();
-
-  const removeMutation = useMutation({
-    mutationFn: () => WorkspaceService.removeMember(wsId, member.userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ws-members", wsId] });
-      toast.success(`Đã xoá ${member.fullName} khỏi workspace`);
-    },
-    onError: () => toast.error("Không thể xoá thành viên"),
-  });
+  const visibility = VISIBILITY_STYLES[project.visibility];
+  const VisibilityIcon = visibility.icon;
+  const progress = Math.max(0, Math.min(100, project.progress ?? 0));
 
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      {member.avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={member.avatarUrl}
-          alt={member.fullName}
-          className="h-10 w-10 rounded-full object-cover"
-        />
-      ) : (
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-violet-500 text-sm font-bold text-white">
-          {initials}
-        </div>
-      )}
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate font-semibold text-slate-800">{member.fullName}</span>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="grid w-full grid-cols-[minmax(0,1fr)_200px] gap-6 border-t border-[#d8dee4] px-5 py-5 text-left transition hover:bg-[#f6f8fa]"
+    >
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="truncate text-[18px] font-semibold text-[#0969da] hover:underline">
+            {project.name}
+          </span>
           <span
             className={cn(
-              "flex shrink-0 items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold",
-              ROLE_COLOR[member.role]
+              "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+              visibility.className
             )}
           >
-            <RoleIcon size={9} />
-            {member.role}
+            <VisibilityIcon size={11} />
+            {visibility.label}
+          </span>
+          <span className="rounded-full bg-[#f6f8fa] px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-[#57606a]">
+            {project.projectKey}
           </span>
         </div>
-        <p className="truncate text-xs text-slate-400">{member.email}</p>
 
-        {/* Skill tags */}
-        {member.skillTags && member.skillTags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {member.skillTags.map((tag) => (
-              <span
-                key={tag}
-                className="flex items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700"
-              >
-                <Tag size={8} />
-                {tag}
-              </span>
-            ))}
-          </div>
+        {project.description && (
+          <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#57606a]">
+            {project.description}
+          </p>
         )}
 
-        {/* Stats */}
-        <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-400">
-          <span>{member.activeTaskCount} task đang mở</span>
-          {member.avgStoryPoints != null && (
-            <span>avg {member.avgStoryPoints} SP</span>
-          )}
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[#57606a]">
+          <span
+            className={cn(
+              "inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize",
+              STATUS_STYLES[project.status]
+            )}
+          >
+            {project.status}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Users size={14} />
+            {project.memberCount} thành viên
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <FolderKanban size={14} />
+            {project.taskStats.total} task
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <CalendarClock size={14} />
+            Cập nhật {formatDateLabel(project.updatedAt ?? project.createdAt)}
+          </span>
         </div>
       </div>
 
-      {canEdit && member.role !== "OWNER" && (
-        <button
-          type="button"
-          onClick={() => removeMutation.mutate()}
-          disabled={removeMutation.isPending}
-          className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"
-          title="Xoá thành viên"
-        >
-          {removeMutation.isPending ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <Trash2 size={14} />
-          )}
-        </button>
-      )}
-    </div>
+      <div className="flex items-center justify-end gap-4">
+        <div className="hidden w-full max-w-[120px] md:block">
+          <div className="h-[36px] overflow-hidden rounded-full bg-[#f6f8fa] px-3 py-4">
+            <div
+              className="h-[3px] rounded-full bg-gradient-to-r from-[#2da44e] via-[#1f883d] to-[#9be9a8]"
+              style={{ width: `${Math.max(progress, 6)}%` }}
+            />
+          </div>
+          <div className="mt-2 text-right text-[11px] font-medium text-[#57606a]">
+            {progress}% complete
+          </div>
+        </div>
+        <ArrowUpRight size={16} className="text-[#57606a]" />
+      </div>
+    </button>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────────────────────────────────────
-
-type Tab = "projects" | "members";
-
-export default function WorkspaceDashboardPage() {
+export default function WorkspaceDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
-  const [activeTab, setActiveTab] = useState<Tab>("projects");
   const { selectWorkspace } = useWorkspace();
 
-  const { data: currentUser } = useCurrentUser();
+  const [search, setSearch] = useState("");
+  const [visibilityFilter, setVisibilityFilter] = useState<"all" | Project["visibility"]>(
+    "all"
+  );
+  const [sortBy, setSortBy] = useState<"updated" | "name" | "progress">("updated");
 
   const {
-    data: wsData,
-    isLoading: wsLoading,
-    isError: wsError,
+    data: workspaceResponse,
+    isLoading: workspaceLoading,
+    isError: workspaceError,
   } = useQuery({
     queryKey: ["workspace", slug],
     queryFn: () => WorkspaceService.getBySlug(slug),
     staleTime: 2 * 60 * 1000,
   });
 
-  const workspace = wsData?.data as Workspace | undefined;
+  const workspace = workspaceResponse?.data as Workspace | undefined;
 
-  const { data: membersData, isLoading: membersLoading } = useQuery({
-    queryKey: ["ws-members", workspace?.id],
-    queryFn: () => WorkspaceService.getMembers(workspace!.id),
-    enabled: !!workspace?.id && activeTab === "members",
+  const {
+    data: projectsResponse,
+    isLoading: projectsLoading,
+  } = useQuery({
+    queryKey: ["workspace-projects", workspace?.id],
+    queryFn: () =>
+      ProjectService.search({
+        workspaceId: workspace!.id,
+        size: 100,
+        sort: "updatedAt,desc",
+      }),
+    enabled: !!workspace?.id,
     staleTime: 2 * 60 * 1000,
   });
 
-  const members: WorkspaceMember[] = (membersData?.data as WorkspaceMember[]) ?? [];
+  const {
+    data: membersResponse,
+    isLoading: membersLoading,
+  } = useQuery({
+    queryKey: ["ws-members", workspace?.id],
+    queryFn: () => WorkspaceService.getMembers(workspace!.id),
+    enabled: !!workspace?.id,
+    staleTime: 2 * 60 * 1000,
+  });
 
-  const canManage =
-    workspace?.role === "OWNER" || workspace?.role === "ADMIN";
+  const allProjects = useMemo(
+    () => ((projectsResponse?.data.content as Project[]) ?? []).filter(Boolean),
+    [projectsResponse]
+  );
 
-  // ── Loading / Error ──────────────────────────────────────────────────────
+  const members = useMemo(
+    () => ((membersResponse?.data as WorkspaceMember[]) ?? []).filter(Boolean),
+    [membersResponse]
+  );
 
-  if (wsLoading) {
+  const filteredProjects = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+
+    return [...allProjects]
+      .filter((project) => {
+        if (visibilityFilter !== "all" && project.visibility !== visibilityFilter) {
+          return false;
+        }
+        if (!keyword) return true;
+        return (
+          project.name.toLowerCase().includes(keyword) ||
+          project.projectKey.toLowerCase().includes(keyword) ||
+          (project.description ?? "").toLowerCase().includes(keyword)
+        );
+      })
+      .sort((a, b) => {
+        if (sortBy === "name") return a.name.localeCompare(b.name);
+        if (sortBy === "progress") return (b.progress ?? 0) - (a.progress ?? 0);
+        const aTime = new Date(a.updatedAt ?? a.createdAt).getTime();
+        const bTime = new Date(b.updatedAt ?? b.createdAt).getTime();
+        return bTime - aTime;
+      });
+  }, [allProjects, search, sortBy, visibilityFilter]);
+
+  const visibilitySummary = useMemo(() => {
+    return allProjects.reduce(
+      (acc, project) => {
+        acc[project.visibility] += 1;
+        return acc;
+      },
+      { private: 0, internal: 0, public: 0 }
+    );
+  }, [allProjects]);
+
+  const memberPreview = members.slice(0, 8);
+  const canManage = workspace?.role === "OWNER" || workspace?.role === "ADMIN";
+
+  if (workspaceLoading) {
     return (
       <div className="flex h-full items-center justify-center py-24">
-        <Loader2 size={32} className="animate-spin text-blue-500" />
+        <Loader2 size={32} className="animate-spin text-[#0969da]" />
       </div>
     );
   }
 
-  if (wsError || !workspace) {
+  if (workspaceError || !workspace) {
     return (
-      <div className="mx-auto max-w-lg py-20 text-center">
-        <Building2 size={48} className="mx-auto mb-4 text-slate-300" />
-        <h2 className="text-lg font-semibold text-slate-700">
+      <div className="mx-auto max-w-xl px-6 py-20 text-center">
+        <Building2 size={48} className="mx-auto mb-4 text-[#8c959f]" />
+        <h2 className="text-xl font-semibold text-[#1f2328]">
           Workspace không tồn tại
         </h2>
-        <p className="mt-1 text-sm text-slate-400">
-          Kiểm tra lại đường dẫn hoặc liên hệ OWNER.
+        <p className="mt-2 text-sm text-[#57606a]">
+          Kiểm tra lại đường dẫn hoặc quay về danh sách workspaces để chọn lại.
         </p>
         <button
           type="button"
           onClick={() => router.push("/workspaces")}
-          className="mt-6 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+          className="mt-6 rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
         >
-          Quay về danh sách Workspace
+          Quay về Workspaces
         </button>
       </div>
     );
   }
 
-  const initials = (workspace.name && typeof workspace.name === 'string' ? workspace.name.slice(0, 2) : "WS").toUpperCase();
+  const initials = getInitials(workspace.name);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      {/* ── Header ── */}
-      <div className="mb-6 flex items-start gap-4">
-        {workspace.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={workspace.avatarUrl}
-            alt={workspace.name}
-            className="h-14 w-14 rounded-2xl object-cover shadow"
-          />
-        ) : (
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 text-lg font-black text-white shadow">
-            {initials}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold text-slate-800">{workspace.name}</h1>
-          <p className="text-sm text-slate-400">/{workspace.slug}</p>
-          {workspace.description && (
-            <p className="mt-1 text-sm text-slate-500">{workspace.description}</p>
-          )}
-          <div className="mt-2 flex items-center gap-4 text-xs text-slate-500">
-            <span className="flex items-center gap-1">
-              <Users size={12} />
-              {workspace.memberCount} thành viên
-            </span>
-            <span className="flex items-center gap-1">
-              <FolderKanban size={12} />
-              {workspace.projectCount} dự án
-            </span>
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-              {workspace.plan}
-            </span>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => router.push(`/ws/${slug}/settings`)}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
-          >
-            <Settings size={13} />
-            Cài đặt
-          </button>
-        </div>
-      </div>
-
-      {/* ── Tabs ── */}
-      <div className="mb-6 flex items-center gap-1 border-b border-slate-200">
-        {(["projects", "members"] as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              "flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
-              activeTab === tab
-                ? "border-blue-600 text-blue-700"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            )}
-          >
-            {tab === "projects" ? (
-              <>
-                <FolderKanban size={14} />
-                Dự án
-              </>
+    <div className="mx-auto max-w-7xl px-6 py-8 text-[#1f2328]">
+      <section className="rounded-2xl border border-[#d0d7de] bg-white px-7 py-7 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+          <div className="flex min-w-0 items-start gap-6">
+            {workspace.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={workspace.avatarUrl}
+                alt={workspace.name}
+                className="h-24 w-24 rounded-xl border border-[#d0d7de] object-cover"
+              />
             ) : (
-              <>
-                <Users size={14} />
-                Thành viên
-              </>
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl border border-[#d0d7de] bg-[#f6f8fa] text-3xl font-semibold text-[#57606a]">
+                {initials}
+              </div>
             )}
-          </button>
-        ))}
-      </div>
 
-      {/* ── Tab: Projects ── */}
-      {activeTab === "projects" && (
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              {workspace.projectCount} dự án trong workspace này
-            </p>
-            <div className="flex gap-2">
-              {/* AI project creation */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (workspace) {
-                    selectWorkspace(workspace);
-                  }
-                  router.push(`/ws/${slug}/projects/new-with-ai`);
-                }}
-                className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="truncate text-[36px] font-medium leading-tight text-[#1f2328]">
+                  {workspace.name}
+                </h1>
+                <span
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-xs font-semibold",
+                    ROLE_STYLES[workspace.role ?? "MEMBER"]
+                  )}
+                >
+                  {workspace.role ?? "MEMBER"}
+                </span>
+              </div>
+              <p className="mt-1 text-[18px] text-[#57606a]">/{workspace.slug}</p>
+              {workspace.description && (
+                <p className="mt-4 max-w-3xl text-[15px] leading-7 text-[#57606a]">
+                  {workspace.description}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              selectWorkspace(workspace);
+              router.push(`/ws/${slug}/projects/new-with-ai`);
+            }}
+            className="inline-flex items-center gap-2 rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
+          >
+            <Sparkles size={15} />
+            Tạo với AI
+          </button>
+        </div>
+      </section>
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <main className="min-w-0">
+          <div className="mb-4 flex items-center gap-2 text-[22px] font-semibold text-[#1f2328]">
+            <FolderKanban size={20} />
+            Dự án
+          </div>
+
+          <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center">
+            <div className="relative min-w-0 flex-1">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8c959f]"
+              />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Tìm dự án trong workspace..."
+                className="h-10 w-full rounded-md border border-[#d0d7de] bg-white pl-11 pr-4 text-sm text-[#1f2328] outline-none transition placeholder:text-[#8c959f] focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={visibilityFilter}
+                onChange={(event) =>
+                  setVisibilityFilter(
+                    event.target.value as "all" | Project["visibility"]
+                  )
+                }
+                className="h-10 rounded-md border border-[#d0d7de] bg-white px-3 text-sm text-[#24292f] outline-none transition focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
               >
-                <Sparkles size={15} />
-                Tạo dự án mới với AI
-              </button>
+                <option value="all">Phạm vi</option>
+                <option value="private">Private</option>
+                <option value="internal">Internal</option>
+                <option value="public">Public</option>
+              </select>
+
+              <select
+                value={sortBy}
+                onChange={(event) =>
+                  setSortBy(event.target.value as "updated" | "name" | "progress")
+                }
+                className="h-10 rounded-md border border-[#d0d7de] bg-white px-3 text-sm text-[#24292f] outline-none transition focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
+              >
+                <option value="updated">Sắp xếp</option>
+                <option value="updated">Cập nhật gần nhất</option>
+                <option value="name">Tên A-Z</option>
+                <option value="progress">Tiến độ cao nhất</option>
+              </select>
+
               <button
                 type="button"
                 onClick={() => {
-                  if (workspace) {
-                    selectWorkspace(workspace);
-                  }
+                  selectWorkspace(workspace);
                   router.push("/projects");
                 }}
-                className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-[#1f883d] bg-[#2da44e] px-4 text-sm font-medium text-white shadow-sm transition hover:bg-[#2c974b]"
               >
                 <Plus size={15} />
                 Tạo dự án
@@ -329,74 +418,192 @@ export default function WorkspaceDashboardPage() {
             </div>
           </div>
 
-          {workspace.projectCount === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center">
-              <FolderKanban size={40} className="mb-3 text-slate-300" />
-              <h3 className="text-base font-semibold text-slate-700">
-                Chưa có dự án nào
-              </h3>
-              <p className="mt-1 text-sm text-slate-400">
-                Tạo dự án đầu tiên cho workspace này
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  if (workspace) {
-                    selectWorkspace(workspace);
-                  }
-                  router.push(`/ws/${slug}/projects/new-with-ai`);
-                }}
-                className="mt-5 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-5 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
-              >
-                <Sparkles size={15} />
-                ✨ Tạo dự án mới với AI
-              </button>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
-              Danh sách dự án sẽ hiển thị ở đây
-            </div>
-          )}
-        </div>
-      )}
+          <div className="overflow-hidden rounded-xl border border-[#d0d7de] bg-white shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+            {projectsLoading ? (
+              <div className="flex items-center justify-center px-6 py-16">
+                <Loader2 size={24} className="animate-spin text-[#0969da]" />
+              </div>
+            ) : filteredProjects.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <FolderKanban size={38} className="mx-auto mb-3 text-[#8c959f]" />
+                <h3 className="text-lg font-semibold text-[#1f2328]">
+                  Chưa có dự án phù hợp
+                </h3>
+                <p className="mt-2 text-sm text-[#57606a]">
+                  Thử đổi bộ lọc hoặc tạo dự án đầu tiên cho workspace này.
+                </p>
+                <div className="mt-5 flex justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      selectWorkspace(workspace);
+                      router.push("/projects");
+                    }}
+                    className="rounded-md border border-[#1f883d] bg-[#2da44e] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#2c974b]"
+                  >
+                    Tạo dự án
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      selectWorkspace(workspace);
+                      router.push(`/ws/${slug}/projects/new-with-ai`);
+                    }}
+                    className="rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
+                  >
+                    Tạo với AI
+                  </button>
+                </div>
+              </div>
+            ) : (
+              filteredProjects.map((project, index) => (
+                <ProjectRow
+                  key={project.id}
+                  project={project}
+                  onOpen={() => router.push(`/projects/${project.id}`)}
+                />
+              ))
+            )}
+          </div>
+        </main>
 
-      {/* ── Tab: Members ── */}
-      {activeTab === "members" && (
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              {workspace.memberCount} thành viên
-            </p>
-            {canManage && (
-              <button
-                type="button"
-                onClick={() => router.push(`/workspaces/${workspace.id}/invite`)}
-                className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-              >
-                <Plus size={15} />
-                Mời thành viên
-              </button>
+        <aside className="space-y-4">
+          <div className="rounded-xl border border-[#d0d7de] bg-white p-5 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+            <h2 className="text-sm font-semibold text-[#1f2328]">Thông tin workspace</h2>
+            <div className="mt-4 space-y-3 text-sm text-[#57606a]">
+              <div className="flex items-center justify-between gap-4">
+                <span>Loại</span>
+                <span className="font-medium text-[#1f2328]">
+                  {workspace.type === "PERSONAL" ? "Personal" : "Organization"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span>Gói</span>
+                <span className="font-medium text-[#1f2328]">
+                  {PLAN_LABELS[workspace.plan]}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span>Owner</span>
+                <span className="truncate font-medium text-[#1f2328]">
+                  {workspace.ownerName}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span>Thành viên</span>
+                <span className="font-medium text-[#1f2328]">
+                  {workspace.memberCount}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span>Dự án</span>
+                <span className="font-medium text-[#1f2328]">
+                  {workspace.projectCount}
+                </span>
+              </div>
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    selectWorkspace(workspace);
+                    router.push("/projects");
+                  }}
+                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-md border border-[#d0d7de] bg-white px-3 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
+                >
+                  <FolderKanban size={14} />
+                  Mở danh sách dự án
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-[#d0d7de] bg-white p-5 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+            <h2 className="text-sm font-semibold text-[#1f2328]">Thành viên</h2>
+            {membersLoading ? (
+              <div className="mt-4 flex items-center justify-center py-6">
+                <Loader2 size={18} className="animate-spin text-[#0969da]" />
+              </div>
+            ) : members.length === 0 ? (
+              <p className="mt-4 text-sm text-[#57606a]">
+                Workspace này chưa có thành viên nào.
+              </p>
+            ) : (
+              <>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {memberPreview.map((member) =>
+                    member.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={member.userId}
+                        src={member.avatarUrl}
+                        alt={member.fullName}
+                        title={member.fullName}
+                        className="h-9 w-9 rounded-full border border-[#d0d7de] object-cover"
+                      />
+                    ) : (
+                      <div
+                        key={member.userId}
+                        title={member.fullName}
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#d0d7de] bg-[#f6f8fa] text-xs font-semibold text-[#57606a]"
+                      >
+                        {getInitials(member.fullName)}
+                      </div>
+                    )
+                  )}
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {members.slice(0, 5).map((member) => (
+                    <div
+                      key={member.userId}
+                      className="flex items-center gap-3 border-t border-[#d8dee4] pt-3 first:border-t-0 first:pt-0"
+                    >
+                      {member.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={member.avatarUrl}
+                          alt={member.fullName}
+                          className="h-8 w-8 rounded-full border border-[#d0d7de] object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d0d7de] bg-[#f6f8fa] text-[11px] font-semibold text-[#57606a]">
+                          {getInitials(member.fullName)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-[#1f2328]">
+                          {member.fullName}
+                        </div>
+                        <div className="truncate text-xs text-[#57606a]">
+                          {member.role}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
-          {membersLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 size={24} className="animate-spin text-blue-500" />
+          <div className="rounded-xl border border-[#d0d7de] bg-white p-5 shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+            <h2 className="text-sm font-semibold text-[#1f2328]">Top visibility</h2>
+            <div className="mt-4 flex flex-wrap gap-3 text-sm text-[#57606a]">
+              <span className="inline-flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-[#57606a]" />
+                Private {visibilitySummary.private}
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-[#0969da]" />
+                Internal {visibilitySummary.internal}
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-[#1a7f37]" />
+                Public {visibilitySummary.public}
+              </span>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {members.map((m) => (
-                <MemberCard
-                  key={m.userId}
-                  member={m}
-                  canEdit={canManage}
-                  wsId={workspace.id}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
