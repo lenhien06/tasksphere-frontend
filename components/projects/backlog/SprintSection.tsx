@@ -198,7 +198,7 @@ export function SprintSection({
                         </div>
                     ) : (
                         <>
-                            <div className="hidden bg-[#F7F8F9] px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 sm:flex sm:gap-3 sm:px-3">
+                            <div className="hidden bg-[#F7F8F9] px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 sm:flex sm:gap-2 sm:px-2.5">
                                 <span className="hidden w-[88px] sm:block">{t("task.type")}</span>
                                 <span className="w-20">{t("backlog.taskId", { defaultValue: "ID" })}</span>
                                 <span className="flex-1">{t("backlog.taskTitle", { defaultValue: "Title" })}</span>
@@ -207,7 +207,7 @@ export function SprintSection({
                                     {t("backlog.storyPts")}
                                 </span>
                                 <span className="w-20 text-center">{t("project.status_TODO", { defaultValue: "Status" })}</span>
-                                <span className="w-10 text-center">{t("task.assignee")}</span>
+                                <span className="w-12 text-center">{t("task.assignee")}</span>
                                 {canMoveTaskToBacklogRow && <span className="w-8" />}
                             </div>
                             {tasks.map(task => (

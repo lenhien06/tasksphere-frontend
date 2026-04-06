@@ -27,7 +27,6 @@ function SprintTaskRowInner({
     draggable = false,
     dragAttributes,
     dragListeners,
-    setDragHandleRef,
 }: {
     task: TaskResponse
     onRowClick: () => void
@@ -37,7 +36,6 @@ function SprintTaskRowInner({
     draggable?: boolean
     dragAttributes?: React.HTMLAttributes<HTMLElement>
     dragListeners?: React.HTMLAttributes<HTMLElement>
-    setDragHandleRef?: (element: HTMLButtonElement | null) => void
 }) {
     const [pending, setPending] = useState(false)
 
@@ -49,22 +47,18 @@ function SprintTaskRowInner({
             tabIndex={0}
             onClick={onRowClick}
             onKeyDown={e => e.key === "Enter" && onRowClick()}
+            {...(draggable ? dragAttributes : {})}
+            {...(draggable ? dragListeners : {})}
             className={cn(
-                "group flex cursor-pointer items-center gap-3 border-b border-[#EBECF0] px-3 py-2.5 text-left transition-colors hover:bg-[#F7F8FA]",
+                "group flex cursor-pointer items-center gap-2 border-b border-[#EBECF0] px-2.5 py-2.5 text-left transition-colors hover:bg-[#F7F8FA]",
+                draggable && "cursor-grab active:cursor-grabbing",
                 overdueCls,
             )}
         >
-            {draggable && setDragHandleRef && (
-                <button
-                    type="button"
-                    ref={setDragHandleRef}
-                    className="flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center text-gray-300 opacity-0 transition-opacity hover:text-gray-500 active:cursor-grabbing group-hover:opacity-100"
-                    {...dragAttributes}
-                    {...dragListeners}
-                    onClick={e => e.stopPropagation()}
-                >
+            {draggable && (
+                <div className="flex h-8 w-5 shrink-0 items-center justify-center text-gray-300 transition-opacity hover:text-gray-500">
                     <GripVertical size={14} />
-                </button>
+                </div>
             )}
             <div className="hidden w-[88px] shrink-0 sm:block">
                 <TypeBadgeMini type={task.type} />
@@ -97,7 +91,7 @@ function SprintTaskRowInner({
             <div className="w-20 shrink-0">
                 <TaskStatusBadge status={task.taskStatus} />
             </div>
-            <div className="w-10 shrink-0">
+            <div className="w-12 shrink-0">
                 <AssigneeCell task={task} />
             </div>
             {canMoveToBacklog && !readOnly && onMoveToBacklog && (
@@ -138,19 +132,22 @@ export function DraggableSprintTaskRow(props: {
     sourceSprintId: string
     dragDisabled?: boolean
 }) {
-    const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: props.task.id,
         disabled: props.dragDisabled,
         data: {
             type: "sprint-task",
             taskId: props.task.id,
             sourceSprintId: props.sourceSprintId,
+            task: props.task,
         },
     })
 
     const style = {
         transform: CSS.Translate.toString(transform),
-        opacity: isDragging ? 0.55 : undefined,
+        opacity: isDragging ? 0.45 : undefined,
+        zIndex: isDragging ? 60 : undefined,
+        position: isDragging ? "relative" as const : undefined,
     }
 
     return (
@@ -160,7 +157,6 @@ export function DraggableSprintTaskRow(props: {
                 draggable={!props.dragDisabled}
                 dragAttributes={attributes}
                 dragListeners={listeners}
-                setDragHandleRef={setActivatorNodeRef}
             />
         </div>
     )

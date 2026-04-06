@@ -72,11 +72,9 @@ function BacklogTaskRowInner({
     onDeleteTask,
     sortable,
     dragDisabled,
-    gripRef,
     gripAttributes,
     gripListeners,
 }: BacklogTaskRowBaseProps & {
-    gripRef?: React.Ref<HTMLButtonElement>
     gripAttributes?: React.HTMLAttributes<HTMLElement>
     gripListeners?: React.HTMLAttributes<HTMLElement>
 }) {
@@ -101,24 +99,20 @@ function BacklogTaskRowInner({
                 role="button"
                 tabIndex={0}
                 onKeyDown={e => e.key === "Enter" && onClick()}
+                {...(canReorder ? gripAttributes : {})}
+                {...(canReorder ? gripListeners : {})}
                 className={cn(
-                    "group flex cursor-pointer items-center gap-3 border-b border-[#EBECF0] px-3 py-2.5 transition-colors",
+                    "group flex cursor-pointer items-center gap-2 border-b border-[#EBECF0] px-2.5 py-2.5 transition-colors",
+                    canReorder && "cursor-grab active:cursor-grabbing",
                     isSelected ? "bg-[#E9F2FF]" : "hover:bg-[#F7F8FA]",
                     taskRowOverdueBg(task),
                 )}
                 onClick={onClick}
             >
-                {canReorder && gripRef && (
-                    <button
-                        type="button"
-                        ref={gripRef}
-                        className="flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center text-gray-300 hover:text-gray-500 active:cursor-grabbing"
-                        {...gripAttributes}
-                        {...gripListeners}
-                        onClick={e => e.stopPropagation()}
-                    >
+                {canReorder && (
+                    <div className="flex h-8 w-5 shrink-0 items-center justify-center text-gray-300 hover:text-gray-500">
                         <GripVertical size={14} />
-                    </button>
+                    </div>
                 )}
                 {isPM && (
                     <div onClick={e => e.stopPropagation()} className="flex items-center">
@@ -169,16 +163,16 @@ function BacklogTaskRowInner({
                     <Paperclip size={12} />
                     <span className="text-[10px] font-medium">{task.attachmentsCount || 0}</span>
                 </div>
-                <div className="w-10 shrink-0">
+                <div className="w-12 shrink-0">
                     <AssigneeCell task={task} />
                 </div>
                 <div
-                    className="flex w-28 shrink-0 items-center justify-end gap-1"
+                    className="flex w-32 shrink-0 items-center justify-end gap-1 xl:w-36"
                     onClick={e => e.stopPropagation()}
                 >
                     {showAssign && (
-                        <div className="relative opacity-0 transition-opacity group-hover:opacity-100">
-                            <div className="relative">
+                            <div className="relative opacity-0 transition-opacity group-hover:opacity-100">
+                                <div className="relative">
                                 <button
                                     type="button"
                                     onClick={e => {
@@ -287,7 +281,6 @@ export function SortableBacklogTaskRow(props: BacklogTaskRowBaseProps) {
         attributes,
         listeners,
         setNodeRef,
-        setActivatorNodeRef,
         transform,
         transition,
         isDragging,
@@ -298,19 +291,21 @@ export function SortableBacklogTaskRow(props: BacklogTaskRowBaseProps) {
             type: "backlog-task",
             taskId: props.task.id,
             sourceSprintId: null,
+            task: props.task,
         },
     })
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: isDragging ? 0.65 : undefined,
+        opacity: isDragging ? 0.45 : undefined,
+        zIndex: isDragging ? 60 : undefined,
+        position: isDragging ? "relative" as const : undefined,
     }
 
     return (
         <div ref={setNodeRef} style={style}>
             <BacklogTaskRowInner
                 {...props}
-                gripRef={setActivatorNodeRef}
                 gripAttributes={attributes}
                 gripListeners={listeners}
             />

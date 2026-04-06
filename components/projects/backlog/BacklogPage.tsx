@@ -20,11 +20,13 @@ import {
 } from "lucide-react"
 import {
     DndContext,
+    DragOverlay,
     PointerSensor,
     closestCenter,
     useDroppable,
     useSensor,
     useSensors,
+    type DragStartEvent,
     type DragEndEvent,
 } from "@dnd-kit/core"
 import {
@@ -44,6 +46,7 @@ import { useBacklogTasks } from "@/hooks/useBacklogTasks"
 import { useProjectSprints } from "@/hooks/useProjectSprints"
 import type {
     TaskFilterParams,
+    TaskResponse,
 } from "@/app/types/task.schema"
 
 import { cn } from "@/lib/utils"
@@ -63,6 +66,7 @@ import {
     toSavedTaskFilterCriteria,
     type TaskFilterState,
 } from "@/components/projects/task-filter-utils"
+import { PriorityDot, TypeBadgeMini } from "./backlog-row-shared"
 
 function useDebounce<T>(value: T, delay: number): T {
     const [debouncedValue, setDebouncedValue] = useState<T>(value)
@@ -102,6 +106,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
     const [showBatchSprintMenu, setShowBatchSprintMenu] = useState(false)
     const [showCreateModal, setShowCreateModal] = useState(false)
+    const [activeDraggedTask, setActiveDraggedTask] = useState<TaskResponse | null>(null)
     const [sprintOpen, setSprintOpen] = useState<Record<string, boolean>>({})
     const [startTargetId, setStartTargetId] = useState<string | null>(null)
     const [completeTargetId, setCompleteTargetId] = useState<string | null>(null)
@@ -379,8 +384,24 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
         }
     }
 
+    const handleDragStart = (e: DragStartEvent) => {
+        const task = (e.active.data.current as { task?: TaskResponse } | undefined)?.task ?? null
+        setActiveDraggedTask(task)
+    }
+
+    const clearDraggedTask = () => setActiveDraggedTask(null)
+
     return (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={(event) => {
+                handleDragEnd(event)
+                clearDraggedTask()
+            }}
+            onDragCancel={clearDraggedTask}
+        >
         <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[#F7F8F9]">
             <div className="sticky top-0 z-20 border-b border-[#DFE1E6] bg-white/95 px-4 py-3 backdrop-blur">
                 <div className="flex flex-wrap items-center gap-2">
@@ -563,15 +584,15 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                     )}
                 >
                     <div className="flex items-center gap-2 border-b border-[#EBECF0] bg-[#F7F8F9] py-2 pl-2 pr-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                        {useSortableList && <span className="w-6" />}
+                        {useSortableList && <span className="w-5" />}
                         {isPM && <span className="w-4" />}
                         <span className="hidden w-[88px] md:block">{t("task.type")}</span>
                         <span className="min-w-0 flex-1">{t("backlog.taskDetails")}</span>
                         <span className="hidden w-24 md:block">{t("task.priority")}</span>
                         <span className="hidden w-14 lg:block">{t("backlog.storyPts")}</span>
                         <span className="hidden w-20 xl:block">{t("backlog.meta")}</span>
-                        <span className="w-10">{t("task.assignee")}</span>
-                        <span className="w-28" />
+                        <span className="w-12">{t("task.assignee")}</span>
+                        <span className="w-32 xl:w-36" />
                     </div>
 
                     <div className="min-h-[180px] flex-1 overflow-y-auto">
@@ -848,6 +869,27 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                     onClose={() => setShowAiAssign(false)}
                 />
             )}
+            <DragOverlay zIndex={999}>
+                {activeDraggedTask ? (
+                    <div className="w-[min(760px,88vw)] rounded-xl border border-blue-200 bg-white px-3 py-3 shadow-2xl ring-2 ring-blue-500/20">
+                        <div className="flex items-center gap-2">
+                            <div className="flex h-8 w-5 shrink-0 items-center justify-center text-gray-300">
+                                <span className="inline-block h-5 w-1 rounded-full bg-blue-500/30" />
+                            </div>
+                            <div className="hidden w-[88px] shrink-0 md:block">
+                                <TypeBadgeMini type={activeDraggedTask.type} />
+                            </div>
+                            <span className="w-20 shrink-0 font-mono text-[11px] text-gray-500">{activeDraggedTask.taskCode}</span>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="truncate text-sm font-semibold text-gray-900">{activeDraggedTask.title}</span>
+                                    <PriorityDot priority={activeDraggedTask.priority} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+            </DragOverlay>
         </div>
         </DndContext>
     )
