@@ -246,7 +246,8 @@ export default function Sidebar({
         sort: "createdAt,desc",
       });
 
-      return (response.data?.content ?? []).filter((project) => {
+      const projects = Array.isArray(response.data?.content) ? response.data.content : [];
+      return projects.filter((project) => {
         const normalizedStatus = String(project.status ?? "").toLowerCase();
         return normalizedStatus !== "archived" && normalizedStatus !== "deleted";
       });
@@ -263,6 +264,9 @@ export default function Sidebar({
     staleTime: 5 * 60 * 1000,
   });
 
+  const safeSidebarProjects = Array.isArray(sidebarProjects) ? sidebarProjects : [];
+  const safeSidebarWorkspaces = Array.isArray(sidebarWorkspaces) ? sidebarWorkspaces : [];
+
   const handleLogout = async () => {
     try {
       await AuthService.logoutNext();
@@ -276,21 +280,21 @@ export default function Sidebar({
   };
 
   const visibleProjects = useMemo(() => {
-    if (!sidebarProjects.length) return [];
+    if (!safeSidebarProjects.length) return [];
 
     if (!currentProject?.id) {
-      return sidebarProjects.slice(0, 6);
+      return safeSidebarProjects.slice(0, 6);
     }
 
     const prioritizedProjects = [
-      ...sidebarProjects.filter((project) => project.id === currentProject.id),
-      ...sidebarProjects.filter((project) => project.id !== currentProject.id),
+      ...safeSidebarProjects.filter((project) => project.id === currentProject.id),
+      ...safeSidebarProjects.filter((project) => project.id !== currentProject.id),
     ];
 
     return prioritizedProjects.slice(0, 6);
-  }, [currentProject?.id, sidebarProjects]);
+  }, [currentProject?.id, safeSidebarProjects]);
 
-  const remainingProjects = Math.max(sidebarProjects.length - visibleProjects.length, 0);
+  const remainingProjects = Math.max(safeSidebarProjects.length - visibleProjects.length, 0);
   const currentProjectBadge = getProjectBadgeLabel(currentProject?.name, currentProject?.key);
 
   return (
@@ -385,7 +389,7 @@ export default function Sidebar({
           </motion.div>
         )}
         <MenuItem icon={Home} label={t('nav.dashboard')} path="/dashboard" active={activeItem === "/dashboard"} onClick={onNavigate} isCollapsed={isCollapsed} />
-        <MenuItem icon={FolderKanban} label={t('project.myProjects')} path="/projects" active={activeItem === "/projects" || activeItem === "/projects/all"} badge={{ count: sidebarProjects.length, variant: "count" }} onClick={onNavigate} isCollapsed={isCollapsed} />
+        <MenuItem icon={FolderKanban} label={t('project.myProjects')} path="/projects" active={activeItem === "/projects" || activeItem === "/projects/all"} badge={{ count: safeSidebarProjects.length, variant: "count" }} onClick={onNavigate} isCollapsed={isCollapsed} />
         <MenuItem icon={Inbox} label={t('nav.inbox')} path="/inbox" active={activeItem === "/inbox"} onClick={onNavigate} isCollapsed={isCollapsed} />
 
         {/* WORKSPACES SECTION */}
@@ -399,9 +403,9 @@ export default function Sidebar({
               <span className="text-[10px] font-medium uppercase tracking-widest text-[#475569]">
                 Workspaces
               </span>
-              {sidebarWorkspaces.length > 0 && (
+              {safeSidebarWorkspaces.length > 0 && (
                 <span className="rounded-full border border-[#1E293B] bg-[#111827] px-1.5 py-0.5 text-[10px] font-semibold text-[#64748B]">
-                  {sidebarWorkspaces.length}
+                  {safeSidebarWorkspaces.length}
                 </span>
               )}
             </div>
@@ -409,7 +413,7 @@ export default function Sidebar({
         )}
 
         <div className="mt-1">
-          {sidebarWorkspaces.slice(0, 5).map((ws) => {
+          {safeSidebarWorkspaces.slice(0, 5).map((ws) => {
             const wsInitials = (ws.name && typeof ws.name === 'string' ? ws.name.slice(0, 2) : "WS").toUpperCase();
             const isActive = activeItem.startsWith(`/ws/${ws.slug}`);
             return (
@@ -485,9 +489,9 @@ export default function Sidebar({
               <span className="text-[10px] font-medium uppercase tracking-widest text-[#475569]">
                 {t('nav.projects')}
               </span>
-              {sidebarProjects.length > 0 && (
+              {safeSidebarProjects.length > 0 && (
                 <span className="rounded-full border border-[#1E293B] bg-[#111827] px-1.5 py-0.5 text-[10px] font-semibold text-[#64748B]">
-                  {sidebarProjects.length}
+                  {safeSidebarProjects.length}
                 </span>
               )}
             </div>
