@@ -500,6 +500,7 @@
     "allSprints": "All sprints",
     "noOverviewData": "No overview data available",
     "noBurndownData": "No burndown data for this sprint",
+    "noBurndownDataDesc": "Sprint just started or no tasks assigned",
     "currentPoints": "Current points",
     "interpretation": "Interpretation",
     "noVelocityData": "No velocity data yet. At least 1 completed sprint is required.",

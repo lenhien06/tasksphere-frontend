@@ -500,6 +500,7 @@
     "allSprints": "Tất cả Sprint",
     "noOverviewData": "Không có dữ liệu tổng quan",
     "noBurndownData": "Không có dữ liệu burndown cho sprint này",
+    "noBurndownDataDesc": "Sprint vừa bắt đầu hoặc chưa có task được gán",
     "currentPoints": "Điểm hiện tại",
     "interpretation": "Phân tích",
     "noVelocityData": "Chưa có dữ liệu velocity. Cần ít nhất 1 sprint đã hoàn thành.",

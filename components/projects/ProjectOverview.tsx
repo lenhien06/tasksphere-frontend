@@ -61,7 +61,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
 
   const { data: overviewData, isLoading: isOverviewLoading } = useProjectOverview(projectId);
   const { data: activeSprint } = useActiveSprint(projectId);
-  const { data: burndownData } = useBurndownData(activeSprint?.id);
+  const { data: burndownData, isLoading: isBurndownLoading } = useBurndownData(activeSprint?.id);
   const { data: velocityData } = useVelocityData(projectId);
   const { data: memberPerformanceData } = useMemberPerformanceData(
     projectId,
@@ -216,6 +216,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
       actual: item.actual,
       date: item.date,
     })),
+    burndownIsLoading: isBurndownLoading,
     velocity,
     averageVelocity: velocityData?.averageVelocity ?? 0,
     velocityTrend: velocityData?.trend ?? "stable",

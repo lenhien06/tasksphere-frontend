@@ -9,7 +9,7 @@ import {
   Line,
   ResponsiveContainer,
 } from "recharts";
-import { Inbox } from "lucide-react";
+import { Inbox, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface BurndownPoint {
@@ -21,9 +21,10 @@ interface BurndownPoint {
 
 interface BurndownChartProps {
   data: BurndownPoint[];
+  isLoading?: boolean;
 }
 
-export default function BurndownChart({ data }: BurndownChartProps) {
+export default function BurndownChart({ data, isLoading = false }: BurndownChartProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.toLowerCase().startsWith("vi") ? "vi-VN" : "en-US";
   const safeData = data.map((point) => ({
@@ -37,12 +38,21 @@ export default function BurndownChart({ data }: BurndownChartProps) {
     1
   );
 
+  if (isLoading) {
+    return (
+      <div className="h-56 rounded-2xl border border-slate-100 bg-slate-50/70 p-3 flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
   if (safeData.length === 0) {
     return (
       <div className="h-56 rounded-2xl border border-dashed border-gray-200 grid place-items-center text-gray-400">
         <div className="text-center">
-          <Inbox className="mx-auto h-4 w-4 mb-1" />
-          <p className="text-sm">{t("report.noBurndownData", { defaultValue: "Sprint vừa bắt đầu - chưa có dữ liệu" })}</p>
+          <Inbox className="mx-auto h-6 w-6 mb-2 text-gray-300" />
+          <p className="text-sm font-medium">{t("report.noBurndownData", { defaultValue: "Không có dữ liệu burndown" })}</p>
+          <p className="text-xs text-gray-400 mt-1">{t("report.noBurndownDataDesc", { defaultValue: "Sprint vừa bắt đầu hoặc chưa có task" })}</p>
         </div>
       </div>
     );

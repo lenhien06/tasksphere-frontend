@@ -41,6 +41,7 @@ export default function ProjectOverviewPage(props: ProjectOverviewPageProps) {
             className="xl:col-span-7"
             activeSprint={props.activeSprint}
             burndown={props.burndown}
+            burndownIsLoading={props.burndownIsLoading}
             userRole={props.userRole}
             onNavigateToBoard={props.onNavigateToBoard}
             onNavigateToBacklog={props.onNavigateToBacklog}

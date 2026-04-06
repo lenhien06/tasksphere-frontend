@@ -46,6 +46,7 @@ export interface ProjectOverviewPageProps {
     actual: number | null;
     date: string;
   }[];
+  burndownIsLoading?: boolean;
   velocity: {
     sprintId: string;
     sprintName: string;

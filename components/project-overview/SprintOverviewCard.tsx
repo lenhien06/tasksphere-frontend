@@ -9,6 +9,7 @@ import type { ProjectOverviewPageProps } from "./types";
 interface SprintOverviewCardProps {
   activeSprint: ProjectOverviewPageProps["activeSprint"];
   burndown: ProjectOverviewPageProps["burndown"];
+  burndownIsLoading?: boolean;
   userRole: ProjectOverviewPageProps["userRole"];
   onNavigateToBoard: () => void;
   onNavigateToBacklog: () => void;
@@ -18,6 +19,7 @@ interface SprintOverviewCardProps {
 export default function SprintOverviewCard({
   activeSprint,
   burndown,
+  burndownIsLoading = false,
   userRole,
   onNavigateToBoard,
   onNavigateToBacklog,
@@ -123,7 +125,7 @@ export default function SprintOverviewCard({
             <span>-- {t("report.ideal", { defaultValue: "Ideal" })}</span>
           </div>
         </div>
-        <BurndownChart data={burndown} />
+        <BurndownChart data={burndown} isLoading={burndownIsLoading} />
       </div>
 
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
