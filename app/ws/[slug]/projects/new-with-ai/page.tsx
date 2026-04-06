@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -25,6 +25,7 @@ import type {
 } from "@/app/types/workspace-ai";
 import { Workspace } from "@/app/types/workspace.schema";
 import { cn } from "@/lib/utils";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State machine
@@ -88,7 +89,9 @@ function ProgressBar({ step }: { step: CreationStep }) {
 export default function AiProjectCreationPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const { selectWorkspace } = useWorkspace();
 
   // ── Workspace + members ────────────────────────────────────────────────────
   const { data: wsData } = useQuery({
@@ -99,6 +102,12 @@ export default function AiProjectCreationPage() {
   const workspace = wsData?.data as Workspace | undefined;
   const wsId = workspace?.id ?? "";
 
+  useEffect(() => {
+    if (workspace) {
+      selectWorkspace(workspace);
+    }
+  }, [selectWorkspace, workspace]);
+
   // ── Page state ─────────────────────────────────────────────────────────────
   const [step, setStep] = useState<CreationStep>("input");
   const [description, setDescription] = useState("");
@@ -107,6 +116,13 @@ export default function AiProjectCreationPage() {
   const [collected, setCollected] = useState<CollectedData>({ description: "" });
   const [generatedPlan, setGeneratedPlan] = useState<GenerateProjectPlanResponse | null>(null);
   const [successData, setSuccessData] = useState<{ projectId: string; projectKey: string; projectUrl: string } | null>(null);
+
+  useEffect(() => {
+    const prompt = searchParams.get("prompt");
+    if (prompt && !description) {
+      setDescription(prompt);
+    }
+  }, [description, searchParams]);
 
   const allMembers: MemberOption[] =
     analyzeResult?.questions.find((q) => q.type === "member-select")?.members ?? [];
@@ -226,11 +242,11 @@ export default function AiProjectCreationPage() {
       {/* Back */}
       <button
         type="button"
-        onClick={() => router.push(`/ws/${slug}`)}
+        onClick={() => router.push(`/projects`)}
         className="mb-6 flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"
       >
         <ArrowLeft size={14} />
-        Quay về Workspace
+        Quay về Dashboard
       </button>
 
       {/* Page header */}
@@ -333,7 +349,7 @@ export default function AiProjectCreationPage() {
             onSkip={currentQuestion.field !== "teamMembers"
               ? () => handleSkip(currentQuestion)
               : undefined}
-            onClose={() => router.push(`/ws/${slug}`)}
+            onClose={() => router.push(`/projects`)}
           />
         </div>
       )}
@@ -397,10 +413,10 @@ export default function AiProjectCreationPage() {
             </button>
             <button
               type="button"
-              onClick={() => router.push(`/ws/${slug}`)}
+              onClick={() => router.push(`/projects`)}
               className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
-              Về Workspace
+              Về Dashboard
             </button>
           </div>
         </div>

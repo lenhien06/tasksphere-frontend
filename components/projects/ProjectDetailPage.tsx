@@ -63,6 +63,8 @@ interface Project {
     id: string;
     name: string;
     key: string;
+    workspaceName?: string;
+    workspaceSlug?: string;
     description: string;
     visibility: Visibility;
     status: "active" | "archived" | "deleted" | "completed";
@@ -95,6 +97,8 @@ function mapToUIProject(be: any): Project {
         id: String(be.id ?? be.projectId ?? ''),
         name: be.name ?? be.projectName ?? 'Unnamed Project',
         key: be.projectKey ?? be.key ?? '',
+        workspaceName: be.workspaceName ?? undefined,
+        workspaceSlug: be.workspaceSlug ?? undefined,
         description: be.description || "",
         visibility: be.visibility as Visibility,
         status: be.status as any,
@@ -1073,6 +1077,26 @@ export default function ProjectDetailPage({ projectId: propProjectId, onBack }: 
 
     return (
         <div className="min-h-screen bg-slate-50/30">
+            <div className="border-b border-slate-200 bg-white/90 px-6 py-2 text-xs text-slate-500">
+                <div className="flex items-center gap-2">
+                    <button onClick={() => router.push("/projects")} className="font-medium hover:text-blue-600 transition-colors">
+                        Projects
+                    </button>
+                    {project.workspaceSlug && (
+                        <>
+                            <ChevronRight size={12} className="text-slate-300" />
+                            <button
+                                onClick={() => router.push(`/ws/${project.workspaceSlug}`)}
+                                className="font-medium hover:text-blue-600 transition-colors"
+                            >
+                                {project.workspaceName || project.workspaceSlug}
+                            </button>
+                        </>
+                    )}
+                    <ChevronRight size={12} className="text-slate-300" />
+                    <span className="font-semibold text-slate-700">{project.name}</span>
+                </div>
+            </div>
             <ProjectHeader project={project} activeTab={activeTab} onTabChange={setActiveTab} />
             <div className="px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 2xl:px-10 pt-4 pb-10 w-full max-w-none">
                 <AnimatePresence mode="wait">
