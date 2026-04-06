@@ -613,32 +613,18 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
     return (
         <div className="flex h-full flex-col bg-[#F8FAFD]">
             <main className="flex-1 overflow-y-auto custom-scrollbar">
-                <div className="mx-auto w-full max-w-6xl space-y-8 px-5 py-6 md:px-8">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                        <div>
-                            <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
-                                <span>{t('nav.projects')}</span>
-                                <ChevronRight size={14} className="text-slate-400" />
-                                <span>{projectName}</span>
-                                <ChevronRight size={14} className="text-slate-400" />
-                                <span className="font-semibold text-slate-700">{t('sprint.management')}</span>
-                            </div>
-                            <h1 className="text-4xl font-bold tracking-tight text-slate-950">{t('sprint.management')}</h1>
-                            <p className="mt-2 text-base text-slate-500">
-                                {t('sprint.description', { defaultValue: 'Quản lý các chu kỳ phát triển, theo dõi tiến độ và tốc độ làm việc của nhóm.' })}
-                            </p>
-                        </div>
-
-                        {isPM && (
+                <div className="w-full space-y-8 px-4 py-5 md:px-6">
+                    {isPM && (
+                        <div className="flex justify-end">
                             <button
                                 onClick={() => setShowCreate(true)}
-                                className="inline-flex h-11 items-center gap-2 self-start rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+                                className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
                             >
                                 <Plus className="h-4 w-4" />
                                 {t('sprint.create')}
                             </button>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
                     {activeSprint ? (
                         <section className="rounded-3xl border-2 border-blue-300 bg-white p-5 shadow-sm">
