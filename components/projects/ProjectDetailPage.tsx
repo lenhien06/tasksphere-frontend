@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Search, Lock, Users, Globe, Check, Mail, Crown, Shield, Eye, Settings, Bell,
-    AlertTriangle, MessageCircle, Plus, CheckCircle2, BarChart2, Sparkles,
+    AlertTriangle, MessageCircle, Plus, CheckCircle2, BarChart2, Sparkles, Zap,
     ShieldOff, ArrowLeft, X, Calendar, Clock, Trash2, Loader2, ChevronDown, ChevronRight, Archive, RefreshCw, Filter,
     Layout, Kanban, ListTodo, MoreHorizontal, Tag, Rocket, Webhook, GitBranch, GanttChart
 } from "lucide-react";
@@ -43,6 +43,8 @@ import ProjectOverview from "@/components/projects/ProjectOverview";
 import KanbanBoard from "@/components/projects/KanbanBoard";
 import BacklogPage from "@/components/projects/BacklogPage";
 import CalendarView from "@/components/projects/CalendarView";
+import SprintManagement from "@/components/projects/SprintManagement";
+import ReportsPage from "@/components/projects/ReportsPage";
 import TimelineView from "@/components/projects/timeline/TimelineView";
 import TaskDetailPanel, { type Member } from "@/components/projects/TaskDetailPanel";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -57,7 +59,7 @@ import { canActAsProjectManager, toKanbanUserRole, toLegacyMyRoleLower, toTaskPa
 // ═══════════════════════════════════════════════════════════════════
 
 type Visibility = "private" | "internal" | "public";
-type Tab = "overview" | "board" | "backlog" | "calendar" | "timeline" | "members" | "settings";
+type Tab = "overview" | "board" | "backlog" | "calendar" | "timeline" | "sprints" | "reports" | "members" | "settings";
 
 interface Project {
     id: string;
@@ -206,6 +208,8 @@ function ProjectHeader({ project, activeTab, onTabChange }: { project: Project; 
         { id: "backlog", label: t('common.backlog'), icon: <ListTodo size={16} /> },
         { id: "calendar", label: t('calendar.title'), icon: <Calendar size={16} /> },
         { id: "timeline", label: "Timeline", icon: <GanttChart size={16} /> },
+        { id: "sprints", label: t('sprint.management'), icon: <Zap size={16} /> },
+        { id: "reports", label: t('nav.reports'), icon: <BarChart2 size={16} /> },
         { id: "members", label: t('common.members'), icon: <Users size={16} /> },
         ...(canManage ? [{ id: "settings", label: t('common.settings'), icon: <Settings size={16} /> } as const] : []),
     ];
@@ -1031,7 +1035,7 @@ export default function ProjectDetailPage({ projectId: propProjectId, onBack }: 
 
     useEffect(() => {
         const tab = (searchParams.get("tab") || "").toLowerCase();
-        const allowedTabs: Tab[] = ["overview", "board", "backlog", "calendar", "members", "settings"];
+        const allowedTabs: Tab[] = ["overview", "board", "backlog", "calendar", "timeline", "sprints", "reports", "members", "settings"];
         if (allowedTabs.includes(tab as Tab)) {
             setActiveTab(tab as Tab);
         }
@@ -1095,6 +1099,8 @@ export default function ProjectDetailPage({ projectId: propProjectId, onBack }: 
                                     onTaskClick={setSelectedTaskId} 
                                 />
                             )}
+                            {activeTab === "sprints" && <SprintManagement projectId={project.id} myRole={roleLower} />}
+                            {activeTab === "reports" && <ReportsPage projectId={project.id} />}
                             {activeTab === "members" && <TabMembers project={project} />}
                             {activeTab === "settings" && canManage && <TabSettings project={project} onBack={onBack} />}
                         </ErrorBoundary>
