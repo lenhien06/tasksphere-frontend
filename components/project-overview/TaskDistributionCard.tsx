@@ -58,7 +58,7 @@ export default function TaskDistributionCard({ statusDistribution }: TaskDistrib
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 h-full flex flex-col">
       <h3 className="text-base font-semibold text-gray-800 mb-2">{t("report.statusDistribution", { defaultValue: "Task Distribution" })}</h3>
 
-      <div className="flex-1 flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-2">
         <div className="h-[280px] w-[280px] relative flex items-center justify-center">
           <div
             className="relative w-[260px] h-[260px] rounded-full"
@@ -82,9 +82,9 @@ export default function TaskDistributionCard({ statusDistribution }: TaskDistrib
           </div>
         )}
 
-        <div className="w-full space-y-0.5">
+        <div className="w-full space-y-1">
           {safeNormalized.map((item) => (
-            <div key={item.status} className="flex items-center justify-between text-sm">
+            <div key={item.status} className="flex items-center justify-between text-base">
               <div className="inline-flex items-center gap-2 text-gray-600">
                 <span className="w-3 h-3 rounded-full" style={{ backgroundColor: STATUS_CONFIG[item.status].color }} />
                 <span className="font-medium">{t(STATUS_CONFIG[item.status].labelKey, { defaultValue: item.status })}</span>
