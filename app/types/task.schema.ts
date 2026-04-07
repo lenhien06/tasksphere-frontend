@@ -541,7 +541,16 @@ export interface TimelineTask {
     assignee: UserSummary | null;
     startDate: TimelineDate;
     dueDate: TimelineDate;
+    storyPoints: number | null;
+    estimatedHours: number | null;
     parentTaskId: string | null;
+    sprint: {
+        id: string;
+        name: string;
+        status: "PLANNED" | "ACTIVE" | "COMPLETED";
+        startDate: TimelineDate;
+        endDate: TimelineDate;
+    } | null;
     blockedBy: Array<{
         linkId: string;
         taskId: string;

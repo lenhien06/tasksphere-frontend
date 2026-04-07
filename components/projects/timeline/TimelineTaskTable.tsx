@@ -28,7 +28,7 @@ const PRIORITY_STYLES: Record<string, string> = {
     CRITICAL: "bg-rose-100 text-rose-700 border-rose-200",
     HIGH: "bg-orange-100 text-orange-700 border-orange-200",
     MEDIUM: "bg-amber-100 text-amber-700 border-amber-200",
-    LOW: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    LOW: "bg-blue-100 text-blue-700 border-blue-200",
 };
 
 function formatStatus(status: string) {
@@ -116,9 +116,18 @@ export default function TimelineTaskTable({
                                                 Blocked
                                             </span>
                                         )}
+                                        {row.isPastDeadline && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                                                <AlertTriangle size={11} />
+                                                Deadline risk
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="mt-1 text-[11px] text-slate-400">
-                                        {row.startDateObj.toLocaleDateString("vi-VN")} - {row.endDateObj.toLocaleDateString("vi-VN")}
+                                        Schedule: {row.startDateObj.toLocaleDateString("vi-VN")} - {row.endDateObj.toLocaleDateString("vi-VN")}
+                                    </div>
+                                    <div className="mt-0.5 text-[11px] text-slate-400">
+                                        Deadline: {row.deadlineDateObj ? row.deadlineDateObj.toLocaleDateString("vi-VN") : "Not set"}
                                     </div>
                                 </div>
                             </div>

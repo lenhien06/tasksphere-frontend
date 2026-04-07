@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Loader2, Rows3 } from "lucide-react";
-import { differenceInDays, startOfDay } from "date-fns";
+import { addDays, differenceInDays, format, startOfDay } from "date-fns";
 
 import { TaskService } from "@/app/services/TaskService";
 import { TimelineResponse, TimelineTask } from "@/app/types/task.schema";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { toast } from "sonner";
 import TimelineGanttChart from "./TimelineGanttChart";
 import TimelineTaskTable from "./TimelineTaskTable";
 import TimelineToolbar, { TimelineFilterState } from "./TimelineToolbar";
@@ -33,6 +34,7 @@ function collectNodeIds(nodes: TimelineRow[]) {
 }
 
 export default function TimelineView({ projectId, onTaskClick }: TimelineViewProps) {
+    const queryClient = useQueryClient();
     const [zoom, setZoom] = useState<ZoomLevel>("week");
     const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -111,6 +113,7 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
     }, [tree, expandedIds]);
 
     const flattenedRows = useMemo(() => flattenTree(processedTree), [processedTree]);
+    const rowMap = useMemo(() => new Map(flattenedRows.map((row) => [row.id, row])), [flattenedRows]);
 
     const visibleTaskIds = useMemo(() => new Set(flattenedRows.map((row) => row.id)), [flattenedRows]);
     const visibleDependencies = useMemo(
@@ -180,6 +183,76 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
 
         right.scrollTo({ left: Math.max(0, targetScrollLeft), behavior: "smooth" });
     };
+
+    const shiftTaskMutation = useMutation({
+        mutationFn: async ({ taskId, deltaDays, autoShiftDependents }: { taskId: string; deltaDays: number; autoShiftDependents: boolean }) => {
+            const rootRow = rowMap.get(taskId);
+            if (!rootRow) throw new Error("Task not found on timeline");
+
+            const updates: Array<{ taskId: string; startDate: string }> = [];
+            const collectUpdate = (rowId: string) => {
+                const row = rowMap.get(rowId);
+                if (!row) return;
+                const nextStart = addDays(row.startDateObj, deltaDays);
+                const sprintStart = row.sprint?.startDate ? new Date(row.sprint.startDate[0], row.sprint.startDate[1] - 1, row.sprint.startDate[2]) : null;
+                const sprintEnd = row.sprint?.endDate ? new Date(row.sprint.endDate[0], row.sprint.endDate[1] - 1, row.sprint.endDate[2]) : null;
+                const projectedEnd = addDays(nextStart, Math.max(row.durationDays - 1, 0));
+
+                if ((sprintStart && nextStart < startOfDay(sprintStart)) || (sprintEnd && projectedEnd > startOfDay(sprintEnd))) {
+                    throw new Error("Lỗi: Lịch thi công không được nằm ngoài phạm vi thời gian của Sprint");
+                }
+
+                updates.push({
+                    taskId: rowId,
+                    startDate: format(nextStart, "yyyy-MM-dd"),
+                });
+            };
+
+            collectUpdate(taskId);
+
+            if (autoShiftDependents && timelineData) {
+                const visited = new Set<string>([taskId]);
+                const queue = [taskId];
+                while (queue.length > 0) {
+                    const current = queue.shift()!;
+                    timelineData.dependencies
+                        .filter((dependency) => dependency.blockerTaskId === current)
+                        .forEach((dependency) => {
+                            if (visited.has(dependency.blockedTaskId)) return;
+                            visited.add(dependency.blockedTaskId);
+                            queue.push(dependency.blockedTaskId);
+                            collectUpdate(dependency.blockedTaskId);
+                        });
+                }
+            }
+
+            for (const update of updates) {
+                await TaskService.updateTask(projectId, update.taskId, { startDate: update.startDate });
+            }
+        },
+        onSuccess: () => {
+            toast.success("Timeline updated");
+            queryClient.invalidateQueries({ queryKey: ["project-timeline", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["calendar", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["task"] });
+        },
+        onError: (error: any) => {
+            toast.error(error?.response?.data?.message ?? error?.message ?? "Failed to update timeline");
+        },
+    });
+
+    const updateDeadlineMutation = useMutation({
+        mutationFn: ({ taskId, dueDate }: { taskId: string; dueDate: string }) => TaskService.updateDueDate(projectId, taskId, dueDate),
+        onSuccess: () => {
+            toast.success("Deadline updated");
+            queryClient.invalidateQueries({ queryKey: ["project-timeline", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["calendar", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["task"] });
+        },
+        onError: (error: any) => {
+            toast.error(error?.response?.data?.message ?? "Failed to update deadline");
+        },
+    });
 
     if (isLoading) {
         return (
@@ -252,6 +325,12 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
                             onHoverTask={setHoveredTaskId}
                             showDependencies={filters.showDependencies}
                             rowHeight={ROW_HEIGHT}
+                            onMoveTask={(taskId, deltaDays, autoShiftDependents) =>
+                                shiftTaskMutation.mutate({ taskId, deltaDays, autoShiftDependents })
+                            }
+                            onUpdateDeadline={(taskId, dueDate) =>
+                                updateDeadlineMutation.mutate({ taskId, dueDate })
+                            }
                         />
                     </div>
                 </div>
