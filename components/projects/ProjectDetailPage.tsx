@@ -382,6 +382,8 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                     : customSkills,
             }),
         onSuccess: ({ data }) => {
+            // Invalidate all project-invites queries regardless of filter status
+            queryClient.invalidateQueries({ queryKey: ["project-invites"] });
             queryClient.invalidateQueries({ queryKey: ["project-pending-invites", projectId] });
             queryClient.invalidateQueries({ queryKey: ["project-members", projectId] });
             toast.success(
