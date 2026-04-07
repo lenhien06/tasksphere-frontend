@@ -51,11 +51,13 @@ interface ProjectMemberLike {
   fullName?: string;
   email?: string;
   avatarUrl?: string | null;
+  skills?: string[];
   user?: {
     id?: string;
     fullName?: string;
     email?: string;
     avatarUrl?: string | null;
+    skills?: string[];
   };
 }
 
@@ -254,6 +256,25 @@ export default function KanbanBoard({
       ];
     });
   }, [membersData]);
+
+  // Get current user's skills for bug creation permission check
+  const currentUserSkills = useMemo(() => {
+    const raw = membersData as unknown;
+    const list = (
+      raw && typeof raw === "object" && "data" in raw
+        ? (raw as { data?: ProjectMemberLike[] }).data
+        : raw
+    ) as ProjectMemberLike[] | undefined;
+    
+    if (!Array.isArray(list)) return [];
+    
+    const currentMember = list.find(m => {
+      const memberId = m.user?.id ?? m.id;
+      return String(memberId) === currentUserId;
+    });
+    
+    return currentMember?.user?.skills || currentMember?.skills || [];
+  }, [membersData, currentUserId]);
 
   const columns = useMemo(() => mapColumns(columnsData), [columnsData]);
   const tasks = useMemo<TaskCardData[]>(() => {
@@ -596,7 +617,7 @@ export default function KanbanBoard({
             setShowBugCreation(false);
             setBugParentTask(null);
           }}
-          currentUserRole={roleForPanel}
+          userSkills={currentUserSkills}
           parentTask={{
             id: bugParentTask.id,
             taskCode: bugParentTask.taskId,

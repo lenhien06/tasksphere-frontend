@@ -17,7 +17,7 @@ export interface BugCreationDialogProps {
   parentTask: TaskResponse | null
   projectId: string
   onBugCreated?: () => void
-  currentUserRole?: "PM" | "MEMBER" | "VIEWER"
+  userSkills?: string[]
 }
 
 const PRIORITY_COLORS = {
@@ -33,13 +33,19 @@ export default function BugCreationDialog({
   parentTask,
   projectId,
   onBugCreated,
-  currentUserRole = "MEMBER",
+  userSkills = [],
 }: BugCreationDialogProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
-  // Role check: Only MEMBER and PM can create bugs
-  const canCreateBug = currentUserRole !== "VIEWER"
+  // Skill check: Only users with "QA", "Testing", or "Quality Assurance" skills can create bugs
+  const hasQASkill = userSkills.some(skill =>
+    ["QA", "Testing", "Quality Assurance", "Test Engineer", "tester"].some(s =>
+      skill.toLowerCase().includes(s.toLowerCase())
+    )
+  )
+
+  const canCreateBug = hasQASkill
 
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -122,8 +128,8 @@ export default function BugCreationDialog({
             {t("bug.permissionDenied", { defaultValue: "Permission Denied" })}
           </p>
           <p className="text-sm text-gray-600 mb-6">
-            {t("bug.viewerCannotCreate", {
-              defaultValue: "Only Project Managers and Team Members can create bug reports.",
+            {t("bug.qaSkillRequired", {
+              defaultValue: "Only team members with QA/Testing skills can create bug reports.",
             })}
           </p>
           <SecondaryButton onClick={onClose}>{t("common.close")}</SecondaryButton>
