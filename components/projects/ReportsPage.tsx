@@ -5,26 +5,12 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ReferenceLine,
-  ResponsiveContainer,
-  LabelList,
-} from "recharts";
-import {
   ClipboardList,
   TrendingUp,
   AlertTriangle,
   Zap,
   ShieldOff,
   Loader2,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
   ChevronUp,
   ChevronDown as ChevronDownIcon,
   ChevronsUpDown,
@@ -37,6 +23,7 @@ import { useProjectOverview } from "@/hooks/useProjectOverview";
 import { useBurndownData } from "@/hooks/useBurndownData";
 import TaskDistributionCard from "@/components/project-overview/TaskDistributionCard";
 import SprintOverviewCard from "@/components/project-overview/SprintOverviewCard";
+import VelocityCard from "@/components/project-overview/VelocityCard";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -87,8 +74,7 @@ function OverviewSkeleton() {
 
 function VelocitySkeleton() {
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 animate-pulse">
-      <div className="xl:col-span-3 h-96 bg-gray-100 rounded-2xl" />
+    <div className="animate-pulse">
       <div className="h-96 bg-gray-100 rounded-2xl" />
     </div>
   );
@@ -318,20 +304,7 @@ function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string;
 
 // ── Tab 3: Velocity ──────────────────────────────────────────
 
-const CustomBarLabel = (props: {
-  x?: number; y?: number; width?: number; value?: number;
-}) => {
-  const { x = 0, y = 0, width = 0, value } = props;
-  if (!value) return null;
-  return (
-    <text x={x + width / 2} y={y - 6} fill="#595959" textAnchor="middle" fontSize={12} fontWeight={600}>
-      {value}
-    </text>
-  );
-};
-
 function VelocityTab({ projectId }: { projectId: string }) {
-  const { t } = useTranslation();
   const { data: velocityData, isLoading } = useQuery({
     queryKey: ["velocity", projectId, 5],
     queryFn: () => TaskService.getVelocity(projectId, 5),
@@ -340,83 +313,26 @@ function VelocityTab({ projectId }: { projectId: string }) {
   });
 
   if (isLoading) return <VelocitySkeleton />;
-  if (!velocityData || velocityData.sprints.length === 0) {
-    return <EmptyState message={t('report.noVelocityData')} />;
-  }
 
-  const TrendIcon = velocityData.trend === "UP"
-    ? ArrowUpRight
-    : velocityData.trend === "DOWN"
-    ? ArrowDownRight
-    : Minus;
+  const velocity = (velocityData?.sprints ?? []).map((item) => ({
+    sprintId: item.sprintId,
+    sprintName: item.sprintName,
+    velocity: Number(item.velocity) || 0,
+    status: item.status === "active" ? "active" as const : "completed" as const,
+  }));
 
-  const trendColor = velocityData.trend === "UP"
-    ? "text-green-500"
-    : velocityData.trend === "DOWN"
-    ? "text-red-500"
-    : "text-gray-400";
+  const trend = velocityData?.trend === "UP"
+    ? "increasing"
+    : velocityData?.trend === "DOWN"
+    ? "decreasing"
+    : "stable";
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-      <div className="xl:col-span-3 bg-white rounded-2xl border border-[#E8E8E8] p-8 shadow-sm">
-        <h3 className="text-xl font-bold text-[#141414] mb-6">
-          {velocityData.sprints.length > 0 ? t('report.velocityTitle', { count: velocityData.sprints.length }) : t('sprint.velocity')}
-        </h3>
-        <div style={{ width: "100%", height: 320 }}>
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart
-              data={velocityData.sprints}
-              margin={{ top: 24, right: 60, left: 0, bottom: 20 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0F0F0" />
-              <XAxis
-                dataKey="sprintName"
-                tick={{ fontSize: 12, fill: "#8C8C8C" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 12, fill: "#8C8C8C" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                formatter={(value: number) => [`${value} ${t('task.storyPoints').toLowerCase()}`, t('sprint.velocity')]}
-                labelFormatter={(label) => `${t('sprint.title')}: ${label}`}
-              />
-              <ReferenceLine
-                y={velocityData.averageVelocity}
-                stroke="#FF4D4F"
-                strokeDasharray="5 5"
-                label={{
-                  value: `${t('report.avgVelocity')}: ${velocityData.averageVelocity.toFixed(1)}`,
-                  position: "right",
-                  fill: "#FF4D4F",
-                  fontSize: 12,
-                  fontWeight: "bold",
-                }}
-              />
-              <Bar dataKey="velocity" fill="#1677FF" radius={[4, 4, 0, 0]} barSize={40}>
-                <LabelList dataKey="velocity" content={<CustomBarLabel />} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-[#E8E8E8] p-8 shadow-sm flex flex-col items-center justify-center text-center gap-4">
-        <p className="text-base text-[#595959] font-medium">{t('report.avgVelocity')}</p>
-        <div className="flex items-center gap-3">
-          <span className="text-6xl font-black text-[#141414]">
-            {velocityData.averageVelocity.toFixed(1)}
-          </span>
-          <TrendIcon className={trendColor} size={40} strokeWidth={2.5} />
-        </div>
-        <p className="text-xs text-[#8C8C8C] font-medium capitalize">
-          {velocityData.trend === "UP" ? t('report.trend_increasing') : velocityData.trend === "DOWN" ? t('report.trend_decreasing') : t('report.trend_stable')}
-        </p>
-      </div>
-    </div>
+    <VelocityCard
+      velocity={velocity}
+      averageVelocity={Number(velocityData?.averageVelocity) || 0}
+      velocityTrend={trend}
+    />
   );
 }
 

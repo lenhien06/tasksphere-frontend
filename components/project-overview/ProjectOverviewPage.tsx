@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import StatCardsRow from "./StatCardsRow";
 import ProjectSummaryCard from "./ProjectSummaryCard";
 import DueSoonCard from "./DueSoonCard";
-import VelocityCard from "./VelocityCard";
 import TaskBadgeCard from "./TaskBadgeCard";
 import PerformanceSummaryCard from "./PerformanceSummaryCard";
 import type { ProjectOverviewPageProps } from "./types";
@@ -34,12 +33,7 @@ export default function ProjectOverviewPage(props: ProjectOverviewPageProps) {
           teamPreview={teamPreview}
         />
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-          <VelocityCard
-            velocity={props.velocity}
-            averageVelocity={props.averageVelocity}
-            velocityTrend={props.velocityTrend}
-          />
+        <div className="grid grid-cols-1 gap-3">
           <PerformanceSummaryCard
             memberPerformance={props.memberPerformance}
             canViewMemberPerformance={props.canViewMemberPerformance}
