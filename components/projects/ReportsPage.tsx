@@ -37,6 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TaskService } from "@/app/services/TaskService";
 import { usePermission } from "@/hooks/usePermission";
+import { useProjectOverview } from "@/hooks/useProjectOverview";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -143,39 +144,42 @@ function EmptyState({ message }: { message: string }) {
 
 function OverviewTab({ projectId, sprintId }: { projectId: string; sprintId?: string }) {
   const { t } = useTranslation();
-  const { data: overview, isLoading } = useQuery({
-    queryKey: ["overview", projectId, sprintId],
-    queryFn: () => TaskService.getProjectOverview(projectId, sprintId || undefined),
-    staleTime: 5 * 60_000,
-    enabled: !!projectId,
-  });
+  const { data: overview, isLoading } = useProjectOverview(projectId, sprintId);
 
   if (isLoading) return <OverviewSkeleton />;
   if (!overview) return <EmptyState message={t('report.noOverviewData')} />;
 
-  const statusMap = overview.tasksByStatus ?? {};
-  const s = {
-    TODO:        (statusMap as any).TODO        ?? 0,
-    IN_PROGRESS: (statusMap as any).IN_PROGRESS ?? 0,
-    IN_REVIEW:   (statusMap as any).IN_REVIEW   ?? 0,
-    DONE:        (statusMap as any).DONE        ?? 0,
-    CANCELLED:   (statusMap as any).CANCELLED   ?? 0,
+  const statusMap = {
+    TODO: overview.statusDistribution.find((s) => s.status === "todo") ?? { count: 0, percentage: 0 },
+    IN_PROGRESS: overview.statusDistribution.find((s) => s.status === "in_progress") ?? { count: 0, percentage: 0 },
+    IN_REVIEW: overview.statusDistribution.find((s) => s.status === "in_review") ?? { count: 0, percentage: 0 },
+    DONE: overview.statusDistribution.find((s) => s.status === "done") ?? { count: 0, percentage: 0 },
+    CANCELLED: overview.statusDistribution.find((s) => s.status === "cancelled") ?? { count: 0, percentage: 0 },
   };
-  const total = overview.totalTasks || 1;
+  const s = {
+    TODO:        statusMap.TODO.count,
+    IN_PROGRESS: statusMap.IN_PROGRESS.count,
+    IN_REVIEW:   statusMap.IN_REVIEW.count,
+    DONE:        statusMap.DONE.count,
+    CANCELLED:   statusMap.CANCELLED.count,
+  };
+  const totalTasks = overview.totalTasks || 0;
+  const total = totalTasks || 1;
+  const overallProgress = overview.overallProgress ?? overview.completionRate;
   const chartData = [
-    { name: t('task.status_TODO'),        value: s.TODO,        fill: "#8C8C8C" },
-    { name: t('task.status_IN_PROGRESS'), value: s.IN_PROGRESS, fill: "#1677FF" },
-    { name: t('task.status_IN_REVIEW'),   value: s.IN_REVIEW,   fill: "#FAAD14" },
-    { name: t('task.status_DONE'),        value: s.DONE,        fill: "#52C41A" },
-    { name: t('task.status_CANCELLED'),   value: s.CANCELLED,   fill: "#FF4D4F" },
+    { name: t('task.status_TODO'),        value: s.TODO,        percentage: statusMap.TODO.percentage, fill: "#8C8C8C" },
+    { name: t('task.status_IN_PROGRESS'), value: s.IN_PROGRESS, percentage: statusMap.IN_PROGRESS.percentage, fill: "#1677FF" },
+    { name: t('task.status_IN_REVIEW'),   value: s.IN_REVIEW,   percentage: statusMap.IN_REVIEW.percentage, fill: "#FAAD14" },
+    { name: t('task.status_DONE'),        value: s.DONE,        percentage: statusMap.DONE.percentage, fill: "#52C41A" },
+    { name: t('task.status_CANCELLED'),   value: s.CANCELLED,   percentage: statusMap.CANCELLED.percentage, fill: "#FF4D4F" },
   ].filter(d => d.value > 0);
 
   const breakdownItems = [
-    { label: t('task.status_TODO'),        count: s.TODO,        color: "#8C8C8C", pct: s.TODO        / total * 100 },
-    { label: t('task.status_IN_PROGRESS'), count: s.IN_PROGRESS, color: "#1677FF", pct: s.IN_PROGRESS / total * 100 },
-    { label: t('task.status_IN_REVIEW'),   count: s.IN_REVIEW,   color: "#FAAD14", pct: s.IN_REVIEW   / total * 100 },
-    { label: t('task.status_DONE'),        count: s.DONE,        color: "#52C41A", pct: s.DONE        / total * 100 },
-    { label: t('task.status_CANCELLED'),   count: s.CANCELLED,   color: "#FF4D4F", pct: s.CANCELLED   / total * 100 },
+    { label: t('task.status_TODO'),        count: s.TODO,        color: "#8C8C8C", pct: statusMap.TODO.percentage },
+    { label: t('task.status_IN_PROGRESS'), count: s.IN_PROGRESS, color: "#1677FF", pct: statusMap.IN_PROGRESS.percentage },
+    { label: t('task.status_IN_REVIEW'),   count: s.IN_REVIEW,   color: "#FAAD14", pct: statusMap.IN_REVIEW.percentage },
+    { label: t('task.status_DONE'),        count: s.DONE,        color: "#52C41A", pct: statusMap.DONE.percentage },
+    { label: t('task.status_CANCELLED'),   count: s.CANCELLED,   color: "#FF4D4F", pct: statusMap.CANCELLED.percentage },
   ];
 
   return (
@@ -184,25 +188,25 @@ function OverviewTab({ projectId, sprintId }: { projectId: string; sprintId?: st
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard
           label={t('report.totalTasks')}
-          value={overview.totalTasks}
+          value={totalTasks}
           icon={<ClipboardList />}
           iconBg="bg-blue-50"
           iconColor="text-blue-500"
         />
         <KPICard
           label={t('report.completionRate')}
-          value={`${overview.completionRate.toFixed(1)}%`}
+          value={`${overview.completionRate}%`}
           icon={<TrendingUp />}
           iconBg="bg-green-50"
           iconColor="text-green-500"
         />
         <KPICard
           label={t('task.overdue')}
-          value={overview.overdueCount}
+          value={overview.overdueTasks}
           icon={<AlertTriangle />}
           iconBg="bg-red-50"
           iconColor="text-red-500"
-          danger={overview.overdueCount > 0}
+          danger={overview.overdueTasks > 0}
         />
         <KPICard
           label={t('report.storyPoints')}
@@ -239,7 +243,7 @@ function OverviewTab({ projectId, sprintId }: { projectId: string; sprintId?: st
                   </Pie>
                   <Tooltip
                     formatter={(value: number, name: string) => [
-                      `${value} tasks (${(value / total * 100).toFixed(1)}%)`,
+                      `${value} ${t('task.task', { defaultValue: 'tasks' })}`,
                       name,
                     ]}
                   />
@@ -250,7 +254,7 @@ function OverviewTab({ projectId, sprintId }: { projectId: string; sprintId?: st
                   <div key={d.name} className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
                     <span className="text-xs text-[#595959] font-medium">
-                      {d.name} {(d.value / total * 100).toFixed(0)}%
+                      {d.name} {Math.round(d.percentage)}%
                     </span>
                   </div>
                 ))}
@@ -292,13 +296,16 @@ function OverviewTab({ projectId, sprintId }: { projectId: string; sprintId?: st
               <div className="w-full h-4 bg-[#F5F5F5] rounded-full overflow-hidden relative mb-5">
                 <div
                   className="h-full bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] rounded-full transition-all duration-1000"
-                  style={{ width: `${overview.completionRate}%` }}
+                  style={{ width: `${overallProgress}%` }}
                 />
               </div>
               <p className="text-5xl font-black text-[#141414]">
-                {overview.completionRate.toFixed(1)}%
+                {overallProgress}%
               </p>
               <p className="text-base text-[#555] mt-1 font-medium">{t('sprint.status_COMPLETED')}</p>
+              {totalTasks === 0 && (
+                <p className="text-xs text-[#8C8C8C] mt-2">{t('task.noTasks')}</p>
+              )}
             </div>
           </div>
         </div>
@@ -308,16 +315,6 @@ function OverviewTab({ projectId, sprintId }: { projectId: string; sprintId?: st
 }
 
 // ── Tab 2: Burndown ──────────────────────────────────────────
-
-function getInterpretation(chartData: { ideal: number; actual: number | null }[]): string | null {
-  const validPoints = chartData.filter(p => p.actual !== null);
-  if (validPoints.length === 0) return null;
-  const latest = validPoints[validPoints.length - 1];
-  const diff = (latest.actual ?? 0) - latest.ideal;
-  if (diff > 10) return `Team is ${diff} points behind schedule. Focus on completing backlog tasks.`;
-  if (diff < -5) return `Team is ${Math.abs(diff)} points ahead of schedule. Great pace!`;
-  return null;
-}
 
 function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string; sprintId?: string }) {
   const { t } = useTranslation();
@@ -365,7 +362,15 @@ function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string;
     }));
   }, [burndown]);
 
-  const interpretation = useMemo(() => getInterpretation(chartData), [chartData]);
+  const interpretation = useMemo(() => {
+    const validPoints = chartData.filter(p => p.actual !== null);
+    if (validPoints.length === 0) return null;
+    const latest = validPoints[validPoints.length - 1];
+    const diff = (latest.actual ?? 0) - latest.ideal;
+    if (diff > 10) return t('report.behindSchedule', { diff });
+    if (diff < -5) return t('report.aheadSchedule', { diff: Math.abs(diff) });
+    return null;
+  }, [chartData, t]);
   const lastActual = chartData.filter(p => p.actual !== null).pop();
 
   if (isLoading) return <BurndownSkeleton />;
@@ -414,7 +419,7 @@ function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string;
             />
             <Tooltip
               formatter={(value: number | string, name: string) => [
-                value !== null ? `${value} pts` : "—",
+                value !== null ? `${value} ${t('report.pointsShort')}` : "—",
                 name === "ideal" ? t('report.ideal') : t('report.actual'),
               ]}
               labelFormatter={(label) => `${t('sprint.days')}: ${label}`}
@@ -446,7 +451,7 @@ function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string;
           <div className="w-3 h-3 rounded-full bg-[#1677FF]" />
           <span>
             {t('report.currentPoints')}: <span className="font-bold text-[#141414]">{lastActual.actual} {t('task.storyPoints').toLowerCase()}</span>
-            {" · "}{t('report.ideal')}: <span className="font-semibold">{lastActual.ideal} pts</span>
+            {" · "}{t('report.ideal')}: <span className="font-semibold">{lastActual.ideal} {t('report.pointsShort')}</span>
           </span>
         </div>
       )}
@@ -538,7 +543,7 @@ function VelocityTab({ projectId }: { projectId: string }) {
                 stroke="#FF4D4F"
                 strokeDasharray="5 5"
                 label={{
-                  value: `Average: ${velocityData.averageVelocity.toFixed(1)}`,
+                  value: `${t('report.avgVelocity')}: ${velocityData.averageVelocity.toFixed(1)}`,
                   position: "right",
                   fill: "#FF4D4F",
                   fontSize: 12,
@@ -738,11 +743,11 @@ function ExportModal({ projectId, onClose }: { projectId: string; onClose: () =>
         a.download = `tasksphere-report-${Date.now()}.${format === "EXCEL" ? "xlsx" : "pdf"}`;
         a.click();
         URL.revokeObjectURL(url);
-        toast.success("Export successful!");
+        toast.success(t('report.exportSuccess'));
         onClose();
       }
     } catch {
-      toast.error("Error during export. Please try again.");
+      toast.error(t('error.generic'));
     } finally {
       setExporting(false);
     }
@@ -771,7 +776,7 @@ function ExportModal({ projectId, onClose }: { projectId: string; onClose: () =>
                   className="w-5 h-5 text-blue-600 cursor-pointer"
                 />
                 <span className="text-base text-[#595959] group-hover:text-[#141414] transition-colors">
-                  Excel (.xlsx)
+                  {t('report.format_excel')}
                 </span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer group">
@@ -782,7 +787,7 @@ function ExportModal({ projectId, onClose }: { projectId: string; onClose: () =>
                   className="w-5 h-5 text-blue-600 cursor-pointer"
                 />
                 <span className="text-base text-[#595959] group-hover:text-[#141414] transition-colors">
-                  PDF (.pdf)
+                  {t('report.format_pdf')}
                 </span>
               </label>
             </div>
