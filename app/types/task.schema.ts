@@ -153,6 +153,7 @@ export interface UpdateTaskRequest {
 
 export interface UpdateTaskStatusRequest {
     status: TaskStatus
+    statusColumnId?: string
     comment?: string                    // optional activity log (spec 1.6 — no statusColumnId in DTO)
 }
 
@@ -183,7 +184,8 @@ export interface ColumnResponse {
     id: string
     name: string
     colorHex: string
-    position: number
+    position?: number
+    sortOrder?: number
     isDefault: boolean
     taskCount: number
     mappedStatus?: TaskStatus   // BE: canonical status for this column (preferred over name heuristics)

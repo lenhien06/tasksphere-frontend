@@ -90,9 +90,12 @@ const inferStatus = (name: string, id: string, mappedStatus?: string) => {
   return "TODO";
 };
 
+const getColumnPosition = (column: { position?: number; sortOrder?: number }) =>
+  column.position ?? column.sortOrder ?? 0;
+
 const mapColumns = (cols: typeof DEFAULT_COLUMNS): Column[] =>
   [...cols]
-    .sort((a, b) => a.position - b.position)
+    .sort((a, b) => getColumnPosition(a) - getColumnPosition(b))
     .map((c) => {
       const status = inferStatus(c.name, c.id, c.mappedStatus);
       const category: Column["category"] =
@@ -109,7 +112,7 @@ const mapColumns = (cols: typeof DEFAULT_COLUMNS): Column[] =>
         colorHex: c.colorHex,
         category,
         status,
-        position: c.position,
+        position: getColumnPosition(c),
         taskCount: c.taskCount ?? 0,
         isDefault: c.isDefault,
       };
@@ -428,6 +431,7 @@ export default function KanbanBoard({
       if (isColumnChange) {
         await TaskService.updateStatus(projectId, payload.taskId, {
           status: targetColumn.status as any,
+          statusColumnId: payload.targetColumnId,
         });
       }
 

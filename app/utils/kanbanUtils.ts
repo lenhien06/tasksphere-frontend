@@ -1,5 +1,7 @@
 import { TaskResponse, TaskStatus, ColumnResponse } from "@/app/types/task.schema";
 
+const getColumnPosition = (column: ColumnResponse) => column.position ?? column.sortOrder ?? 0
+
 /**
  * Layer 2: Safe task → column mapping.
  * Every column always gets an array (never undefined).
@@ -56,7 +58,7 @@ export const resolveColumnId = (
     }
 
     // Level 3 — first column (last resort)
-    const first = columns.find(c => c.position === 0) ?? columns[0];
+    const first = columns.find(c => getColumnPosition(c) === 0) ?? columns[0];
     console.error(`[kanbanUtils] Task ${task.taskCode} cannot be mapped — falling back to "${first?.name}"`);
     return first?.id ?? "unknown";
 };
@@ -80,7 +82,7 @@ export const buildColStatusMap = (
         if (
             name.includes("done") ||
             name.includes("done") ||
-            (col.isDefault && col.position === columns.length - 1)
+            (col.isDefault && getColumnPosition(col) === columns.length - 1)
         ) {
             map[col.id] = "DONE";
         } else if (

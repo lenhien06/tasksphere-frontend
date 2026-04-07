@@ -74,6 +74,8 @@ const DEFAULT_COLUMNS_FALLBACK: Column[] = [
   { id: "done", name: "DONE", colorHex: "#52C41A", category: "DONE", status: "DONE", position: 3, taskCount: 0, isDefault: true },
 ];
 
+const getColumnPosition = (column: Column) => column.position ?? 0;
+
 export default function KanbanBoard({
   projectId,
   columns,
@@ -117,7 +119,7 @@ export default function KanbanBoard({
   );
 
   const sortedColumns: Column[] = useMemo(
-    () => (columns.length > 0 ? [...columns] : DEFAULT_COLUMNS_FALLBACK).sort((a, b) => a.position - b.position),
+    () => (columns.length > 0 ? [...columns] : DEFAULT_COLUMNS_FALLBACK).sort((a, b) => getColumnPosition(a) - getColumnPosition(b)),
     [columns]
   );
   

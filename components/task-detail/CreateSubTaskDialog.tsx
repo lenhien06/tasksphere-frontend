@@ -33,6 +33,8 @@ const STATUS_ORDER: TaskStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", 
 const PRIORITY_ORDER: TaskPriority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
 const STORY_POINT_PRESETS = [1, 2, 3, 5]
 
+const getColumnPosition = (column: ColumnResponse) => column.position ?? column.sortOrder ?? 0
+
 function getMemberOptions(members: Array<{ user?: { id?: string; fullName?: string; avatarUrl?: string | null } }>) {
     return members.map((member) => ({
         id: String(member.user?.id ?? ""),
@@ -45,7 +47,7 @@ function getAvailableStatuses(columns: ColumnResponse[]) {
     const seen = new Set<TaskStatus>()
     return columns
         .filter((column) => column.mappedStatus && !seen.has(column.mappedStatus))
-        .sort((a, b) => a.position - b.position)
+        .sort((a, b) => getColumnPosition(a) - getColumnPosition(b))
         .map((column) => {
             seen.add(column.mappedStatus!)
             return column.mappedStatus!
@@ -56,7 +58,7 @@ function getAvailableStatuses(columns: ColumnResponse[]) {
 function findColumnIdForStatus(columns: ColumnResponse[], status: TaskStatus) {
     return columns
         .filter((column) => column.mappedStatus === status)
-        .sort((a, b) => a.position - b.position)[0]?.id
+        .sort((a, b) => getColumnPosition(a) - getColumnPosition(b))[0]?.id
         ?? columns.find((column) => column.isDefault)?.id
         ?? columns[0]?.id
         ?? ""

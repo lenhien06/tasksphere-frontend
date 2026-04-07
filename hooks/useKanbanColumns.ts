@@ -27,7 +27,12 @@ export const useKanbanColumns = (projectId: string) => {
                 console.error("[useKanbanColumns] API returned empty columns — using defaults");
                 return DEFAULT_COLUMNS;
             }
-            return [...data].sort((a, b) => a.position - b.position);
+            return [...data]
+                .map((column) => ({
+                    ...column,
+                    position: column.position ?? column.sortOrder ?? 0,
+                }))
+                .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
         },
     });
 };
