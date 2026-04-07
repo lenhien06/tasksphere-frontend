@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { calculateHoursRemaining } from "@/lib/dateUtils";
 import type { ProjectInviteListItem } from "@/app/types/member.schema";
-import RoleBadge from "@/components/projects/RoleBadge";
-import StatusBadge from "@/components/projects/StatusBadge";
 
 interface InviteTableRowProps {
   invite: ProjectInviteListItem;
@@ -14,6 +12,67 @@ interface InviteTableRowProps {
   isRevoking: boolean;
   resendingId?: string;
   revokingId?: string;
+}
+
+function RoleBadge({ role }: { role: string }) {
+  const map: Record<string, { label: string }> = {
+    project_manager: { label: "Quản lý dự án" },
+    pm: { label: "Quản lý dự án" },
+    member: { label: "Thành viên" },
+    viewer: { label: "Người xem" },
+    owner: { label: "Chủ sở hữu" },
+    system_admin: { label: "Quản trị hệ thống" },
+  };
+  const cfg = map[String(role || "").toLowerCase()] || map["viewer"];
+  return (
+    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-tight">
+      {cfg.label}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const s = status?.toUpperCase();
+  if (s === "PENDING") {
+    return (
+      <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-blue-100 text-blue-600 border border-blue-200 uppercase tracking-tight">
+        ĐANG CHỜ
+      </span>
+    );
+  }
+  if (s === "DECLINED") {
+    return (
+      <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-orange-100 text-orange-600 border border-orange-200 uppercase tracking-tight">
+        ĐÃ TỪ CHỐI
+      </span>
+    );
+  }
+  if (s === "EXPIRED") {
+    return (
+      <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-slate-100 text-slate-400 border border-slate-200 uppercase tracking-tight">
+        HẾT HẠN
+      </span>
+    );
+  }
+  if (s === "REVOKED") {
+    return (
+      <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-red-100 text-red-600 border border-red-200 uppercase tracking-tight">
+        ĐÃ HỦY
+      </span>
+    );
+  }
+  if (s === "ACCEPTED") {
+    return (
+      <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase tracking-tight">
+        ĐÃ CHẤP NHẬN
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-tight">
+      {s}
+    </span>
+  );
 }
 
 export default function InviteTableRow({
