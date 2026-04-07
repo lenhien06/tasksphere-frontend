@@ -67,3 +67,51 @@ export function getUrgencyColor(daysUntilDue: number | null, isOverdue: boolean)
   if (daysUntilDue <= 3) return "text-yellow-600 bg-yellow-50"
   return "text-green-600 bg-green-50"
 }
+
+/**
+ * Calculate hours remaining until expiration (for invites, etc.)
+ * Returns { hours, minutes, isExpired }
+ */
+export function calculateHoursRemaining(expiresAt: string | null | undefined): {
+  hours: number;
+  minutes: number;
+  isExpired: boolean;
+  display: string;
+} | null {
+  if (!expiresAt) return null;
+
+  const now = new Date();
+  const expiration = new Date(expiresAt);
+  const diffMs = expiration.getTime() - now.getTime();
+
+  if (diffMs <= 0) {
+    return {
+      hours: 0,
+      minutes: 0,
+      isExpired: true,
+      display: "🔴 Hết hạn",
+    };
+  }
+
+  const totalMinutes = Math.floor(diffMs / (1000 * 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  // Format display: "3h 25m" or "45m"
+  let display = "";
+  if (hours > 0) {
+    display = `${hours}h`;
+    if (minutes > 0) {
+      display += ` ${minutes}m`;
+    }
+  } else {
+    display = `${minutes}m`;
+  }
+
+  return {
+    hours,
+    minutes: minutes,
+    isExpired: false,
+    display: `(còn ${display})`,
+  };
+}

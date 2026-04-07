@@ -47,6 +47,7 @@ import SprintManagement from "@/components/projects/SprintManagement";
 import ReportsPage from "@/components/projects/ReportsPage";
 import TimelineView from "@/components/projects/timeline/TimelineView";
 import TaskDetailPanel, { type Member } from "@/components/projects/TaskDetailPanel";
+import InviteTableRow from "@/components/projects/InviteTableRow";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import ForbiddenPage from "@/components/common/ForbiddenPage";
 import { ProfileService } from "@/app/services/profile.service";
@@ -819,54 +820,16 @@ function TabMembers({ project }: { project: Project }) {
                             <tbody className="divide-y divide-slate-100">
                                 {invitesData && invitesData.invites.length > 0 ? (
                                     invitesData.invites.map((invite) => (
-                                        <tr key={invite.id} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="text-sm font-bold text-slate-900">{invite.email}</div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <RoleBadge role={invite.role} />
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-sm text-slate-600">{invite.inviterName || '-'}</div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-sm text-slate-600">{new Date(invite.invitedAt).toLocaleString()}</div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-sm text-slate-600">
-                                                    {new Date(invite.expiresAt).toLocaleString()}
-                                                    {invite.daysLeft !== null && invite.daysLeft >= 0 && (
-                                                        <span className="ml-1 text-slate-400">(còn {invite.daysLeft}h)</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <StatusBadge status={invite.status} />
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    {invite.status === 'PENDING' && (
-                                                        <>
-                                                            <button
-                                                                onClick={() => resendMutation.mutate(invite.id)}
-                                                                disabled={resendMutation.isPending}
-                                                                className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all disabled:opacity-50"
-                                                            >
-                                                                {resendMutation.isPending && resendMutation.variables === invite.id ? '...' : 'Gửi lại'}
-                                                            </button>
-                                                            <button
-                                                                onClick={() => revokeMutation.mutate(invite.id)}
-                                                                disabled={revokeMutation.isPending}
-                                                                className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all disabled:opacity-50"
-                                                            >
-                                                                Hủy
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-
-                                        </tr>
+                                        <InviteTableRow
+                                            key={invite.id}
+                                            invite={invite}
+                                            onResend={(inviteId) => resendMutation.mutate(inviteId)}
+                                            onRevoke={(inviteId) => revokeMutation.mutate(inviteId)}
+                                            isResending={resendMutation.isPending}
+                                            isRevoking={revokeMutation.isPending}
+                                            resendingId={resendMutation.variables}
+                                            revokingId={revokeMutation.variables}
+                                        />
                                     ))
                                 ) : (
                                     <tr>
