@@ -9,11 +9,7 @@ import {
   TrendingUp,
   AlertTriangle,
   Zap,
-  ShieldOff,
   Loader2,
-  ChevronUp,
-  ChevronDown as ChevronDownIcon,
-  ChevronsUpDown,
   InboxIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +20,7 @@ import { useBurndownData } from "@/hooks/useBurndownData";
 import TaskDistributionCard from "@/components/project-overview/TaskDistributionCard";
 import SprintOverviewCard from "@/components/project-overview/SprintOverviewCard";
 import VelocityCard from "@/components/project-overview/VelocityCard";
+import PerformanceSummaryCard from "@/components/project-overview/PerformanceSummaryCard";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -338,14 +335,8 @@ function VelocityTab({ projectId }: { projectId: string }) {
 
 // ── Tab 4: Member Performance ────────────────────────────────
 
-type SortKey = "completionRate" | "tasksDone" | "avgCompletionDays";
-type SortDir = "asc" | "desc";
-
 function MemberPerformanceTab({ projectId, sprintId }: { projectId: string; sprintId?: string }) {
-  const { t } = useTranslation();
   const { isPM } = usePermission(projectId);
-  const [sortKey, setSortKey] = useState<SortKey>("completionRate");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const { data: report, isLoading } = useQuery({
     queryKey: ["member-perf", projectId, sprintId],
@@ -354,131 +345,13 @@ function MemberPerformanceTab({ projectId, sprintId }: { projectId: string; spri
     staleTime: 5 * 60_000,
   });
 
-  if (!isPM) {
-    return (
-      <div className="bg-white rounded-3xl border border-[#E8E8E8] py-24 text-center shadow-sm">
-        <ShieldOff size={48} className="mx-auto mb-6 text-gray-300" />
-        <h3 className="text-xl font-bold text-[#141414]">{t('report.accessDenied')}</h3>
-        <p className="text-[#8C8C8C] mt-2 max-w-sm mx-auto">
-          {t('report.pmOnly')}
-        </p>
-      </div>
-    );
-  }
-
   if (isLoading) return <MemberSkeleton />;
-  if (!report || report.members.length === 0) {
-    return <EmptyState message={t('report.noMemberData')} />;
-  }
-
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir(d => d === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
-  };
-
-  const sorted = [...report.members].sort((a, b) => {
-    const aVal = a[sortKey];
-    const bVal = b[sortKey];
-    return sortDir === "desc" ? bVal - aVal : aVal - bVal;
-  });
-
-  const SortIcon = ({ col }: { col: SortKey }) => {
-    if (sortKey !== col) return <ChevronsUpDown size={14} className="text-gray-300 ml-1 inline" />;
-    return sortDir === "desc"
-      ? <ChevronDownIcon size={14} className="text-[#1677FF] ml-1 inline" />
-      : <ChevronUp size={14} className="text-[#1677FF] ml-1 inline" />;
-  };
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E8E8E8] shadow-sm overflow-hidden">
-      <div className="p-6 border-b border-[#E8E8E8]">
-        <h3 className="text-xl font-bold text-[#141414]">{t('report.memberPerformance')}</h3>
-        {report.period.sprintName && (
-          <p className="text-sm text-[#8C8C8C] mt-0.5">{t('sprint.title')}: {report.period.sprintName}</p>
-        )}
-      </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-[#FBFBFB] border-b border-[#E8E8E8]">
-            <th className="px-6 py-4 text-left font-bold text-[#595959]">{t('common.members')}</th>
-            <th
-              className="px-6 py-4 text-left font-bold text-[#595959] cursor-pointer hover:text-[#141414] select-none whitespace-nowrap"
-              onClick={() => handleSort("completionRate")}
-            >
-              {t('report.completionRate')} <SortIcon col="completionRate" />
-            </th>
-            <th
-              className="px-6 py-4 text-center font-bold text-[#595959] cursor-pointer hover:text-[#141414] select-none whitespace-nowrap"
-              onClick={() => handleSort("tasksDone")}
-            >
-              {t('report.tasksCompleted')} <SortIcon col="tasksDone" />
-            </th>
-            <th
-              className="px-6 py-4 text-center font-bold text-[#595959] cursor-pointer hover:text-[#141414] select-none whitespace-nowrap"
-              onClick={() => handleSort("avgCompletionDays")}
-            >
-              {t('report.avgDaysPerTask')} <SortIcon col="avgCompletionDays" />
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[#F0F0F0]">
-          {sorted.map(m => {
-            const barColor = m.completionRate >= 80
-              ? "bg-green-500"
-              : m.completionRate >= 50
-              ? "bg-amber-400"
-              : "bg-red-500";
-            const textColor = m.completionRate >= 80
-              ? "text-green-600"
-              : m.completionRate >= 50
-              ? "text-amber-600"
-              : "text-red-500";
-
-            return (
-              <tr key={m.user.id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="px-6 py-5">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={
-                        m.user.avatarUrl ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(m.user.fullName)}&background=random&size=64`
-                      }
-                      alt={m.user.fullName}
-                      className="w-9 h-9 rounded-full object-cover border border-gray-100 shadow-sm shrink-0"
-                    />
-                    <div>
-                      <p className="font-semibold text-[#141414]">{m.user.fullName}</p>
-                      <p className="text-xs text-[#8C8C8C] capitalize">{m.user.projectRole?.toLowerCase()}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-36 h-3 bg-[#F0F0F0] rounded-full overflow-hidden shadow-inner">
-                      <div
-                        className={cn("h-full rounded-full transition-all duration-700", barColor)}
-                        style={{ width: `${m.completionRate}%` }}
-                      />
-                    </div>
-                    <span className={cn("font-bold text-sm tabular-nums w-10", textColor)}>
-                      {m.completionRate}%
-                    </span>
-                  </div>
-                </td>
-                <td className="px-6 py-5 text-center font-bold text-[#141414]">{m.tasksDone}</td>
-                <td className="px-6 py-5 text-center font-bold text-[#141414]">
-                  {m.avgCompletionDays.toFixed(1)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <PerformanceSummaryCard
+      memberPerformance={report?.members ?? []}
+      canViewMemberPerformance={isPM}
+    />
   );
 }
 
