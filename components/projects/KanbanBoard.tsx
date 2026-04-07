@@ -335,7 +335,35 @@ export default function KanbanBoard({
 
   const handleStatusChange = async (payload: MoveTaskPayload) => {
     const targetColumn = columns.find((c) => c.id === payload.targetColumnId);
+    const sourceColumn = columns.find((c) => c.id === payload.sourceColumnId);
     const task = tasks.find((t) => t.id === payload.taskId);
+    
+    if (!targetColumn || !task) return;
+
+    // Check: Cannot move to DONE without going through Testing workflow (IN_REVIEW)
+    // Only allow DONE transition from IN_REVIEW column
+    if (targetColumn.status === "DONE" && sourceColumn?.status !== "IN_REVIEW") {
+      const hasSubtasks = (task.subTaskCount ?? 0) > 0;
+      const unfinishedSubtasks = (task.subTaskCount ?? 0) - (task.subTaskDoneCount ?? 0);
+      
+      // If coming from IN_PROGRESS (or other status), require IN_REVIEW first
+      if (sourceColumn?.status === "IN_PROGRESS" || sourceColumn?.status === "TODO") {
+        const confirmReview = window.confirm(
+          "Phải chuyển sang 'In Review' trước khi có thể đánh dấu Done. Bạn có muốn chuyển sang In Review không?"
+        );
+        if (!confirmReview) return;
+        
+        // Move to IN_REVIEW instead
+        const reviewColumn = columns.find((c) => c.status === "IN_REVIEW");
+        if (reviewColumn) {
+          payload.targetColumnId = reviewColumn.id;
+          moveTaskMutation.mutate(payload);
+        }
+        return;
+      }
+    }
+
+    // Original validation: warn about incomplete subtasks
     if (
       targetColumn?.status === "DONE" &&
       task &&

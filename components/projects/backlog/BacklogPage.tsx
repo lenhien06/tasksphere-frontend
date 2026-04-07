@@ -246,6 +246,15 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
 
     const handleAssignToSprint = async (taskId: string, sprintId: string) => {
         try {
+            // Check if target sprint is ACTIVE - show warning
+            const targetSprint = sprints.find(s => s.id === sprintId)
+            if (targetSprint?.status === "ACTIVE") {
+                const confirmed = window.confirm(
+                    `Sprint "${targetSprint.name}" đang chạy. Thêm task vào sprint đang chạy. Tiếp tục?`
+                )
+                if (!confirmed) return
+            }
+
             await TaskService.assignTaskToSprint(taskId, sprintId)
             queryClient.invalidateQueries({ queryKey: ["backlog", projectId] })
             queryClient.invalidateQueries({ queryKey: ["sprints", projectId] })
@@ -271,6 +280,15 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     const handleBatchAssign = async (sprintId: string) => {
         if (selectedIds.length === 0) return
         try {
+            // Check if target sprint is ACTIVE - show warning
+            const targetSprint = sprints.find(s => s.id === sprintId)
+            if (targetSprint?.status === "ACTIVE") {
+                const confirmed = window.confirm(
+                    `Sprint "${targetSprint.name}" đang chạy. Thêm ${selectedIds.length} task vào sprint đang chạy. Tiếp tục?`
+                )
+                if (!confirmed) return
+            }
+
             const result = await TaskService.batchAssignToSprint(projectId, selectedIds, sprintId)
             toast.success(result.message || t("backlog.batchAssigned", { count: result.updatedCount }))
             if (result.failedIds?.length)

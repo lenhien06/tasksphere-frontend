@@ -115,3 +115,120 @@ export function calculateHoursRemaining(expiresAt: string | null | undefined): {
     display: `(còn ${display})`,
   };
 }
+
+/**
+ * Sprint Timeline Validation Utilities
+ */
+
+export interface SprintValidationError {
+  code: "SPRINT_BEFORE_PROJECT_START" | "SPRINT_AFTER_PROJECT_END" | "SPRINT_OVERLAP" | "SPRINT_INVALID_DATES" | null;
+  message: string;
+}
+
+/**
+ * Validate that sprint dates are within project bounds
+ * @returns error object or null if valid
+ */
+export function validateSprintDatesWithinProject(
+  sprintStart: string,
+  sprintEnd: string,
+  projectStart: string | null,
+  projectEnd: string | null
+): SprintValidationError | null {
+  // Validate sprint dates themselves
+  if (!sprintStart || !sprintEnd) {
+    return null; // Handled elsewhere
+  }
+
+  const sprintStartDate = new Date(sprintStart);
+  const sprintEndDate = new Date(sprintEnd);
+
+  if (sprintEndDate < sprintStartDate) {
+    return {
+      code: "SPRINT_INVALID_DATES",
+      message: "Sprint end date must be after start date",
+    };
+  }
+
+  // If no project boundaries, validation passes
+  if (!projectStart || !projectEnd) {
+    return null;
+  }
+
+  const projectStartDate = new Date(projectStart);
+  const projectEndDate = new Date(projectEnd);
+
+  // Check if sprint is before project start
+  if (sprintStartDate < projectStartDate) {
+    return {
+      code: "SPRINT_BEFORE_PROJECT_START",
+      message: `Sprint cannot start before project start date (${projectStart})`,
+    };
+  }
+
+  // Check if sprint is after project end
+  if (sprintEndDate > projectEndDate) {
+    return {
+      code: "SPRINT_AFTER_PROJECT_END",
+      message: `Sprint cannot end after project end date (${projectEnd})`,
+    };
+  }
+
+  return null;
+}
+
+export interface SprintDetail {
+  id: string;
+  startDate: string;
+  endDate: string;
+  status: "PLANNED" | "ACTIVE" | "COMPLETED";
+  name: string;
+}
+
+/**
+ * Check if new sprint overlaps with existing sprints
+ * Excludes the sprint being edited (if providedExistingSprintId)
+ * @returns error object or null if no overlap
+ */
+export function checkSprintOverlap(
+  newSprintStart: string,
+  newSprintEnd: string,
+  existingSprints: SprintDetail[],
+  existingSprintIdToExclude?: string
+): SprintValidationError | null {
+  const newStart = new Date(newSprintStart);
+  const newEnd = new Date(newSprintEnd);
+
+  for (const existing of existingSprints) {
+    // Skip the sprint being edited
+    if (existingSprintIdToExclude && existing.id === existingSprintIdToExclude) {
+      continue;
+    }
+
+    // Skip completed sprints
+    if (existing.status === "COMPLETED") {
+      continue;
+    }
+
+    const existingStart = new Date(existing.startDate);
+    const existingEnd = new Date(existing.endDate);
+
+    // Check for overlap: new sprint starts before existing ends AND new sprint ends after existing starts
+    if (newStart <= existingEnd && newEnd >= existingStart) {
+      return {
+        code: "SPRINT_OVERLAP",
+        message: `Sprint overlaps with existing sprint "${existing.name}" (${existing.startDate} to ${existing.endDate})`,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Check if an active sprint already exists
+ * @returns the active sprint if found, null otherwise
+ */
+export function detectActiveSprintConflict(sprints: SprintDetail[]): SprintDetail | null {
+  return sprints.find((s) => s.status === "ACTIVE") ?? null;
+}

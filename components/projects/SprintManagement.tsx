@@ -27,6 +27,12 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 
 import { useProjectWebSocket } from "@/hooks/useProjectWebSocket"
+import { 
+  validateSprintDatesWithinProject, 
+  checkSprintOverlap, 
+  detectActiveSprintConflict,
+  type SprintDetail as ValidationSprintDetail
+} from "@/lib/dateUtils"
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -281,6 +287,31 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
                 toast.error(t('sprint.endAfterStart'))
                 return
             }
+
+            // Validate dates within project bounds
+            const projectValidation = validateSprintDatesWithinProject(
+              startDate,
+              endDate,
+              projectData?.data?.startDate || null,
+              projectData?.data?.endDate || null
+            )
+            if (projectValidation) {
+              toast.error(projectValidation.message)
+              return
+            }
+
+            // Check for overlap with existing sprints (excluding current sprint if editing)
+            const overlapValidation = checkSprintOverlap(
+              startDate,
+              endDate,
+              sprints as ValidationSprintDetail[],
+              sprint?.id
+            )
+            if (overlapValidation) {
+              toast.error(overlapValidation.message)
+              return
+            }
+
             mutation.mutate({ name, goal, startDate, endDate })
         }
 
@@ -352,7 +383,18 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
         open: boolean, onClose: () => void, sprint: SprintDetail | null 
     }) => {
         const mutation = useMutation({
-            mutationFn: () => TaskService.startSprint(sprint!.id),
+            mutationFn: () => {
+              // Check for active sprint conflict BEFORE starting
+              const existingActiveSprint = detectActiveSprintConflict(sprints as ValidationSprintDetail[])
+              if (existingActiveSprint) {
+                return Promise.reject({
+                  response: {
+                    data: { meta: { code: "SPR_003" } }
+                  }
+                })
+              }
+              return TaskService.startSprint(sprint!.id)
+            },
             onSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ["sprints", projectId] })
                 toast.success(t('sprint.startedSuccess', { name: sprint?.name }))
