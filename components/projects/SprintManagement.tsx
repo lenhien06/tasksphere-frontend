@@ -454,8 +454,26 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
         const [step, setStep] = useState(1)
         const [action, setAction] = useState<"backlog" | "nextSprint">("backlog")
         const [nextSprintId, setNextSprintId] = useState("")
+        const [scanningUnfinished, setScanningUnfinished] = useState(0)
 
-        const unfinishedCount = sprint ? sprint.taskCount - sprint.doneCount : 0
+        // Fetch sprint tasks to scan actual columns (not just rely on doneCount)
+        const { data: sprintTasksData } = useQuery({
+            queryKey: ["sprint-tasks-detail", sprint?.id],
+            queryFn: () => sprint ? TaskService.getTasks(projectId, { sprintId: sprint.id, page: 0, size: 500 }) : null,
+            enabled: !!sprint && open,
+        })
+
+        // Calculate unfinished by scanning actual columns
+        const unfinishedCount = React.useMemo(() => {
+            if (sprintTasksData) {
+                // Tasks not in DONE column
+                const unfinished = sprintTasksData.content?.filter((t: any) => t.taskStatus !== "DONE") ?? []
+                setScanningUnfinished(unfinished.length)
+                return unfinished.length
+            }
+            // Fallback to simple calculation from sprint data
+            return sprint ? sprint.taskCount - sprint.doneCount : 0
+        }, [sprintTasksData, sprint])
 
         const mutation = useMutation({
             mutationFn: (data: CompleteSprintRequest) => TaskService.completeSprint(sprint!.id, data),
@@ -547,7 +565,7 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
                                     <span className="font-bold text-blue-900">{unfinishedCount} item(s)</span>
                                 </div>
                                 <p className="text-xs text-blue-700">
-                                    These items are not yet in the Done column. Choose an action below to handle them.
+                                    These items are not yet in the Done column. System scanned all columns to ensure accuracy.
                                 </p>
                             </div>
                         </div>

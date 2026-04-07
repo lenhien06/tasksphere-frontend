@@ -253,6 +253,13 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                     `Sprint "${targetSprint.name}" đang chạy. Thêm task vào sprint đang chạy. Tiếp tục?`
                 )
                 if (!confirmed) return
+
+                // Log activity: PM added task to active sprint
+                const task = tasks.find(t => t.id === taskId)
+                toast.info(t("backlog.activityLog", {
+                    defaultValue: `📋 Activity: Added task "${task?.title}" to active sprint "${targetSprint.name}"`
+                }))
+                console.log(`[ACTIVITY LOG] PM added task "${task?.title}" (ID: ${taskId}) to active sprint "${targetSprint.name}" (ID: ${sprintId})`)
             }
 
             await TaskService.assignTaskToSprint(taskId, sprintId)
@@ -287,6 +294,12 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                     `Sprint "${targetSprint.name}" đang chạy. Thêm ${selectedIds.length} task vào sprint đang chạy. Tiếp tục?`
                 )
                 if (!confirmed) return
+
+                // Log activity: PM batch added tasks to active sprint
+                toast.info(t("backlog.activityLogBatch", {
+                    defaultValue: `📋 Activity: Added ${selectedIds.length} tasks to active sprint "${targetSprint.name}"`
+                }))
+                console.log(`[ACTIVITY LOG] PM batch-added ${selectedIds.length} tasks to active sprint "${targetSprint.name}" (ID: ${sprintId}). Task IDs: ${selectedIds.join(", ")}`)
             }
 
             const result = await TaskService.batchAssignToSprint(projectId, selectedIds, sprintId)

@@ -596,6 +596,7 @@ export default function KanbanBoard({
             setShowBugCreation(false);
             setBugParentTask(null);
           }}
+          currentUserRole={roleForPanel}
           parentTask={{
             id: bugParentTask.id,
             taskCode: bugParentTask.taskId,
