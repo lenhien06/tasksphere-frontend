@@ -26,7 +26,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const isAuthPage = pathname === '/' || pathname?.startsWith('/signin') || pathname?.startsWith('/signup') || pathname?.startsWith('/forgot-password')
-  const isHeaderOnlyPage = pathname === '/projects/new'
+  const isHeaderOnlyPage = pathname === '/projects/new' || pathname === '/workspaces/new'
   const { setTheme } = useTheme()
 
   const { data: currentUser } = useCurrentUser({ enabled: !isAuthPage })

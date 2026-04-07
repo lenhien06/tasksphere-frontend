@@ -70,19 +70,19 @@ const visibilityOptions: Array<{
   {
     id: "private",
     label: "Private",
-    description: "Chỉ thành viên dự án mới có thể xem và tham gia.",
+    description: "Only project members can view and collaborate on this project.",
     icon: Lock,
   },
   {
     id: "internal",
     label: "Internal",
-    description: "Hiển thị trong tổ chức, phù hợp với team nội bộ.",
+    description: "Visible within your organization for internal collaboration.",
     icon: Landmark,
   },
   {
     id: "public",
     label: "Public",
-    description: "Mọi người đều có thể nhìn thấy dự án này.",
+    description: "Visible to everyone in the system.",
     icon: Globe,
   },
 ];
@@ -103,7 +103,7 @@ export default function NewProjectPage() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser({ required: false });
-  const { selectedContext, organizationWorkspaces, personalWorkspace } = useWorkspace();
+  const { selectedContext, organizationWorkspaces } = useWorkspace();
 
   const requestedWorkspaceId = searchParams.get("workspaceId");
 
@@ -117,7 +117,6 @@ export default function NewProjectPage() {
     return selectedContext.kind === "workspace" ? selectedContext.workspace : null;
   }, [organizationWorkspaces, requestedWorkspaceId, selectedContext]);
 
-  const scopeLabel = targetWorkspace?.name || personalWorkspace?.name || "Personal workspace";
   const ownerLabel =
     currentUser?.fullName?.trim() ||
     currentUser?.displayName?.trim() ||
@@ -201,7 +200,6 @@ export default function NewProjectPage() {
   });
 
   const projectName = watch("name");
-  const projectKey = watch("projectKey");
   const selectedVisibility = watch("visibility");
 
   return (
@@ -210,10 +208,10 @@ export default function NewProjectPage() {
         <div className="mb-8 flex items-center gap-2 text-sm text-[#57606A]">
           <Link href="/projects" className="inline-flex items-center gap-2 font-medium text-[#0969DA] hover:underline">
             <ArrowLeft size={16} />
-            Quay lại danh sách dự án
+            Back to projects
           </Link>
           <ChevronRight size={14} className="text-[#8C959F]" />
-          <span>Tạo dự án mới</span>
+          <span>Create a new project</span>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[180px_minmax(0,1fr)]">
@@ -235,9 +233,6 @@ export default function NewProjectPage() {
               <h1 className="text-3xl font-semibold tracking-tight text-[#24292F]">
                 Create a new project
               </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#57606A]">
-                Tạo project mới theo luồng hiện tại của TaskSphere. Chúng tôi chỉ thay đổi giao diện theo kiểu GitHub, không thay đổi logic tạo dự án.
-              </p>
               <p className="mt-2 text-sm text-[#57606A]">
                 Required fields are marked with an asterisk (*).
               </p>
@@ -254,7 +249,7 @@ export default function NewProjectPage() {
                   <div>
                     <h2 className="text-xl font-semibold text-[#24292F]">General</h2>
                     <p className="mt-1 text-sm text-[#57606A]">
-                      Thiết lập thông tin cơ bản cho dự án trước khi bắt đầu quản lý sprint và task.
+                      Set up the core details before planning sprints and managing tasks.
                     </p>
                   </div>
 
@@ -290,18 +285,6 @@ export default function NewProjectPage() {
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-[#24292F]">
-                        Workspace scope
-                      </label>
-                      <div className="flex h-11 items-center rounded-md border border-[#D0D7DE] bg-white px-3 text-sm text-[#24292F] shadow-sm">
-                        {scopeLabel}
-                      </div>
-                      <p className="mt-1.5 text-xs text-[#57606A]">
-                        Project sẽ được tạo trong context hiện tại mà bạn đang thao tác.
-                      </p>
-                    </div>
-
                     <div>
                       <label htmlFor="projectKey" className="mb-2 block text-sm font-semibold text-[#24292F]">
                         Project key <span className="text-[#D1242F]">*</span>
@@ -343,7 +326,7 @@ export default function NewProjectPage() {
                       {...register("description")}
                       rows={4}
                       className="w-full rounded-md border border-[#D0D7DE] bg-white px-3 py-2.5 text-sm text-[#24292F] shadow-sm outline-none transition focus:border-[#0969DA] focus:ring-4 focus:ring-[#0969DA]/10"
-                      placeholder="Mô tả ngắn gọn mục tiêu, phạm vi và định hướng triển khai của dự án."
+                      placeholder="Summarize the project's goals, scope, and delivery direction."
                     />
                     <div className="mt-2 flex items-center gap-2 text-xs text-[#57606A]">
                       <Info size={14} />
@@ -364,7 +347,7 @@ export default function NewProjectPage() {
                   <div>
                     <h2 className="text-xl font-semibold text-[#24292F]">Configuration</h2>
                     <p className="mt-1 text-sm text-[#57606A]">
-                      Chọn quyền hiển thị và khoảng thời gian để hệ thống khởi tạo project đúng ngữ cảnh.
+                      Choose the visibility and schedule that fit this project's setup.
                     </p>
                   </div>
 
@@ -374,7 +357,7 @@ export default function NewProjectPage() {
                         Choose visibility <span className="text-[#D1242F]">*</span>
                       </p>
                       <p className="mt-1 text-sm text-[#57606A]">
-                        Chọn ai có thể xem dự án này trong hệ thống.
+                        Choose who can see this project in the system.
                       </p>
                     </div>
 
@@ -459,15 +442,6 @@ export default function NewProjectPage() {
                     <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#D8DEE4] bg-[#F6F8FA] text-[#57606A]">
                       <FolderGit2 size={18} />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-[#24292F]">
-                        Ready to create{" "}
-                        <span className="text-[#0969DA]">{projectName?.trim() || "your new project"}</span>
-                      </p>
-                      <p className="mt-1 text-sm text-[#57606A]">
-                        Task code prefix sẽ là <span className="font-semibold text-[#24292F]">{projectKey?.trim() || "AUTO"}</span>.
-                      </p>
-                    </div>
                   </div>
 
                   <div className="flex flex-col-reverse gap-3 sm:flex-row">
@@ -480,8 +454,8 @@ export default function NewProjectPage() {
                     </button>
                     <button
                       type="submit"
-                      disabled={!projectName?.trim() || !projectKey?.trim() || !isValid || createMutation.isPending}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#2DA44E] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2C974B] disabled:cursor-not-allowed disabled:bg-[#94D3A2]"
+                      disabled={!projectName?.trim() || !isValid || createMutation.isPending}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#1677FF] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0958D9] disabled:cursor-not-allowed disabled:bg-[#91CAFF]"
                     >
                       {createMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
                       Create project

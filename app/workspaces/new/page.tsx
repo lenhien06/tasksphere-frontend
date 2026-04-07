@@ -1,57 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import {
   ArrowLeft,
-  ArrowRight,
-  Check,
-  Plus,
-  X,
-  Loader2,
   Building2,
-  Users,
-  Mail,
-  Tag,
+  Check,
   ChevronRight,
+  Info,
+  Loader2,
+  Mail,
+  Plus,
+  Shield,
+  Tag,
+  Users,
+  X,
 } from "lucide-react";
+import { toast } from "sonner";
+
 import { WorkspaceService } from "@/app/services/workspace.service";
-import { WorkspaceRole } from "@/app/types/workspace.schema";
+import { CreateWorkspaceRequest, WorkspaceRole } from "@/app/types/workspace.schema";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Schemas
-// ─────────────────────────────────────────────────────────────────────────────
-
-const Step1Schema = z.object({
+const WorkspaceCreateSchema = z.object({
   name: z
     .string()
-    .min(1, "Tên workspace không được để trống")
-    .max(255, "Tối đa 255 ký tự"),
+    .min(1, "Workspace name is required")
+    .max(255, "Workspace name must not exceed 255 characters"),
   slug: z
     .string()
-    .regex(/^[a-z0-9-]*$/, "Chỉ cho phép chữ thường, số và dấu gạch ngang")
+    .regex(/^[a-z0-9-]*$/, "Only lowercase letters, numbers, and hyphens are allowed")
     .optional()
     .or(z.literal("")),
   description: z.string().optional(),
 });
 
-type Step1Values = z.infer<typeof Step1Schema>;
+type WorkspaceCreateValues = z.infer<typeof WorkspaceCreateSchema>;
 
 interface PendingMember {
   email: string;
   role: WorkspaceRole;
   skillTags: string[];
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: auto-generate slug from name
-// ─────────────────────────────────────────────────────────────────────────────
 
 function generateSlug(name: string): string {
   return name
@@ -63,476 +59,519 @@ function generateSlug(name: string): string {
     .slice(0, 50);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Step indicator
-// ─────────────────────────────────────────────────────────────────────────────
+const roleOptions: Array<{
+  id: "ADMIN" | "MEMBER";
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "MEMBER",
+    label: "Member",
+    description: "Can collaborate in the workspace and join projects.",
+  },
+  {
+    id: "ADMIN",
+    label: "Admin",
+    description: "Can help manage workspace members and shared settings.",
+  },
+];
 
-function StepIndicator({ current }: { current: 1 | 2 }) {
-  const steps = [
-    { num: 1, label: "Thông tin Workspace" },
-    { num: 2, label: "Mời thành viên" },
-  ];
-  return (
-    <div className="mb-8 flex items-center gap-3">
-      {steps.map((step, i) => (
-        <div key={step.num} className="flex items-center gap-3">
-          <div
-            className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-colors",
-              current === step.num
-                ? "bg-blue-600 text-white"
-                : current > step.num
-                ? "bg-green-500 text-white"
-                : "border-2 border-slate-200 text-slate-400"
-            )}
-          >
-            {current > step.num ? <Check size={14} /> : step.num}
-          </div>
-          <span
-            className={cn(
-              "text-sm font-medium",
-              current === step.num ? "text-slate-800" : "text-slate-400"
-            )}
-          >
-            {step.label}
-          </span>
-          {i < steps.length - 1 && (
-            <ChevronRight size={16} className="text-slate-300" />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+export default function WorkspaceCreatePage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: currentUser } = useCurrentUser({ required: false });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Step 1: Workspace Info
-// ─────────────────────────────────────────────────────────────────────────────
+  const [members, setMembers] = useState<PendingMember[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
+  const [skillInput, setSkillInput] = useState("");
+  const [inviteSkills, setInviteSkills] = useState<string[]>([]);
+  const [inviteEmailError, setInviteEmailError] = useState("");
 
-function Step1Form({
-  onNext,
-}: {
-  onNext: (values: Step1Values) => void;
-}) {
+  const ownerLabel =
+    currentUser?.fullName?.trim() ||
+    currentUser?.displayName?.trim() ||
+    currentUser?.email?.split("@")[0] ||
+    "Current user";
+
+  const form = useForm<WorkspaceCreateValues>({
+    resolver: zodResolver(WorkspaceCreateSchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
+    defaultValues: {
+      name: "",
+      slug: "",
+      description: "",
+    },
+  });
+
   const {
     register,
     handleSubmit,
     watch,
     setValue,
-    formState: { errors },
-  } = useForm<Step1Values>({ resolver: zodResolver(Step1Schema) });
+    formState: { errors, isValid },
+  } = form;
 
-  const name = watch("name") ?? "";
-  const slug = watch("slug") ?? "";
+  const workspaceName = watch("name") ?? "";
+  const workspaceSlug = watch("slug") ?? "";
 
-  // Auto-generate slug as user types name
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setValue("name", value);
-    setValue("slug", generateSlug(value));
+  const slugPreview = useMemo(
+    () => workspaceSlug || generateSlug(workspaceName),
+    [workspaceName, workspaceSlug]
+  );
+
+  const handleNameChange = (value: string) => {
+    setValue("name", value, { shouldValidate: true, shouldDirty: true });
+    const currentSlug = form.getValues("slug");
+    if (!currentSlug || currentSlug === generateSlug(form.getValues("name") || "")) {
+      setValue("slug", generateSlug(value), { shouldValidate: true, shouldDirty: true });
+    }
   };
 
-  return (
-    <form onSubmit={handleSubmit(onNext)} className="space-y-5">
-      {/* Name */}
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">
-          Tên Workspace <span className="text-red-500">*</span>
-        </label>
-        <input
-          {...register("name")}
-          onChange={handleNameChange}
-          placeholder="VD: Engineering Team"
-          className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-        />
-        {errors.name && (
-          <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>
-        )}
-      </div>
-
-      {/* Slug */}
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">
-          URL Slug
-        </label>
-        <div className="flex items-center overflow-hidden rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
-          <span className="select-none border-r border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-400">
-            /ws/
-          </span>
-          <input
-            {...register("slug")}
-            placeholder="engineering-team"
-            className="flex-1 bg-white px-3 py-2.5 text-sm outline-none"
-          />
-        </div>
-        {slug && (
-          <p className="mt-1 text-xs text-slate-400">
-            URL của workspace:{" "}
-            <span className="font-medium text-slate-600">/ws/{slug || generateSlug(name)}</span>
-          </p>
-        )}
-        {errors.slug && (
-          <p className="mt-1 text-xs text-red-500">{errors.slug.message}</p>
-        )}
-      </div>
-
-      {/* Description */}
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">
-          Mô tả
-        </label>
-        <textarea
-          {...register("description")}
-          rows={3}
-          placeholder="Mô tả ngắn về workspace này..."
-          className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-        />
-      </div>
-
-      <div className="flex justify-end pt-2">
-        <button
-          type="submit"
-          className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          Tiếp theo
-          <ArrowRight size={16} />
-        </button>
-      </div>
-    </form>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Step 2: Invite Members (required — at least 1)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function Step2Form({
-  onBack,
-  onSubmit,
-  isSubmitting,
-}: {
-  onBack: () => void;
-  onSubmit: (members: PendingMember[]) => void;
-  isSubmitting: boolean;
-}) {
-  const [members, setMembers] = useState<PendingMember[]>([]);
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
-  const [skillInput, setSkillInput] = useState("");
-  const [skills, setSkills] = useState<string[]>([]);
-  const [emailError, setEmailError] = useState("");
-
   const addSkill = () => {
-    const tag = skillInput.trim();
-    if (tag && !skills.includes(tag)) {
-      setSkills([...skills, tag]);
-      setSkillInput("");
-    }
+    const trimmed = skillInput.trim();
+    if (!trimmed || inviteSkills.includes(trimmed)) return;
+    setInviteSkills((current) => [...current, trimmed]);
+    setSkillInput("");
   };
 
   const removeSkill = (tag: string) => {
-    setSkills(skills.filter((s) => s !== tag));
+    setInviteSkills((current) => current.filter((item) => item !== tag));
   };
 
   const addMember = () => {
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setEmailError("Email không hợp lệ");
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setInviteEmailError("Please enter a valid email address.");
       return;
     }
-    if (members.some((m) => m.email === trimmedEmail)) {
-      setEmailError("Email này đã được thêm");
+    if (members.some((member) => member.email === normalizedEmail)) {
+      setInviteEmailError("This email has already been added.");
       return;
     }
-    setMembers([...members, { email: trimmedEmail, role, skillTags: skills }]);
-    setEmail("");
-    setSkills([]);
+
+    setMembers((current) => [
+      ...current,
+      { email: normalizedEmail, role: inviteRole, skillTags: inviteSkills },
+    ]);
+    setInviteEmail("");
+    setInviteSkills([]);
     setSkillInput("");
-    setEmailError("");
+    setInviteEmailError("");
   };
 
-  const removeMember = (idx: number) => {
-    setMembers(members.filter((_, i) => i !== idx));
+  const removeMember = (email: string) => {
+    setMembers((current) => current.filter((member) => member.email !== email));
   };
-
-  const handleSubmit = () => {
-    if (members.length === 0) {
-      toast.error("Cần mời ít nhất 1 thành viên để tiếp tục");
-      return;
-    }
-    onSubmit(members);
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Add member form */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <h3 className="mb-3 text-sm font-semibold text-slate-700">
-          Thêm thành viên
-        </h3>
-
-        {/* Email */}
-        <div className="mb-3">
-          <label className="mb-1 block text-xs font-medium text-slate-600">
-            Email <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
-            onKeyDown={(e) => e.key === "Enter" && addMember()}
-            placeholder="colleague@company.com"
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
-          />
-          {emailError && (
-            <p className="mt-1 text-xs text-red-500">{emailError}</p>
-          )}
-        </div>
-
-        {/* Role */}
-        <div className="mb-3">
-          <label className="mb-1 block text-xs font-medium text-slate-600">
-            Vai trò
-          </label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as "ADMIN" | "MEMBER")}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
-          >
-            <option value="MEMBER">Member</option>
-            <option value="ADMIN">Admin</option>
-          </select>
-        </div>
-
-        {/* Skill tags */}
-        <div className="mb-3">
-          <label className="mb-1 block text-xs font-medium text-slate-600">
-            Kỹ năng (tùy chọn)
-          </label>
-          <div className="flex gap-2">
-            <input
-              value={skillInput}
-              onChange={(e) => setSkillInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
-              placeholder="React, Java, ..."
-              className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
-            />
-            <button
-              type="button"
-              onClick={addSkill}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
-            >
-              Thêm
-            </button>
-          </div>
-          {skills.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {skills.map((tag) => (
-                <span
-                  key={tag}
-                  className="flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
-                >
-                  <Tag size={9} />
-                  {tag}
-                  <button type="button" onClick={() => removeSkill(tag)}>
-                    <X size={9} className="ml-0.5 cursor-pointer hover:text-red-500" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={addMember}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700"
-        >
-          <Plus size={13} />
-          Thêm vào danh sách
-        </button>
-      </div>
-
-      {/* Member list */}
-      {members.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            Danh sách thành viên ({members.length})
-          </p>
-          {members.map((m, idx) => (
-            <div
-              key={m.email}
-              className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3"
-            >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-violet-500 text-xs font-bold text-white">
-                {m.email[0].toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-800">{m.email}</p>
-                <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-slate-400">{m.role}</span>
-                  {m.skillTags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => removeMember(idx)}
-                className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-slate-300 py-8 text-center">
-          <Users size={28} className="mx-auto mb-2 text-slate-300" />
-          <p className="text-sm font-medium text-slate-500">Chưa có thành viên nào</p>
-          <p className="mt-0.5 text-xs text-slate-400">
-            Bắt buộc mời ít nhất 1 thành viên để tạo workspace
-          </p>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex justify-between pt-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-        >
-          <ArrowLeft size={16} />
-          Quay lại
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={isSubmitting || members.length === 0}
-          className={cn(
-            "flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white",
-            members.length > 0
-              ? "bg-blue-600 hover:bg-blue-700"
-              : "cursor-not-allowed bg-slate-300"
-          )}
-        >
-          {isSubmitting ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <Check size={16} />
-          )}
-          Hoàn thành → Vào Workspace
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────────────────────────────────────
-
-export default function WorkspaceCreatePage() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const [step, setStep] = useState<1 | 2>(1);
-  const [step1Values, setStep1Values] = useState<Step1Values | null>(null);
 
   const createMutation = useMutation({
     mutationFn: async ({
-      info,
-      members,
+      workspace,
+      invitedMembers,
     }: {
-      info: Step1Values;
-      members: PendingMember[];
+      workspace: CreateWorkspaceRequest;
+      invitedMembers: PendingMember[];
     }) => {
-      const wsRes = await WorkspaceService.create({
-        name: info.name,
-        slug: info.slug || undefined,
-        description: info.description,
-      });
-      const workspace = wsRes.data;
-      if (!workspace) throw new Error("Không thể tạo workspace");
+      const wsRes = await WorkspaceService.create(workspace);
+      const createdWorkspace = wsRes.data;
+      if (!createdWorkspace) {
+        throw new Error("Unable to create workspace");
+      }
 
-      // Invite members in parallel
       await Promise.allSettled(
-        members.map((m) =>
-          WorkspaceService.inviteMember(workspace.id, {
-            email: m.email,
-            role: m.role as "ADMIN" | "MEMBER",
-            skillTags: m.skillTags,
+        invitedMembers.map((member) =>
+          WorkspaceService.inviteMember(createdWorkspace.id, {
+            email: member.email,
+            role: member.role as "ADMIN" | "MEMBER",
+            skillTags: member.skillTags,
           })
         )
       );
 
-      return workspace;
+      return createdWorkspace;
     },
     onSuccess: (workspace) => {
       queryClient.invalidateQueries({ queryKey: ["my-workspaces"] });
       queryClient.invalidateQueries({ queryKey: ["sidebar-workspaces"] });
-      toast.success("Workspace đã được tạo thành công!");
+      toast.success("Workspace created successfully!");
       router.push(`/ws/${workspace.slug}`);
     },
-    onError: (err: unknown) => {
-      const msg =
-        err instanceof Error ? err.message : "Có lỗi xảy ra khi tạo workspace";
-      toast.error(msg);
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Failed to create workspace";
+      toast.error(message);
     },
   });
 
-  return (
-    <div className="mx-auto max-w-xl px-6 py-10">
-      {/* Back link */}
-      <button
-        type="button"
-        onClick={() => (step === 2 ? setStep(1) : router.push("/workspaces"))}
-        className="mb-6 flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"
-      >
-        <ArrowLeft size={14} />
-        {step === 2 ? "Quay lại bước 1" : "Danh sách Workspace"}
-      </button>
+  const onSubmit = handleSubmit(async (data) => {
+    if (members.length === 0) {
+      toast.error("Add at least one member before creating the workspace.");
+      return;
+    }
 
-      {/* Header */}
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 shadow-sm">
-          <Building2 size={22} className="text-white" />
+    await createMutation.mutateAsync({
+      workspace: {
+        name: data.name.trim(),
+        slug: data.slug || undefined,
+        description: data.description,
+      },
+      invitedMembers: members,
+    });
+  });
+
+  return (
+    <div className="min-h-full bg-[#F6F8FA]">
+      <div className="mx-auto max-w-5xl px-6 py-10">
+        <div className="mb-8 flex items-center gap-2 text-sm text-[#57606A]">
+          <Link href="/workspaces" className="inline-flex items-center gap-2 font-medium text-[#0969DA] hover:underline">
+            <ArrowLeft size={16} />
+            Back to workspaces
+          </Link>
+          <ChevronRight size={14} className="text-[#8C959F]" />
+          <span>Create a new workspace</span>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Tạo Workspace mới</h1>
-          <p className="text-sm text-slate-400">
-            Không gian làm việc chung cho cả team
-          </p>
+
+        <div className="grid gap-8 lg:grid-cols-[180px_minmax(0,1fr)]">
+          <div className="hidden lg:block">
+            <div className="sticky top-8 space-y-7 pl-3">
+              <div className="relative pl-10">
+                <div className="absolute left-[15px] top-8 h-[calc(100%+24px)] w-px bg-[#D8DEE4]" />
+                <span className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full border border-[#D8DEE4] bg-white text-sm font-semibold text-[#24292F]">
+                  1
+                </span>
+                <p className="pt-1 text-sm font-semibold text-[#24292F]">General</p>
+              </div>
+              <div className="pl-10 text-sm font-medium text-[#57606A]">Team setup</div>
+            </div>
+          </div>
+
+          <div className="max-w-3xl">
+            <div className="mb-8">
+              <h1 className="text-3xl font-semibold tracking-tight text-[#24292F]">
+                Create a new workspace
+              </h1>
+              <p className="mt-2 text-sm text-[#57606A]">
+                Required fields are marked with an asterisk (*).
+              </p>
+            </div>
+
+            <form onSubmit={onSubmit} className="space-y-10">
+              <section className="relative pl-12">
+                <div className="absolute left-[15px] top-8 h-[calc(100%-12px)] w-px bg-[#D8DEE4]" />
+                <span className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full border border-[#D8DEE4] bg-white text-sm font-semibold text-[#24292F]">
+                  1
+                </span>
+
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-xl font-semibold text-[#24292F]">General</h2>
+                    <p className="mt-1 text-sm text-[#57606A]">
+                      Set up the shared workspace that your team will use across projects.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-[240px_minmax(0,1fr)]">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-[#24292F]">
+                        Owner
+                      </label>
+                      <div className="flex h-11 items-center rounded-md border border-[#D0D7DE] bg-white px-3 text-sm text-[#24292F] shadow-sm">
+                        {ownerLabel}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="name" className="mb-2 block text-sm font-semibold text-[#24292F]">
+                        Workspace name <span className="text-[#D1242F]">*</span>
+                      </label>
+                      <input
+                        id="name"
+                        {...register("name")}
+                        onChange={(event) => handleNameChange(event.target.value)}
+                        className={cn(
+                          "h-11 w-full rounded-md border bg-white px-3 text-sm text-[#24292F] shadow-sm outline-none transition",
+                          errors.name
+                            ? "border-[#D1242F] focus:border-[#D1242F] focus:ring-4 focus:ring-[#D1242F]/10"
+                            : "border-[#D0D7DE] focus:border-[#0969DA] focus:ring-4 focus:ring-[#0969DA]/10"
+                        )}
+                        placeholder="Engineering Team"
+                      />
+                      {errors.name && (
+                        <p className="mt-1.5 text-xs font-medium text-[#D1242F]">{errors.name.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="slug" className="mb-2 block text-sm font-semibold text-[#24292F]">
+                      URL slug
+                    </label>
+                    <div className="flex items-center overflow-hidden rounded-md border border-[#D0D7DE] bg-white shadow-sm focus-within:border-[#0969DA] focus-within:ring-4 focus-within:ring-[#0969DA]/10">
+                      <span className="border-r border-[#D0D7DE] bg-[#F6F8FA] px-3 py-2.5 text-sm text-[#57606A]">
+                        /ws/
+                      </span>
+                      <input
+                        id="slug"
+                        {...register("slug")}
+                        className="h-11 flex-1 px-3 text-sm text-[#24292F] outline-none"
+                        placeholder="engineering-team"
+                      />
+                    </div>
+                    {slugPreview ? (
+                      <p className="mt-1.5 text-xs text-[#57606A]">
+                        Workspace URL preview: <span className="font-medium text-[#24292F]">/ws/{slugPreview}</span>
+                      </p>
+                    ) : null}
+                    {errors.slug && (
+                      <p className="mt-1.5 text-xs font-medium text-[#D1242F]">{errors.slug.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="description" className="mb-2 block text-sm font-semibold text-[#24292F]">
+                      Description
+                    </label>
+                    <textarea
+                      id="description"
+                      {...register("description")}
+                      rows={4}
+                      className="w-full rounded-md border border-[#D0D7DE] bg-white px-3 py-2.5 text-sm text-[#24292F] shadow-sm outline-none transition focus:border-[#0969DA] focus:ring-4 focus:ring-[#0969DA]/10"
+                      placeholder="Describe the team's mission, domain, or working context."
+                    />
+                    <div className="mt-2 flex items-center gap-2 text-xs text-[#57606A]">
+                      <Info size={14} />
+                      <span>
+                        A clear workspace description helps members understand the shared scope.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="relative pl-12">
+                <span className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full border border-[#D8DEE4] bg-white text-sm font-semibold text-[#24292F]">
+                  2
+                </span>
+
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-xl font-semibold text-[#24292F]">Team setup</h2>
+                    <p className="mt-1 text-sm text-[#57606A]">
+                      Invite the first members who will collaborate in this workspace.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-[#D8DEE4] bg-white p-5 shadow-sm">
+                    <div className="mb-4">
+                      <p className="text-sm font-semibold text-[#24292F]">
+                        Add members <span className="text-[#D1242F]">*</span>
+                      </p>
+                      <p className="mt-1 text-sm text-[#57606A]">
+                        At least one invited member is required to complete workspace creation.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4">
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-[#24292F]">Email</label>
+                        <div className="relative">
+                          <Mail size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#57606A]" />
+                          <input
+                            type="email"
+                            value={inviteEmail}
+                            onChange={(event) => {
+                              setInviteEmail(event.target.value);
+                              setInviteEmailError("");
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                addMember();
+                              }
+                            }}
+                            className="h-11 w-full rounded-md border border-[#D0D7DE] bg-white pl-10 pr-3 text-sm text-[#24292F] shadow-sm outline-none transition focus:border-[#0969DA] focus:ring-4 focus:ring-[#0969DA]/10"
+                            placeholder="teammate@company.com"
+                          />
+                        </div>
+                        {inviteEmailError ? (
+                          <p className="mt-1.5 text-xs font-medium text-[#D1242F]">{inviteEmailError}</p>
+                        ) : null}
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
+                        <div>
+                          <label className="mb-2 block text-sm font-semibold text-[#24292F]">Role</label>
+                          <div className="grid gap-2">
+                            {roleOptions.map((option) => (
+                              <button
+                                key={option.id}
+                                type="button"
+                                onClick={() => setInviteRole(option.id)}
+                                className={cn(
+                                  "rounded-md border px-3 py-2.5 text-left transition",
+                                  inviteRole === option.id
+                                    ? "border-[#0969DA] bg-[#F6F8FA] ring-2 ring-[#0969DA]/10"
+                                    : "border-[#D8DEE4] hover:border-[#0969DA]/40 hover:bg-[#F6F8FA]"
+                                )}
+                              >
+                                <p className="text-sm font-semibold text-[#24292F]">{option.label}</p>
+                                <p className="mt-1 text-xs text-[#57606A]">{option.description}</p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-sm font-semibold text-[#24292F]">
+                            Skill tags
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              value={skillInput}
+                              onChange={(event) => setSkillInput(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  addSkill();
+                                }
+                              }}
+                              className="h-11 flex-1 rounded-md border border-[#D0D7DE] bg-white px-3 text-sm text-[#24292F] shadow-sm outline-none transition focus:border-[#0969DA] focus:ring-4 focus:ring-[#0969DA]/10"
+                              placeholder="React, Java, Product..."
+                            />
+                            <button
+                              type="button"
+                              onClick={addSkill}
+                              className="inline-flex h-11 items-center justify-center rounded-md border border-[#D0D7DE] bg-white px-4 text-sm font-semibold text-[#24292F] shadow-sm transition hover:bg-[#F6F8FA]"
+                            >
+                              Add
+                            </button>
+                          </div>
+
+                          {inviteSkills.length > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {inviteSkills.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center gap-1 rounded-full border border-[#B6E3FF] bg-[#DDF4FF] px-2.5 py-1 text-xs font-medium text-[#0969DA]"
+                                >
+                                  <Tag size={12} />
+                                  {tag}
+                                  <button type="button" onClick={() => removeSkill(tag)}>
+                                    <X size={12} className="hover:text-[#D1242F]" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-xs text-[#57606A]">
+                              Optional. Add skills to help organize member capabilities later.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <button
+                          type="button"
+                          onClick={addMember}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#1677FF] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0958D9]"
+                        >
+                          <Plus size={16} />
+                          Add member
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-[#D8DEE4] bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-center gap-2">
+                      <Users size={16} className="text-[#57606A]" />
+                      <p className="text-sm font-semibold text-[#24292F]">
+                        Member list ({members.length})
+                      </p>
+                    </div>
+
+                    {members.length > 0 ? (
+                      <div className="space-y-3">
+                        {members.map((member) => (
+                          <div
+                            key={member.email}
+                            className="flex items-start gap-3 rounded-lg border border-[#D8DEE4] bg-[#F6F8FA] px-4 py-3"
+                          >
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D8DEE4] bg-white text-sm font-semibold text-[#24292F]">
+                              {member.email[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-[#24292F]">{member.email}</p>
+                              <div className="mt-1 flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-[#D8DEE4] bg-white px-2 py-0.5 text-xs font-medium text-[#57606A]">
+                                  <Shield size={12} />
+                                  {member.role}
+                                </span>
+                                {member.skillTags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="rounded-full border border-[#B6E3FF] bg-[#DDF4FF] px-2 py-0.5 text-xs font-medium text-[#0969DA]"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeMember(member.email)}
+                              className="rounded-md p-1.5 text-[#57606A] transition hover:bg-white hover:text-[#D1242F]"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-[#D8DEE4] bg-[#F6F8FA] px-6 py-10 text-center">
+                        <Users size={30} className="mx-auto mb-3 text-[#8C959F]" />
+                        <p className="text-sm font-medium text-[#24292F]">No members added yet</p>
+                        <p className="mt-1 text-sm text-[#57606A]">
+                          Invite at least one member to complete workspace creation.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <div className="rounded-xl border border-[#D8DEE4] bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#D8DEE4] bg-[#F6F8FA] text-[#57606A]">
+                      <Building2 size={18} />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => router.push("/workspaces")}
+                      className="inline-flex h-10 items-center justify-center rounded-md border border-[#D0D7DE] bg-white px-4 text-sm font-semibold text-[#24292F] shadow-sm transition hover:bg-[#F6F8FA]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!workspaceName.trim() || !isValid || members.length === 0 || createMutation.isPending}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#1677FF] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0958D9] disabled:cursor-not-allowed disabled:bg-[#91CAFF]"
+                    >
+                      {createMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
+                      Create workspace
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
-
-      {/* Step indicator */}
-      <StepIndicator current={step} />
-
-      {/* Step content */}
-      {step === 1 && (
-        <Step1Form
-          onNext={(values) => {
-            setStep1Values(values);
-            setStep(2);
-          }}
-        />
-      )}
-
-      {step === 2 && step1Values && (
-        <Step2Form
-          onBack={() => setStep(1)}
-          onSubmit={(members) =>
-            createMutation.mutate({ info: step1Values, members })
-          }
-          isSubmitting={createMutation.isPending}
-        />
-      )}
     </div>
   );
 }
