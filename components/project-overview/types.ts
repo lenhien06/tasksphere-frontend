@@ -69,6 +69,11 @@ export interface ProjectOverviewPageProps {
       fullName: string;
       avatarUrl: string | null;
     } | null;
+    sprintId?: string | null;
+    sprintName?: string | null;
+    subtaskCount?: number;
+    subtaskDone?: number;
+    commentsCount?: number;
   }[];
   memberPerformance: {
     user: {

@@ -276,6 +276,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
       assignee: task.assignee
         ? { fullName: task.assignee.fullName, avatarUrl: task.assignee.avatarUrl }
         : null,
+      sprintId: task.sprintId ?? null,
+      sprintName: task.sprintName ?? null,
+      subtaskCount: task.subtaskCount ?? 0,
+      subtaskDone: task.subtaskDone ?? 0,
+      commentsCount: task.commentsCount ?? 0,
     })),
     memberPerformance: memberPerformanceData?.members ?? [],
     canViewMemberPerformance,

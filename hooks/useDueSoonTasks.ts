@@ -27,6 +27,11 @@ export function useDueSoonTasks(projectId: string) {
               avatarUrl: t.assignee.avatarUrl ?? null,
             }
           : null,
+        sprintId: t.sprintId ?? null,
+        sprintName: t.sprintName ?? null,
+        subtaskCount: typeof t.subtaskCount === 'number' ? t.subtaskCount : 0,
+        subtaskDone: typeof t.subtaskDone === 'number' ? t.subtaskDone : 0,
+        commentsCount: typeof t.commentsCount === 'number' ? t.commentsCount : 0,
       })) as DueSoonTask[];
     },
     staleTime: 60 * 1000,

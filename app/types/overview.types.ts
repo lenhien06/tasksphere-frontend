@@ -107,4 +107,10 @@ export interface DueSoonTask {
   storyPoints: number | null;
   isOverdue: boolean;
   assignee: { id: string; fullName: string; avatarUrl: string | null } | null;
+  // Enhanced fields
+  sprintId?: string | null;
+  sprintName?: string | null;
+  subtaskCount?: number;
+  subtaskDone?: number;
+  commentsCount?: number;
 }
