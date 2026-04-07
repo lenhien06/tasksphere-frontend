@@ -38,6 +38,7 @@ export function useWorkspaceWebSocket(workspaceId?: string | null, onEvent?: (ev
               try {
                 const event: WorkspaceWebSocketEvent = JSON.parse(message.body);
                 queryClient.invalidateQueries({ queryKey: ["ws-members", workspaceId] });
+                queryClient.invalidateQueries({ queryKey: ["ws-invites", workspaceId] });
                 queryClient.invalidateQueries({ queryKey: ["workspace-projects", workspaceId] });
                 queryClient.invalidateQueries({ queryKey: ["workspace"] });
                 onEvent?.(event);

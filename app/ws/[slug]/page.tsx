@@ -33,8 +33,10 @@ import {
 import { WorkspaceService } from "@/app/services/workspace.service";
 import { ProjectService } from "@/app/services/ProjectService";
 import { ProfileService, type UserProfileResponse } from "@/app/services/profile.service";
+import InviteTableRow from "@/components/projects/InviteTableRow";
 import {
   type Workspace,
+  type WorkspaceInviteListItem,
   type WorkspaceMember,
   type WorkspaceRole,
 } from "@/app/types/workspace.schema";
@@ -322,7 +324,7 @@ function InviteWorkspaceMemberModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d1117]/45 px-4">
-      <div className="w-full max-w-md rounded-2xl border border-[#d0d7de] bg-white shadow-2xl">
+      <div className="w-full max-w-3xl rounded-2xl border border-[#d0d7de] bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-[#d8dee4] px-6 py-5">
           <div>
             <h3 className="text-lg font-semibold text-[#1f2328]">Thêm thành viên</h3>
@@ -340,16 +342,32 @@ function InviteWorkspaceMemberModal({
         </div>
 
         <div className="space-y-4 px-6 py-5">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-[#1f2328]">
-              Email
-            </label>
-            <input
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="name@example.com"
-              className="h-11 w-full rounded-xl border border-[#d0d7de] px-4 text-sm text-[#1f2328] outline-none transition placeholder:text-[#8c959f] focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
-            />
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[#1f2328]">
+                Email
+              </label>
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="name@example.com"
+                className="h-11 w-full rounded-xl border border-[#d0d7de] px-4 text-sm text-[#1f2328] outline-none transition placeholder:text-[#8c959f] focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[#1f2328]">
+                Vai trò
+              </label>
+              <select
+                value={role}
+                onChange={(event) => setRole(event.target.value as "ADMIN" | "MEMBER")}
+                className="h-11 w-full rounded-xl border border-[#d0d7de] px-4 text-sm text-[#1f2328] outline-none transition focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
+              >
+                <option value="MEMBER">Member</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            </div>
           </div>
 
           {isValidEmail && (
@@ -360,53 +378,58 @@ function InviteWorkspaceMemberModal({
                   Checking account and profile skills...
                 </div>
               ) : inviteePreviewQuery.data?.existsInSystem ? (
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex min-w-0 items-center gap-3">
-                    {inviteePreviewQuery.data.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={inviteePreviewQuery.data.avatarUrl}
-                        alt={inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email}
-                        className="h-11 w-11 rounded-full border border-[#d0d7de] object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d0d7de] bg-white text-sm font-semibold text-[#57606a]">
-                        {getInitials(inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email)}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-[#1f2328]">
-                        {inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email}
-                      </div>
-                      <div className="truncate text-xs text-[#57606a]">
-                        {inviteePreviewQuery.data.email}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="md:max-w-[55%]">
-                    <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#57606a]">
-                      Profile skills
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {inviteePreviewQuery.data.skillTags.length > 0 ? (
-                        inviteePreviewQuery.data.skillTags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full border border-[#b6e3ff] bg-[#ddf4ff] px-2 py-0.5 text-[11px] font-semibold text-[#0969da]"
-                          >
-                            {tag}
-                          </span>
-                        ))
+                <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+                  <div className="rounded-xl border border-[#d8dee4] bg-white p-4">
+                    <div className="flex items-center gap-3">
+                      {inviteePreviewQuery.data.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={inviteePreviewQuery.data.avatarUrl}
+                          alt={inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email}
+                          className="h-12 w-12 rounded-full border border-[#d0d7de] object-cover"
+                        />
                       ) : (
-                        <span className="text-xs text-[#57606a]">
-                          This user has no profile skills yet.
-                        </span>
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#d0d7de] bg-white text-sm font-semibold text-[#57606a]">
+                          {getInitials(inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email)}
+                        </div>
                       )}
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-[#1f2328]">
+                          {inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email}
+                        </div>
+                        <div className="truncate text-xs text-[#57606a]">
+                          {inviteePreviewQuery.data.email}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#57606a]">
+                        Profile skills
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {inviteePreviewQuery.data.skillTags.length > 0 ? (
+                          inviteePreviewQuery.data.skillTags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full border border-[#b6e3ff] bg-[#ddf4ff] px-2 py-0.5 text-[11px] font-semibold text-[#0969da]"
+                            >
+                              {tag}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-[#57606a]">
+                            This user has no profile skills yet.
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="rounded-xl border border-[#d8dee4] bg-white p-4">
+                    <div className="mb-3 text-[11px] font-bold uppercase tracking-wide text-[#57606a]">
+                      Workspace skill setup
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
@@ -434,53 +457,59 @@ function InviteWorkspaceMemberModal({
                       </button>
                     </div>
 
-                    {skillMode === "custom" && (
-                      <div className="space-y-3">
-                        <div className="flex gap-2">
-                          <input
-                            value={skillInput}
-                            onChange={(event) => setSkillInput(event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                addCustomSkill();
-                              }
-                            }}
-                            placeholder="Add a skill"
-                            className="h-10 flex-1 rounded-xl border border-[#d0d7de] bg-white px-4 text-sm text-[#1f2328] outline-none transition placeholder:text-[#8c959f] focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
-                          />
-                          <button
-                            type="button"
-                            onClick={addCustomSkill}
-                            disabled={!skillInput.trim()}
-                            className="rounded-xl border border-[#d0d7de] bg-white px-3 text-sm font-semibold text-[#1f2328] transition hover:bg-[#f6f8fa] disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Add
-                          </button>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {customSkills.length > 0 ? customSkills.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center gap-1 rounded-full bg-[#1f2328] px-2 py-0.5 text-[11px] font-semibold text-white"
+                    <div className="mt-4 space-y-3">
+                      {skillMode === "custom" ? (
+                        <>
+                          <div className="flex gap-2">
+                            <input
+                              value={skillInput}
+                              onChange={(event) => setSkillInput(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  addCustomSkill();
+                                }
+                              }}
+                              placeholder="Add a skill"
+                              className="h-10 flex-1 rounded-xl border border-[#d0d7de] bg-white px-4 text-sm text-[#1f2328] outline-none transition placeholder:text-[#8c959f] focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
+                            />
+                            <button
+                              type="button"
+                              onClick={addCustomSkill}
+                              disabled={!skillInput.trim()}
+                              className="rounded-xl border border-[#d0d7de] bg-white px-4 text-sm font-semibold text-[#1f2328] transition hover:bg-[#f6f8fa] disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {tag}
-                              <button type="button" onClick={() => removeCustomSkill(tag)}>
-                                <X size={10} />
-                              </button>
-                            </span>
-                          )) : (
-                            <span className="text-xs text-[#57606a]">
-                              Leave empty to keep using profile skills.
-                            </span>
-                          )}
+                              Add
+                            </button>
+                          </div>
+                          <div className="flex min-h-9 flex-wrap gap-1.5">
+                            {customSkills.length > 0 ? customSkills.map((tag) => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center gap-1 rounded-full bg-[#1f2328] px-2 py-0.5 text-[11px] font-semibold text-white"
+                              >
+                                {tag}
+                                <button type="button" onClick={() => removeCustomSkill(tag)}>
+                                  <X size={10} />
+                                </button>
+                              </span>
+                            )) : (
+                              <span className="text-xs text-[#57606a]">
+                                Add the skills you want this member to use in this workspace.
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-[#d8dee4] bg-[#f6f8fa] px-4 py-3 text-sm text-[#57606a]">
+                          Workspace skills will inherit from this member&apos;s profile skills.
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 rounded-xl border border-[#d8dee4] bg-white p-4">
                   <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d0d7de] bg-white text-[#57606a]">
                     <Mail size={18} />
                   </div>
@@ -497,19 +526,6 @@ function InviteWorkspaceMemberModal({
             </div>
           )}
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-[#1f2328]">
-              Vai trò
-            </label>
-            <select
-              value={role}
-              onChange={(event) => setRole(event.target.value as "ADMIN" | "MEMBER")}
-              className="h-11 w-full rounded-xl border border-[#d0d7de] px-4 text-sm text-[#1f2328] outline-none transition focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
-            >
-              <option value="MEMBER">Member</option>
-              <option value="ADMIN">Admin</option>
-            </select>
-          </div>
         </div>
 
         <div className="flex justify-end gap-3 border-t border-[#d8dee4] px-6 py-4">
@@ -816,6 +832,7 @@ export default function WorkspaceDetailPage() {
   const [addingSkillToMemberId, setAddingSkillToMemberId] = useState<string | null>(null);
   const [newSkillText, setNewSkillText] = useState("");
   const [selectedMemberProfileId, setSelectedMemberProfileId] = useState<string | null>(null);
+  const [inviteStatusFilter, setInviteStatusFilter] = useState<string>("PENDING");
 
   const {
     data: workspaceResponse,
@@ -864,6 +881,9 @@ export default function WorkspaceDetailPage() {
     [membersResponse]
   );
 
+  const canManage = workspace?.role === "OWNER" || workspace?.role === "ADMIN";
+  const canManageMemberSkills = (userId: string) => canManage || currentUserId === userId;
+
   const {
     data: memberProfileResponse,
     isLoading: memberProfileLoading,
@@ -871,6 +891,12 @@ export default function WorkspaceDetailPage() {
     queryKey: ["workspace-member-profile", workspace?.id, selectedMemberProfileId],
     queryFn: () => WorkspaceService.getMemberProfile(workspace!.id, selectedMemberProfileId!),
     enabled: !!workspace?.id && !!selectedMemberProfileId,
+  });
+
+  const { data: invitesData } = useQuery({
+    queryKey: ["ws-invites", workspace?.id, inviteStatusFilter],
+    queryFn: () => WorkspaceService.getInvites(workspace!.id, { status: inviteStatusFilter, size: 50 }),
+    enabled: !!workspace?.id && canManage,
   });
 
   const filteredProjects = useMemo(() => {
@@ -907,9 +933,6 @@ export default function WorkspaceDetailPage() {
     );
   }, [allProjects]);
 
-  const canManage = workspace?.role === "OWNER" || workspace?.role === "ADMIN";
-  const canManageMemberSkills = (userId: string) => canManage || currentUserId === userId;
-
   useWorkspaceWebSocket(workspace?.id);
 
   const updateSkillMutation = useMutation({
@@ -941,6 +964,28 @@ export default function WorkspaceDetailPage() {
         error?.response?.data?.message ||
         "Không thể xóa thành viên khỏi workspace.";
       toast.error(message);
+    },
+  });
+
+  const revokeInviteMutation = useMutation({
+    mutationFn: (inviteId: string) => WorkspaceService.revokeInvite(workspace!.id, inviteId),
+    onSuccess: (data) => {
+      toast.success(data.message || "Đã thu hồi lời mời.");
+      queryClient.invalidateQueries({ queryKey: ["ws-invites", workspace?.id, inviteStatusFilter] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Không thể thu hồi lời mời.");
+    },
+  });
+
+  const resendInviteMutation = useMutation({
+    mutationFn: (inviteId: string) => WorkspaceService.resendInvite(workspace!.id, inviteId),
+    onSuccess: (data) => {
+      toast.success(data.message || "Đã gửi lại lời mời.");
+      queryClient.invalidateQueries({ queryKey: ["ws-invites", workspace?.id, inviteStatusFilter] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Không thể gửi lại lời mời.");
     },
   });
 
@@ -1271,52 +1316,48 @@ export default function WorkspaceDetailPage() {
         )}
 
         {activeTab === "members" && (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <main className="min-w-0">
-              <div className="mb-4 flex items-center justify-end gap-3">
+          <div className="space-y-6">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-100/80 px-6 py-3.5">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-bold text-slate-900">Thành viên workspace</h2>
+                  <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-600 shadow-sm">
+                    {members.length}
+                  </span>
+                </div>
                 {canManage && (
                   <button
                     type="button"
                     onClick={() => setShowInviteModal(true)}
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1d4ed8]"
+                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition-all shadow-lg shadow-blue-500/20 hover:bg-blue-700 active:scale-95"
                   >
-                    <Plus size={15} />
+                    <Plus size={16} strokeWidth={3} />
                     Thêm thành viên
                   </button>
                 )}
               </div>
-
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-100/80 px-6 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-bold text-slate-900">Thành viên workspace</h2>
-                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-600 shadow-sm">
-                      {members.length}
-                    </span>
-                  </div>
+              {membersLoading ? (
+                <div className="flex items-center justify-center px-6 py-16">
+                  <Loader2 size={24} className="animate-spin text-[#0969da]" />
                 </div>
-                {membersLoading ? (
-                  <div className="flex items-center justify-center px-6 py-16">
-                    <Loader2 size={24} className="animate-spin text-[#0969da]" />
-                  </div>
-                ) : members.length === 0 ? (
-                  <div className="px-6 py-16 text-center text-sm text-[#57606a]">
-                    Workspace này chưa có thành viên nào.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="border-b border-slate-100 bg-slate-50/30">
-                          <th className="px-6 py-4 text-xs font-bold text-slate-900">Tên</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-900">Email</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-900">Role</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-900">Skill</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-900">Ngày tham gia</th>
-                          <th className="px-6 py-4 text-center text-xs font-bold text-slate-900">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
+              ) : members.length === 0 ? (
+                <div className="px-6 py-16 text-center text-sm text-[#57606a]">
+                  Workspace này chưa có thành viên nào.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/30">
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Tên</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Email</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Role</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Skill</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Ngày tham gia</th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-900">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
                         {members.map((member) => (
                           <tr key={member.userId} className="group hover:bg-slate-50/50 transition-colors">
                             <td className="px-6 py-4">
@@ -1453,25 +1494,13 @@ export default function WorkspaceDetailPage() {
                   </div>
                 )}
               </div>
-            </main>
 
-            <aside className="space-y-4">
-              <SidebarCard
-                title="Tóm tắt đội ngũ"
-                action={
-                  canManage ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowInviteModal(true)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-[#d0d7de] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#24292f] transition hover:bg-[#f6f8fa]"
-                    >
-                      <Plus size={12} />
-                      Mời mới
-                    </button>
-                  ) : undefined
-                }
-              >
-                <div className="space-y-3 text-sm text-[#57606a]">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 bg-slate-100/80 px-6 py-3.5">
+                  <h3 className="font-bold text-slate-900">Tóm tắt đội ngũ</h3>
+                </div>
+                <div className="space-y-3 px-6 py-5 text-sm text-[#57606a]">
                   <div className="flex items-center justify-between">
                     <span>Tổng thành viên</span>
                     <span className="font-medium text-[#1f2328]">{workspace.memberCount}</span>
@@ -1495,14 +1524,15 @@ export default function WorkspaceDetailPage() {
                     </span>
                   </div>
                 </div>
-              </SidebarCard>
+              </div>
 
-              <SidebarCard title="Phân bổ kỹ năng">
-                <div className="flex flex-wrap gap-2">
-                  {Array.from(
-                    new Set(members.flatMap((member) => member.skillTags ?? []))
-                  )
-                    .slice(0, 8)
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 bg-slate-100/80 px-6 py-3.5">
+                  <h3 className="font-bold text-slate-900">Phân bổ kỹ năng</h3>
+                </div>
+                <div className="flex min-h-[92px] flex-wrap gap-2 px-6 py-5">
+                  {Array.from(new Set(members.flatMap((member) => member.skillTags ?? [])))
+                    .slice(0, 12)
                     .map((skill) => (
                       <span
                         key={skill}
@@ -1515,8 +1545,75 @@ export default function WorkspaceDetailPage() {
                     <span className="text-sm text-[#8c959f]">Chưa có skill được khai báo.</span>
                   )}
                 </div>
-              </SidebarCard>
-            </aside>
+              </div>
+            </div>
+
+            {canManage && (
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-100/80 px-6 py-3.5">
+                  <h3 className="font-bold text-slate-900">Lời mời</h3>
+                  <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                    {[
+                      { value: "PENDING", label: "Đang chờ" },
+                      { value: "ACCEPTED", label: "Đã chấp nhận" },
+                      { value: "DECLINED", label: "Đã từ chối" },
+                      { value: "EXPIRED", label: "Hết hạn" },
+                      { value: "REVOKED", label: "Đã thu hồi" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.value}
+                        onClick={() => setInviteStatusFilter(tab.value)}
+                        className={cn(
+                          "rounded-lg px-3 py-1 text-xs font-bold transition-all",
+                          inviteStatusFilter === tab.value
+                            ? "bg-blue-600 text-white shadow-sm"
+                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                        )}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/30">
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Email</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Role</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Người mời</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Thời gian gửi</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Hết hạn lúc</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Trạng thái</th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-900">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {invitesData && invitesData.invites.length > 0 ? (
+                        invitesData.invites.map((invite: WorkspaceInviteListItem) => (
+                          <InviteTableRow
+                            key={invite.id}
+                            invite={invite as any}
+                            onResend={(inviteId) => resendInviteMutation.mutate(inviteId)}
+                            onRevoke={(inviteId) => revokeInviteMutation.mutate(inviteId)}
+                            isResending={resendInviteMutation.isPending}
+                            isRevoking={revokeInviteMutation.isPending}
+                            resendingId={resendInviteMutation.variables}
+                            revokingId={revokeInviteMutation.variables}
+                          />
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-10 text-center font-medium italic text-slate-400">
+                            Không có lời mời nào
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
