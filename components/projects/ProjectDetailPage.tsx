@@ -300,35 +300,101 @@ function ProjectHeader({ project, activeTab, onTabChange }: { project: Project; 
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function normalizeSkillTags(skillTags: string[]) {
+    return Array.from(
+        new Set(
+            skillTags
+                .map((tag) => tag.trim())
+                .filter(Boolean)
+        )
+    ).slice(0, 20);
+}
+
 function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen: boolean; onClose: () => void; projectId: string; initialEmail?: string; }) {
     const { t } = useTranslation()
     const [email, setEmail] = useState(initialEmail);
     const [role, setRole] = useState<"MEMBER" | "VIEWER" | "">("");
     const [emailError, setEmailError] = useState<string | null>(null);
+    const [debouncedEmail, setDebouncedEmail] = useState(initialEmail.trim().toLowerCase());
+    const [skillMode, setSkillMode] = useState<"profile" | "custom">("profile");
+    const [customSkills, setCustomSkills] = useState<string[]>([]);
+    const [skillInput, setSkillInput] = useState("");
     const queryClient = useQueryClient();
     useEffect(() => {
         if (!isOpen) return;
         setEmail(initialEmail);
         setEmailError(null);
+        setDebouncedEmail(initialEmail.trim().toLowerCase());
+        setSkillMode("profile");
+        setCustomSkills([]);
+        setSkillInput("");
     }, [isOpen, initialEmail]);
     const normalizedEmail = email.trim();
     const emailHasValue = normalizedEmail.length > 0;
     const isValidEmail = EMAIL_REGEX.test(normalizedEmail);
     const showEmailError = emailHasValue && !isValidEmail;
+
+    useEffect(() => {
+        const handle = window.setTimeout(() => {
+            setDebouncedEmail(normalizedEmail.toLowerCase());
+        }, 250);
+        return () => window.clearTimeout(handle);
+    }, [normalizedEmail]);
+
+    const inviteePreviewQuery = useQuery({
+        queryKey: ["invite-preview", debouncedEmail],
+        queryFn: () => ProfileService.getInviteePreview(debouncedEmail),
+        enabled: isOpen && isValidEmail,
+        staleTime: 30_000,
+    });
+
+    useEffect(() => {
+        const preview = inviteePreviewQuery.data;
+        if (!preview || !isOpen) return;
+        if (preview.existsInSystem && preview.skillTags.length > 0) {
+            setSkillMode("profile");
+            setCustomSkills([]);
+            return;
+        }
+        setSkillMode("custom");
+    }, [inviteePreviewQuery.data, isOpen]);
+
+    const preview = inviteePreviewQuery.data;
     const canSubmit = isValidEmail && !!role;
+
+    const addCustomSkill = () => {
+        const next = normalizeSkillTags([...customSkills, skillInput]);
+        setCustomSkills(next);
+        setSkillInput("");
+    };
+
+    const removeCustomSkill = (skill: string) => {
+        setCustomSkills((current) => current.filter((item) => item !== skill));
+    };
+
     const inviteMutation = useMutation({
         mutationFn: () =>
             ProjectMemberService.inviteMember(projectId, {
                 email: normalizedEmail,
                 role: role as "MEMBER" | "VIEWER",
+                skillTags: preview?.existsInSystem
+                    ? (skillMode === "custom" ? customSkills : undefined)
+                    : customSkills,
             }),
-        onSuccess: () => {
+        onSuccess: ({ data }) => {
             queryClient.invalidateQueries({ queryKey: ["project-pending-invites", projectId] });
             queryClient.invalidateQueries({ queryKey: ["project-members", projectId] });
-            toast.success(`Đã gửi lời mời đến ${normalizedEmail}`);
+            toast.success(
+                data.isNewUser
+                    ? `Đã gửi email mời đến ${normalizedEmail}`
+                    : `Đã gửi lời mời realtime và email đến ${normalizedEmail}`
+            );
             setEmail("");
             setRole("");
             setEmailError(null);
+            setCustomSkills([]);
+            setSkillMode("profile");
+            setSkillInput("");
             onClose();
         },
         onError: (error: any) => {
@@ -366,6 +432,183 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                         <p className="mt-1 text-xs font-medium text-red-500">{emailError || "Email không đúng định dạng"}</p>
                     )}
                 </div>
+                {isValidEmail && (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                        {inviteePreviewQuery.isLoading ? (
+                            <div className="flex items-center gap-3 text-sm text-slate-500">
+                                <Loader2 size={16} className="animate-spin" />
+                                Đang kiểm tra tài khoản và skills...
+                            </div>
+                        ) : preview?.existsInSystem ? (
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <UserAvatar
+                                        name={preview.fullName || preview.email}
+                                        src={preview.avatarUrl || undefined}
+                                        size="md"
+                                        className="h-11 w-11 rounded-full border border-slate-200"
+                                    />
+                                    <div className="min-w-0">
+                                        <div className="truncate text-sm font-bold text-slate-900">
+                                            {preview.fullName || preview.email}
+                                        </div>
+                                        <div className="truncate text-xs text-slate-500">{preview.email}</div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        Profile skills
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {preview.skillTags.length > 0 ? preview.skillTags.map((skill) => (
+                                            <span
+                                                key={skill}
+                                                className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700"
+                                            >
+                                                {skill}
+                                            </span>
+                                        )) : (
+                                            <span className="text-xs text-slate-500">
+                                                Người dùng này chưa khai báo skill trên profile.
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSkillMode("profile")}
+                                            className={cn(
+                                                "rounded-xl border px-3 py-2 text-left text-sm font-semibold transition",
+                                                skillMode === "profile"
+                                                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                                                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                                            )}
+                                        >
+                                            Use profile skills
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSkillMode("custom")}
+                                            className={cn(
+                                                "rounded-xl border px-3 py-2 text-left text-sm font-semibold transition",
+                                                skillMode === "custom"
+                                                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                                                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                                            )}
+                                        >
+                                            Set project skills
+                                        </button>
+                                    </div>
+
+                                    {skillMode === "custom" && (
+                                        <div className="space-y-3">
+                                            <div className="flex gap-2">
+                                                <InputStyled
+                                                    value={skillInput}
+                                                    onChange={(e: any) => setSkillInput(e.target.value)}
+                                                    onKeyDown={(e: any) => {
+                                                        if (e.key === "Enter") {
+                                                            e.preventDefault();
+                                                            addCustomSkill();
+                                                        }
+                                                    }}
+                                                    placeholder="Add a project skill"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={addCustomSkill}
+                                                    disabled={!skillInput.trim()}
+                                                    className="rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {customSkills.length > 0 ? customSkills.map((skill) => (
+                                                    <span
+                                                        key={skill}
+                                                        className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white"
+                                                    >
+                                                        {skill}
+                                                        <button type="button" onClick={() => removeCustomSkill(skill)}>
+                                                            <X size={10} />
+                                                        </button>
+                                                    </span>
+                                                )) : (
+                                                    <span className="text-xs text-slate-500">
+                                                        Nếu để trống, hệ thống sẽ fallback về skills trên profile.
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500">
+                                        <Mail size={18} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="truncate text-sm font-bold text-slate-900">{normalizedEmail}</div>
+                                        <div className="text-xs text-slate-500">
+                                            Chưa có tài khoản trong hệ thống. Email mời sẽ được gửi ngay.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                        Skills for this invite
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <InputStyled
+                                            value={skillInput}
+                                            onChange={(e: any) => setSkillInput(e.target.value)}
+                                            onKeyDown={(e: any) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    addCustomSkill();
+                                                }
+                                            }}
+                                            placeholder="Add a skill"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={addCustomSkill}
+                                            disabled={!skillInput.trim()}
+                                            className="rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            Add
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {customSkills.length > 0 ? customSkills.map((skill) => (
+                                            <span
+                                                key={skill}
+                                                className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white"
+                                            >
+                                                {skill}
+                                                <button type="button" onClick={() => removeCustomSkill(skill)}>
+                                                    <X size={10} />
+                                                </button>
+                                            </span>
+                                        )) : (
+                                            <span className="text-xs text-slate-500">
+                                                PM có thể gắn sẵn skill cho lời mời này để dùng khi người được mời tham gia dự án.
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div><FieldLabel>Vai trò</FieldLabel><div className="grid grid-cols-1 gap-2">
                     {([
                         { id: "MEMBER" as const, label: "Thành viên", desc: "Tạo và sửa task, kéo thả Kanban, bình luận, tải tệp" },

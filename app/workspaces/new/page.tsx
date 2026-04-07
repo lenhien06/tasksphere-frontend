@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { ProfileService } from "@/app/services/profile.service";
 import { WorkspaceService } from "@/app/services/workspace.service";
 import { CreateWorkspaceRequest, WorkspaceRole } from "@/app/types/workspace.schema";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -47,6 +48,23 @@ interface PendingMember {
   email: string;
   role: WorkspaceRole;
   skillTags: string[];
+  existsInSystem: boolean;
+  useProfileSkills: boolean;
+  fullName?: string | null;
+  avatarUrl?: string | null;
+  profileSkillTags: string[];
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function normalizeSkillTags(skillTags: string[]) {
+  return Array.from(
+    new Set(
+      skillTags
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+    )
+  ).slice(0, 20);
 }
 
 function generateSlug(name: string): string {
@@ -87,6 +105,8 @@ export default function WorkspaceCreatePage() {
   const [skillInput, setSkillInput] = useState("");
   const [inviteSkills, setInviteSkills] = useState<string[]>([]);
   const [inviteEmailError, setInviteEmailError] = useState("");
+  const [debouncedInviteEmail, setDebouncedInviteEmail] = useState("");
+  const [skillMode, setSkillMode] = useState<"profile" | "custom">("profile");
 
   const ownerLabel =
     currentUser?.fullName?.trim() ||
@@ -120,6 +140,35 @@ export default function WorkspaceCreatePage() {
     () => workspaceSlug || generateSlug(workspaceName),
     [workspaceName, workspaceSlug]
   );
+  const normalizedInviteEmail = inviteEmail.trim().toLowerCase();
+  const isValidInviteEmail = EMAIL_REGEX.test(normalizedInviteEmail);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedInviteEmail(normalizedInviteEmail);
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [normalizedInviteEmail]);
+
+  const inviteePreviewQuery = useQuery({
+    queryKey: ["invite-preview", debouncedInviteEmail],
+    queryFn: () => ProfileService.getInviteePreview(debouncedInviteEmail),
+    enabled: isValidInviteEmail,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    const preview = inviteePreviewQuery.data;
+    if (!preview) return;
+    if (preview.existsInSystem && preview.skillTags.length > 0) {
+      setSkillMode("profile");
+      setInviteSkills([]);
+      return;
+    }
+    if (preview.existsInSystem) {
+      setSkillMode("custom");
+    }
+  }, [inviteePreviewQuery.data]);
 
   const handleNameChange = (value: string) => {
     setValue("name", value, { shouldValidate: true, shouldDirty: true });
@@ -130,9 +179,8 @@ export default function WorkspaceCreatePage() {
   };
 
   const addSkill = () => {
-    const trimmed = skillInput.trim();
-    if (!trimmed || inviteSkills.includes(trimmed)) return;
-    setInviteSkills((current) => [...current, trimmed]);
+    const next = normalizeSkillTags([...inviteSkills, skillInput]);
+    setInviteSkills(next);
     setSkillInput("");
   };
 
@@ -141,24 +189,37 @@ export default function WorkspaceCreatePage() {
   };
 
   const addMember = () => {
-    const normalizedEmail = inviteEmail.trim().toLowerCase();
-    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    if (!normalizedInviteEmail || !EMAIL_REGEX.test(normalizedInviteEmail)) {
       setInviteEmailError("Please enter a valid email address.");
       return;
     }
-    if (members.some((member) => member.email === normalizedEmail)) {
+    if (members.some((member) => member.email === normalizedInviteEmail)) {
       setInviteEmailError("This email has already been added.");
       return;
     }
 
+    const preview = inviteePreviewQuery.data;
     setMembers((current) => [
       ...current,
-      { email: normalizedEmail, role: inviteRole, skillTags: inviteSkills },
+      {
+        email: normalizedInviteEmail,
+        role: inviteRole,
+        skillTags: preview?.existsInSystem
+          ? (skillMode === "custom" ? inviteSkills : [])
+          : [],
+        existsInSystem: Boolean(preview?.existsInSystem),
+        useProfileSkills: Boolean(preview?.existsInSystem && skillMode === "profile"),
+        fullName: preview?.fullName,
+        avatarUrl: preview?.avatarUrl,
+        profileSkillTags: preview?.skillTags ?? [],
+      },
     ]);
     setInviteEmail("");
     setInviteSkills([]);
     setSkillInput("");
     setInviteEmailError("");
+    setDebouncedInviteEmail("");
+    setSkillMode("profile");
   };
 
   const removeMember = (email: string) => {
@@ -184,7 +245,7 @@ export default function WorkspaceCreatePage() {
           WorkspaceService.inviteMember(createdWorkspace.id, {
             email: member.email,
             role: member.role as "ADMIN" | "MEMBER",
-            skillTags: member.skillTags,
+            skillTags: member.existsInSystem && member.useProfileSkills ? undefined : member.skillTags,
           })
         )
       );
@@ -398,6 +459,78 @@ export default function WorkspaceCreatePage() {
                         ) : null}
                       </div>
 
+                      {isValidInviteEmail ? (
+                        <div className="rounded-xl border border-[#D8DEE4] bg-[#F6F8FA] p-4">
+                          {inviteePreviewQuery.isLoading ? (
+                            <div className="flex items-center gap-2 text-sm text-[#57606A]">
+                              <Loader2 size={15} className="animate-spin" />
+                              Checking account and profile skills...
+                            </div>
+                          ) : inviteePreviewQuery.data?.existsInSystem ? (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-3">
+                                {inviteePreviewQuery.data.avatarUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={inviteePreviewQuery.data.avatarUrl}
+                                    alt={inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email}
+                                    className="h-11 w-11 rounded-full border border-[#D0D7DE] object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#D0D7DE] bg-white text-sm font-semibold text-[#57606A]">
+                                    {(inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email).slice(0, 2).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-[#24292F]">
+                                    {inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email}
+                                  </p>
+                                  <p className="truncate text-xs text-[#57606A]">
+                                    {inviteePreviewQuery.data.email}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#57606A]">
+                                  Profile skills
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {inviteePreviewQuery.data.skillTags.length > 0 ? (
+                                    inviteePreviewQuery.data.skillTags.map((tag) => (
+                                      <span
+                                        key={tag}
+                                        className="rounded-full border border-[#B6E3FF] bg-[#DDF4FF] px-2 py-0.5 text-[11px] font-semibold text-[#0969DA]"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="text-xs text-[#57606A]">
+                                      This user has no profile skills yet.
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#D0D7DE] bg-white text-[#57606A]">
+                                <Mail size={18} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-[#24292F]">
+                                  {normalizedInviteEmail}
+                                </p>
+                                <p className="text-xs text-[#57606A]">
+                                  No existing account found. We will send an email immediately, and this person will appear in the workspace after they join the system.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+
                       <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
                         <div>
                           <label className="mb-2 block text-sm font-semibold text-[#24292F]">Role</label>
@@ -425,46 +558,89 @@ export default function WorkspaceCreatePage() {
                           <label className="mb-2 block text-sm font-semibold text-[#24292F]">
                             Skill tags
                           </label>
-                          <div className="flex gap-2">
-                            <input
-                              value={skillInput}
-                              onChange={(event) => setSkillInput(event.target.value)}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  addSkill();
-                                }
-                              }}
-                              className="h-11 flex-1 rounded-md border border-[#D0D7DE] bg-white px-3 text-sm text-[#24292F] shadow-sm outline-none transition focus:border-[#0969DA] focus:ring-4 focus:ring-[#0969DA]/10"
-                              placeholder="React, Java, Product..."
-                            />
-                            <button
-                              type="button"
-                              onClick={addSkill}
-                              className="inline-flex h-11 items-center justify-center rounded-md border border-[#D0D7DE] bg-white px-4 text-sm font-semibold text-[#24292F] shadow-sm transition hover:bg-[#F6F8FA]"
-                            >
-                              Add
-                            </button>
-                          </div>
-
-                          {inviteSkills.length > 0 ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {inviteSkills.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="inline-flex items-center gap-1 rounded-full border border-[#B6E3FF] bg-[#DDF4FF] px-2.5 py-1 text-xs font-medium text-[#0969DA]"
+                          {inviteePreviewQuery.data?.existsInSystem ? (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setSkillMode("profile")}
+                                  className={cn(
+                                    "rounded-md border px-3 py-2 text-left text-sm font-semibold transition",
+                                    skillMode === "profile"
+                                      ? "border-[#0969DA] bg-[#F6F8FA] ring-2 ring-[#0969DA]/10 text-[#0969DA]"
+                                      : "border-[#D8DEE4] bg-white text-[#24292F] hover:border-[#0969DA]/40"
+                                  )}
                                 >
-                                  <Tag size={12} />
-                                  {tag}
-                                  <button type="button" onClick={() => removeSkill(tag)}>
-                                    <X size={12} className="hover:text-[#D1242F]" />
-                                  </button>
-                                </span>
-                              ))}
+                                  Use profile skills
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSkillMode("custom")}
+                                  className={cn(
+                                    "rounded-md border px-3 py-2 text-left text-sm font-semibold transition",
+                                    skillMode === "custom"
+                                      ? "border-[#0969DA] bg-[#F6F8FA] ring-2 ring-[#0969DA]/10 text-[#0969DA]"
+                                      : "border-[#D8DEE4] bg-white text-[#24292F] hover:border-[#0969DA]/40"
+                                  )}
+                                >
+                                  Set workspace skills
+                                </button>
+                              </div>
+
+                              {skillMode === "custom" ? (
+                                <>
+                                  <div className="flex gap-2">
+                                    <input
+                                      value={skillInput}
+                                      onChange={(event) => setSkillInput(event.target.value)}
+                                      onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                          event.preventDefault();
+                                          addSkill();
+                                        }
+                                      }}
+                                      className="h-11 flex-1 rounded-md border border-[#D0D7DE] bg-white px-3 text-sm text-[#24292F] shadow-sm outline-none transition focus:border-[#0969DA] focus:ring-4 focus:ring-[#0969DA]/10"
+                                      placeholder="React, Java, Product..."
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={addSkill}
+                                      className="inline-flex h-11 items-center justify-center rounded-md border border-[#D0D7DE] bg-white px-4 text-sm font-semibold text-[#24292F] shadow-sm transition hover:bg-[#F6F8FA]"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+
+                                  {inviteSkills.length > 0 ? (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      {inviteSkills.map((tag) => (
+                                        <span
+                                          key={tag}
+                                          className="inline-flex items-center gap-1 rounded-full border border-[#B6E3FF] bg-[#DDF4FF] px-2.5 py-1 text-xs font-medium text-[#0969DA]"
+                                        >
+                                          <Tag size={12} />
+                                          {tag}
+                                          <button type="button" onClick={() => removeSkill(tag)}>
+                                            <X size={12} className="hover:text-[#D1242F]" />
+                                          </button>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="mt-2 text-xs text-[#57606A]">
+                                      Leave empty to keep using the member's profile skills.
+                                    </p>
+                                  )}
+                                </>
+                              ) : (
+                                <p className="text-xs text-[#57606A]">
+                                  If you do not add custom skills, TaskSphere will use this member's profile skills in the workspace.
+                                </p>
+                              )}
                             </div>
                           ) : (
                             <p className="mt-2 text-xs text-[#57606A]">
-                              Optional. Add skills to help organize member capabilities later.
+                              External email invitations do not use internal profile skills yet.
                             </p>
                           )}
                         </div>
@@ -498,17 +674,35 @@ export default function WorkspaceCreatePage() {
                             key={member.email}
                             className="flex items-start gap-3 rounded-lg border border-[#D8DEE4] bg-[#F6F8FA] px-4 py-3"
                           >
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D8DEE4] bg-white text-sm font-semibold text-[#24292F]">
-                              {member.email[0].toUpperCase()}
-                            </div>
+                            {member.existsInSystem && member.avatarUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={member.avatarUrl}
+                                alt={member.fullName || member.email}
+                                className="h-10 w-10 shrink-0 rounded-full border border-[#D8DEE4] object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D8DEE4] bg-white text-sm font-semibold text-[#24292F]">
+                                {member.existsInSystem ? (member.fullName || member.email)[0].toUpperCase() : <Mail size={16} className="text-[#57606A]" />}
+                              </div>
+                            )}
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold text-[#24292F]">{member.email}</p>
+                              <p className="truncate text-sm font-semibold text-[#24292F]">
+                                {member.existsInSystem ? member.fullName || member.email : member.email}
+                              </p>
+                              {member.existsInSystem ? (
+                                <p className="truncate text-xs text-[#57606A]">{member.email}</p>
+                              ) : (
+                                <p className="truncate text-xs text-[#57606A]">
+                                  External invite. Email will be sent immediately.
+                                </p>
+                              )}
                               <div className="mt-1 flex flex-wrap items-center gap-2">
                                 <span className="inline-flex items-center gap-1 rounded-full border border-[#D8DEE4] bg-white px-2 py-0.5 text-xs font-medium text-[#57606A]">
                                   <Shield size={12} />
                                   {member.role}
                                 </span>
-                                {member.skillTags.map((tag) => (
+                                {(member.useProfileSkills ? member.profileSkillTags : member.skillTags).map((tag) => (
                                   <span
                                     key={tag}
                                     className="rounded-full border border-[#B6E3FF] bg-[#DDF4FF] px-2 py-0.5 text-xs font-medium text-[#0969DA]"
@@ -516,6 +710,12 @@ export default function WorkspaceCreatePage() {
                                     {tag}
                                   </span>
                                 ))}
+                                {member.existsInSystem && member.useProfileSkills ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-[#D8DEE4] bg-white px-2 py-0.5 text-xs font-medium text-[#57606A]">
+                                    <Check size={12} />
+                                    Profile skills
+                                  </span>
+                                ) : null}
                               </div>
                             </div>
                             <button
@@ -541,25 +741,23 @@ export default function WorkspaceCreatePage() {
                 </div>
               </section>
 
-              <div className="rounded-xl border border-[#D8DEE4] bg-white p-5 shadow-sm">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
-                  <div className="flex flex-col-reverse gap-3 sm:flex-row">
-                    <button
-                      type="button"
-                      onClick={() => router.push("/workspaces")}
-                      className="inline-flex h-10 items-center justify-center rounded-md border border-[#D0D7DE] bg-white px-4 text-sm font-semibold text-[#24292F] shadow-sm transition hover:bg-[#F6F8FA]"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={!workspaceName.trim() || !isValid || members.length === 0 || createMutation.isPending}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#1677FF] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0958D9] disabled:cursor-not-allowed disabled:bg-[#91CAFF]"
-                    >
-                      {createMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
-                      Create workspace
-                    </button>
-                  </div>
+              <div className="flex justify-end pt-2">
+                <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/workspaces")}
+                    className="inline-flex h-10 items-center justify-center rounded-md border border-[#D0D7DE] bg-white px-4 text-sm font-semibold text-[#24292F] shadow-sm transition hover:bg-[#F6F8FA]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!workspaceName.trim() || !isValid || members.length === 0 || createMutation.isPending}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#1677FF] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0958D9] disabled:cursor-not-allowed disabled:bg-[#91CAFF]"
+                  >
+                    {createMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
+                    Create workspace
+                  </button>
                 </div>
               </div>
             </form>

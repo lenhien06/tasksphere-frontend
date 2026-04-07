@@ -5,6 +5,7 @@ import {
   WorkspaceMember,
   CreateWorkspaceRequest,
   InviteMemberRequest,
+  WorkspaceInviteResponse,
 } from "@/app/types/workspace.schema";
 
 export const WorkspaceService = {
@@ -59,7 +60,7 @@ export const WorkspaceService = {
 
   /** Mời thành viên vào workspace. */
   inviteMember: async (wsId: string, data: InviteMemberRequest) => {
-    const response = await apiJava.post<ApiResponse<WorkspaceMember>>(
+    const response = await apiJava.post<ApiResponse<WorkspaceInviteResponse>>(
       `/v1/workspaces/${wsId}/members`,
       data
     );

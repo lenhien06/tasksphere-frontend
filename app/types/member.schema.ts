@@ -13,6 +13,7 @@ export type InviteStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED" | "RE
 export const InviteMemberSchema = z.object({
   email: z.string().email("Invalid email address"),
   role: z.enum(["MEMBER", "VIEWER"]).default("MEMBER"),
+  skillTags: z.array(z.string()).optional(),
 });
 
 export type InviteMemberRequest = z.infer<typeof InviteMemberSchema>;

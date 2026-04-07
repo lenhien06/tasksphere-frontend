@@ -1,26 +1,38 @@
 "use client";
 
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   ArrowUpRight,
   Building2,
   CalendarClock,
+  Eye,
   FolderKanban,
   Globe,
   Landmark,
   Loader2,
   Lock,
+  MoreHorizontal,
+  Mail,
   Plus,
   Search,
   Settings,
   Sparkles,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { WorkspaceService } from "@/app/services/workspace.service";
 import { ProjectService } from "@/app/services/ProjectService";
+import { ProfileService } from "@/app/services/profile.service";
 import {
   type Workspace,
   type WorkspaceMember,
@@ -30,6 +42,7 @@ import { type Project } from "@/app/types/project..schema";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 const ROLE_STYLES: Record<WorkspaceRole, string> = {
   OWNER: "border-[#fff1c2] bg-[#fff8c5] text-[#9a6700]",
@@ -69,6 +82,23 @@ const STATUS_STYLES: Record<Project["status"], string> = {
   deleted: "bg-[#ffebe9] text-[#cf222e]",
 };
 
+const WORKSPACE_SKILL_COLORS: Record<string, string> = {
+  React: "bg-emerald-500 text-white",
+  "Vue.js": "bg-blue-500 text-white",
+  Python: "bg-blue-600 text-white",
+  Django: "bg-emerald-700 text-white",
+  Linux: "bg-purple-600 text-white",
+  AWS: "bg-orange-500 text-white",
+  Selenium: "bg-red-500 text-white",
+  JMeter: "bg-yellow-500 text-white",
+  Scrum: "bg-cyan-500 text-white",
+  Jira: "bg-fuchsia-500 text-white",
+  SQL: "bg-blue-600 text-white",
+  Tableau: "bg-purple-600 text-white",
+  "Node.js": "bg-emerald-500 text-white",
+  MongoDB: "bg-orange-500 text-white",
+};
+
 function getInitials(name?: string | null) {
   return (name && typeof name === "string" ? name.slice(0, 2) : "WS").toUpperCase();
 }
@@ -82,6 +112,18 @@ function formatDateLabel(value?: string | null) {
     month: "short",
     year: "numeric",
   }).format(parsed);
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function normalizeSkillTags(skillTags: string[]) {
+  return Array.from(
+    new Set(
+      skillTags
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+    )
+  ).slice(0, 20);
 }
 
 function ProjectRow({
@@ -184,19 +226,88 @@ function InviteWorkspaceMemberModal({
   const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
+  const [debouncedEmail, setDebouncedEmail] = useState("");
+  const [skillMode, setSkillMode] = useState<"profile" | "custom">("profile");
+  const [customSkills, setCustomSkills] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState("");
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const isValidEmail = EMAIL_REGEX.test(normalizedEmail);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedEmail(normalizedEmail);
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [normalizedEmail]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setEmail("");
+      setRole("MEMBER");
+      setDebouncedEmail("");
+      setSkillMode("profile");
+      setCustomSkills([]);
+      setSkillInput("");
+    }
+  }, [isOpen]);
+
+  const inviteePreviewQuery = useQuery({
+    queryKey: ["invite-preview", debouncedEmail],
+    queryFn: () => ProfileService.getInviteePreview(debouncedEmail),
+    enabled: isOpen && isValidEmail,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    const preview = inviteePreviewQuery.data;
+    if (!preview || !isOpen) return;
+    if (preview.existsInSystem && preview.skillTags.length > 0) {
+      setSkillMode("profile");
+      setCustomSkills([]);
+      return;
+    }
+    if (preview.existsInSystem) {
+      setSkillMode("custom");
+    }
+  }, [inviteePreviewQuery.data, isOpen]);
+
+  const addCustomSkill = () => {
+    const next = normalizeSkillTags([...customSkills, skillInput]);
+    setCustomSkills(next);
+    setSkillInput("");
+  };
+
+  const removeCustomSkill = (skill: string) => {
+    setCustomSkills((current) => current.filter((item) => item !== skill));
+  };
 
   const inviteMutation = useMutation({
     mutationFn: () =>
       WorkspaceService.inviteMember(workspaceId, {
-        email: email.trim(),
+        email: normalizedEmail,
         role,
+        skillTags: inviteePreviewQuery.data?.existsInSystem
+          ? (skillMode === "custom" ? customSkills : undefined)
+          : undefined,
       }),
-    onSuccess: () => {
-      toast.success("Đã thêm thành viên vào workspace");
-      queryClient.invalidateQueries({ queryKey: ["ws-members", workspaceId] });
+    onSuccess: (response) => {
+      const payload = response.data;
+      toast.success(
+        payload.addedToWorkspace
+          ? "Thành viên đã được thêm và email đã được gửi ngay."
+          : "Email mời đã được gửi ngay cho người chưa có tài khoản."
+      );
+      if (payload.addedToWorkspace) {
+        queryClient.invalidateQueries({ queryKey: ["ws-members", workspaceId] });
+      }
       queryClient.invalidateQueries({ queryKey: ["workspace"] });
       setEmail("");
       setRole("MEMBER");
+      setDebouncedEmail("");
+      setSkillMode("profile");
+      setCustomSkills([]);
+      setSkillInput("");
       onClose();
     },
     onError: (error: unknown) => {
@@ -240,6 +351,151 @@ function InviteWorkspaceMemberModal({
             />
           </div>
 
+          {isValidEmail && (
+            <div className="rounded-2xl border border-[#d8dee4] bg-[#f6f8fa] p-4">
+              {inviteePreviewQuery.isLoading ? (
+                <div className="flex items-center gap-2 text-sm text-[#57606a]">
+                  <Loader2 size={15} className="animate-spin" />
+                  Checking account and profile skills...
+                </div>
+              ) : inviteePreviewQuery.data?.existsInSystem ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    {inviteePreviewQuery.data.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={inviteePreviewQuery.data.avatarUrl}
+                        alt={inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email}
+                        className="h-11 w-11 rounded-full border border-[#d0d7de] object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d0d7de] bg-white text-sm font-semibold text-[#57606a]">
+                        {getInitials(inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-[#1f2328]">
+                        {inviteePreviewQuery.data.fullName || inviteePreviewQuery.data.email}
+                      </div>
+                      <div className="truncate text-xs text-[#57606a]">
+                        {inviteePreviewQuery.data.email}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#57606a]">
+                      Profile skills
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {inviteePreviewQuery.data.skillTags.length > 0 ? (
+                        inviteePreviewQuery.data.skillTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full border border-[#b6e3ff] bg-[#ddf4ff] px-2 py-0.5 text-[11px] font-semibold text-[#0969da]"
+                          >
+                            {tag}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-[#57606a]">
+                          This user has no profile skills yet.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSkillMode("profile")}
+                        className={cn(
+                          "rounded-xl border px-3 py-2 text-left text-sm font-semibold transition",
+                          skillMode === "profile"
+                            ? "border-[#0969da] bg-[#ddf4ff] text-[#0969da]"
+                            : "border-[#d0d7de] bg-white text-[#1f2328] hover:border-[#8c959f]"
+                        )}
+                      >
+                        Use profile skills
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSkillMode("custom")}
+                        className={cn(
+                          "rounded-xl border px-3 py-2 text-left text-sm font-semibold transition",
+                          skillMode === "custom"
+                            ? "border-[#0969da] bg-[#ddf4ff] text-[#0969da]"
+                            : "border-[#d0d7de] bg-white text-[#1f2328] hover:border-[#8c959f]"
+                        )}
+                      >
+                        Use workspace skills
+                      </button>
+                    </div>
+
+                    {skillMode === "custom" && (
+                      <div className="space-y-3">
+                        <div className="flex gap-2">
+                          <input
+                            value={skillInput}
+                            onChange={(event) => setSkillInput(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                addCustomSkill();
+                              }
+                            }}
+                            placeholder="Add a skill"
+                            className="h-10 flex-1 rounded-xl border border-[#d0d7de] bg-white px-4 text-sm text-[#1f2328] outline-none transition placeholder:text-[#8c959f] focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
+                          />
+                          <button
+                            type="button"
+                            onClick={addCustomSkill}
+                            disabled={!skillInput.trim()}
+                            className="rounded-xl border border-[#d0d7de] bg-white px-3 text-sm font-semibold text-[#1f2328] transition hover:bg-[#f6f8fa] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Add
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {customSkills.length > 0 ? customSkills.map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1 rounded-full bg-[#1f2328] px-2 py-0.5 text-[11px] font-semibold text-white"
+                            >
+                              {tag}
+                              <button type="button" onClick={() => removeCustomSkill(tag)}>
+                                <X size={10} />
+                              </button>
+                            </span>
+                          )) : (
+                            <span className="text-xs text-[#57606a]">
+                              Leave empty to keep using profile skills.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d0d7de] bg-white text-[#57606a]">
+                    <Mail size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-[#1f2328]">
+                      {normalizedEmail}
+                    </div>
+                    <div className="text-xs text-[#57606a]">
+                      No existing account found. We will send an email immediately, but this person will not appear as an internal account yet.
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="mb-2 block text-sm font-medium text-[#1f2328]">
               Vai trò
@@ -266,7 +522,7 @@ function InviteWorkspaceMemberModal({
           <button
             type="button"
             onClick={() => inviteMutation.mutate()}
-            disabled={!email.trim() || inviteMutation.isPending}
+            disabled={!isValidEmail || inviteMutation.isPending}
             className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {inviteMutation.isPending && <Loader2 size={14} className="animate-spin" />}
@@ -328,6 +584,14 @@ function MemberListRow({ member }: { member: WorkspaceMember }) {
         <div className="mt-1 text-[#8c959f]">{member.activeTaskCount} task mở</div>
       </div>
     </div>
+  );
+}
+
+function WorkspaceRoleBadge({ role }: { role: WorkspaceRole }) {
+  return (
+    <span className="text-[11px] font-bold uppercase tracking-tight text-slate-500">
+      {role}
+    </span>
   );
 }
 
@@ -400,8 +664,10 @@ function SidebarCard({
 export default function WorkspaceDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const slug = params.slug as string;
   const { selectWorkspace } = useWorkspace();
+  const currentUserId = useAuthStore((state) => String(state.user?.id ?? ""));
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("projects");
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -410,6 +676,8 @@ export default function WorkspaceDetailPage() {
     "all"
   );
   const [sortBy, setSortBy] = useState<"updated" | "name" | "progress">("updated");
+  const [addingSkillToMemberId, setAddingSkillToMemberId] = useState<string | null>(null);
+  const [newSkillText, setNewSkillText] = useState("");
 
   const {
     data: workspaceResponse,
@@ -493,6 +761,62 @@ export default function WorkspaceDetailPage() {
   }, [allProjects]);
 
   const canManage = workspace?.role === "OWNER" || workspace?.role === "ADMIN";
+  const canManageMemberSkills = (userId: string) => canManage || currentUserId === userId;
+
+  const updateSkillMutation = useMutation({
+    mutationFn: ({ userId, skillTags }: { userId: string; skillTags: string[] }) =>
+      WorkspaceService.updateMemberSkills(workspace!.id, userId, skillTags),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ws-members", workspace?.id] });
+    },
+    onError: () => {
+      toast.error("Không thể cập nhật skill của thành viên.");
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: (userId: string) => WorkspaceService.removeMember(workspace!.id, userId),
+    onSuccess: (_data, userId) => {
+      queryClient.invalidateQueries({ queryKey: ["ws-members", workspace?.id] });
+      queryClient.invalidateQueries({ queryKey: ["workspace", slug] });
+      if (userId === currentUserId) {
+        toast.success("Đã rời workspace.");
+        router.push("/workspaces");
+        return;
+      }
+      toast.success("Đã xóa thành viên khỏi workspace.");
+    },
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.meta?.message ||
+        error?.response?.data?.message ||
+        "Không thể xóa thành viên khỏi workspace.";
+      toast.error(message);
+    },
+  });
+
+  const handleRemoveSkill = (userId: string, skill: string) => {
+    const target = members.find((member) => member.userId === userId);
+    const currentSkills = target?.skillTags ?? [];
+    updateSkillMutation.mutate({
+      userId,
+      skillTags: currentSkills.filter((item) => item !== skill),
+    });
+  };
+
+  const handleAddSkill = (userId: string) => {
+    const trimmed = newSkillText.trim();
+    if (!trimmed) {
+      setAddingSkillToMemberId(null);
+      return;
+    }
+    const target = members.find((member) => member.userId === userId);
+    const currentSkills = target?.skillTags ?? [];
+    const nextSkills = Array.from(new Set([...currentSkills, trimmed])).slice(0, 20);
+    updateSkillMutation.mutate({ userId, skillTags: nextSkills });
+    setNewSkillText("");
+    setAddingSkillToMemberId(null);
+  };
 
   if (workspaceLoading) {
     return (
@@ -813,7 +1137,15 @@ export default function WorkspaceDetailPage() {
                 )}
               </div>
 
-              <div className="overflow-hidden rounded-xl border border-[#d0d7de] bg-white shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-100/80 px-6 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-slate-900">Thành viên workspace</h2>
+                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-600 shadow-sm">
+                      {members.length}
+                    </span>
+                  </div>
+                </div>
                 {membersLoading ? (
                   <div className="flex items-center justify-center px-6 py-16">
                     <Loader2 size={24} className="animate-spin text-[#0969da]" />
@@ -823,12 +1155,153 @@ export default function WorkspaceDetailPage() {
                     Workspace này chưa có thành viên nào.
                   </div>
                 ) : (
-                  <>
-                    <MemberListHeader />
-                    {members.map((member) => (
-                      <MemberListRow key={member.userId} member={member} />
-                    ))}
-                  </>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50/30">
+                          <th className="px-6 py-4 text-xs font-bold text-slate-900">Tên</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-900">Email</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-900">Role</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-900">Skill</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-900">Ngày tham gia</th>
+                          <th className="px-6 py-4 text-center text-xs font-bold text-slate-900">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {members.map((member) => (
+                          <tr key={member.userId} className="group hover:bg-slate-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                {member.avatarUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={member.avatarUrl}
+                                    alt={member.fullName}
+                                    className="h-10 w-10 rounded-full border border-slate-100 object-cover shadow-sm"
+                                  />
+                                ) : (
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-100 bg-slate-50 text-sm font-semibold text-slate-700 shadow-sm">
+                                    {getInitials(member.fullName)}
+                                  </div>
+                                )}
+                                <div className="text-sm font-bold text-slate-900">{member.fullName}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-medium text-slate-600">{member.email}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <WorkspaceRoleBadge role={member.role} />
+                            </td>
+                            <td className="min-w-[220px] px-6 py-4">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {(member.skillTags ?? []).map((skill) => (
+                                  <span
+                                    key={skill}
+                                    className={cn(
+                                      "flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold",
+                                      WORKSPACE_SKILL_COLORS[skill] || "bg-slate-500 text-white"
+                                    )}
+                                  >
+                                    {skill}
+                                    {canManageMemberSkills(member.userId) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveSkill(member.userId, skill)}
+                                        className="rounded-full p-0.5 transition-colors hover:bg-black/20"
+                                      >
+                                        <X size={10} strokeWidth={3} />
+                                      </button>
+                                    )}
+                                  </span>
+                                ))}
+                                {canManageMemberSkills(member.userId) && addingSkillToMemberId === member.userId ? (
+                                  <input
+                                    autoFocus
+                                    value={newSkillText}
+                                    onChange={(event) => setNewSkillText(event.target.value)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") handleAddSkill(member.userId);
+                                      if (event.key === "Escape") setAddingSkillToMemberId(null);
+                                    }}
+                                    onBlur={() => handleAddSkill(member.userId)}
+                                    className="h-6 w-24 rounded-full border border-blue-300 px-2 py-0 text-[11px] font-bold text-slate-700 outline-none placeholder:font-normal placeholder:text-slate-300 focus:ring-2 focus:ring-blue-500/20"
+                                    placeholder="Add..."
+                                  />
+                                ) : canManageMemberSkills(member.userId) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAddingSkillToMemberId(member.userId);
+                                      setNewSkillText("");
+                                    }}
+                                    className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                                  >
+                                    <Plus size={12} strokeWidth={3} />
+                                  </button>
+                                ) : (member.skillTags ?? []).length === 0 ? (
+                                  <span className="text-xs text-slate-400">Chưa có skill</span>
+                                ) : null}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm text-slate-600">
+                                {member.joinedAt ? new Date(member.joinedAt).toISOString().split("T")[0] : "-"}
+                              </div>
+                              <div className="mt-1 text-xs text-slate-400">{member.activeTaskCount} task mở</div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button className="rounded-lg p-2 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-900">
+                                    <MoreHorizontal size={18} />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48 rounded-xl border-slate-200 p-1 shadow-xl">
+                                  <DropdownMenuItem
+                                    onClick={() => router.push("/profile")}
+                                    className="cursor-pointer rounded-lg py-2 text-sm font-semibold text-slate-700"
+                                  >
+                                    <Eye size={16} className="mr-2" /> View Profile
+                                  </DropdownMenuItem>
+                                  {member.userId === currentUserId && workspace.ownerId !== currentUserId && (
+                                    <>
+                                      <div className="my-1 h-px bg-slate-100" />
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          if (confirm(`Bạn có chắc muốn rời workspace ${workspace.name}?`)) {
+                                            removeMemberMutation.mutate(member.userId);
+                                          }
+                                        }}
+                                        className="cursor-pointer rounded-lg py-2 text-sm font-semibold text-orange-600 focus:bg-orange-50 focus:text-orange-600"
+                                      >
+                                        <ArrowLeft size={16} className="mr-2" /> Rời workspace
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                  {canManage && member.role !== "OWNER" && member.userId !== currentUserId && (
+                                    <>
+                                      <div className="my-1 h-px bg-slate-100" />
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          if (confirm(`Xóa ${member.fullName} khỏi workspace?`)) {
+                                            removeMemberMutation.mutate(member.userId);
+                                          }
+                                        }}
+                                        className="cursor-pointer rounded-lg py-2 text-sm font-semibold text-red-600 focus:bg-red-50 focus:text-red-600"
+                                      >
+                                        <Trash2 size={16} className="mr-2" /> Xóa khỏi workspace
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </main>

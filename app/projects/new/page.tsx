@@ -436,25 +436,23 @@ export default function NewProjectPage() {
                 </div>
               </section>
 
-              <div className="rounded-xl border border-[#D8DEE4] bg-white p-5 shadow-sm">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
-                  <div className="flex flex-col-reverse gap-3 sm:flex-row">
-                    <button
-                      type="button"
-                      onClick={() => router.push("/projects")}
-                      className="inline-flex h-10 items-center justify-center rounded-md border border-[#D0D7DE] bg-white px-4 text-sm font-semibold text-[#24292F] shadow-sm transition hover:bg-[#F6F8FA]"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={!projectName?.trim() || !isValid || createMutation.isPending}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#1677FF] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0958D9] disabled:cursor-not-allowed disabled:bg-[#91CAFF]"
-                    >
-                      {createMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
-                      Create project
-                    </button>
-                  </div>
+              <div className="flex justify-end pt-2">
+                <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/projects")}
+                    className="inline-flex h-10 items-center justify-center rounded-md border border-[#D0D7DE] bg-white px-4 text-sm font-semibold text-[#24292F] shadow-sm transition hover:bg-[#F6F8FA]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!projectName?.trim() || !isValid || createMutation.isPending}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#1677FF] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0958D9] disabled:cursor-not-allowed disabled:bg-[#91CAFF]"
+                  >
+                    {createMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
+                    Create project
+                  </button>
                 </div>
               </div>
             </form>

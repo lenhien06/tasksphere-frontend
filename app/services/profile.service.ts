@@ -38,6 +38,15 @@ export interface MemberSkillResponse {
   workCapacityHours: number;
 }
 
+export interface InviteePreviewResponse {
+  email: string;
+  existsInSystem: boolean;
+  userId?: string | null;
+  fullName?: string | null;
+  avatarUrl?: string | null;
+  skillTags: string[];
+}
+
 export const ProfileService = {
   async getProfile(): Promise<UserProfileResponse> {
     const { data } = await apiJava.get<{ data: UserProfileResponse }>('/v1/users/me/profile');
@@ -68,6 +77,14 @@ export const ProfileService = {
     const { data } = await apiJava.patch<{ data: MemberSkillResponse }>(
       `/v1/projects/${projectId}/members/${userId}/skills`,
       { skillTags },
+    );
+    return data.data;
+  },
+
+  async getInviteePreview(email: string): Promise<InviteePreviewResponse> {
+    const { data } = await apiJava.get<{ data: InviteePreviewResponse }>(
+      "/v1/users/invite-preview",
+      { params: { email } }
     );
     return data.data;
   },
