@@ -83,3 +83,16 @@ export const WorkspaceInviteResponseSchema = z.object({
 });
 
 export type WorkspaceInviteResponse = z.infer<typeof WorkspaceInviteResponseSchema>;
+
+export const WorkspaceInviteListItemSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  role: WorkspaceRoleEnum.exclude(["OWNER"]),
+  status: z.string(),
+  inviterName: z.string(),
+  invitedAt: z.string(),
+  expiresAt: z.string(),
+  daysLeft: z.number().nullable().optional(),
+});
+
+export type WorkspaceInviteListItem = z.infer<typeof WorkspaceInviteListItemSchema>;

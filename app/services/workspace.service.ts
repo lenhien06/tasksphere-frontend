@@ -7,6 +7,7 @@ import {
   CreateWorkspaceRequest,
   InviteMemberRequest,
   WorkspaceInviteResponse,
+  WorkspaceInviteListItem,
 } from "@/app/types/workspace.schema";
 
 export const WorkspaceService = {
@@ -103,5 +104,34 @@ export const WorkspaceService = {
       `/v1/workspaces/${wsId}/members/${userId}`
     );
     return response.data;
+  },
+
+  getInvites: async (
+    wsId: string,
+    params: { status?: string; page?: number; size?: number } = {}
+  ): Promise<{ invites: WorkspaceInviteListItem[]; totalPages: number; totalElements: number }> => {
+    const response = await apiJava.get<ApiResponse<{ content: WorkspaceInviteListItem[]; totalPages: number; totalElements: number }>>(
+      `/v1/workspaces/${wsId}/invites`,
+      { params }
+    );
+    return {
+      invites: response.data?.data?.content ?? [],
+      totalPages: response.data?.data?.totalPages ?? 0,
+      totalElements: response.data?.data?.totalElements ?? 0,
+    };
+  },
+
+  revokeInvite: async (wsId: string, inviteId: string) => {
+    const response = await apiJava.delete<ApiResponse<null>>(
+      `/v1/workspaces/${wsId}/invites/${inviteId}`
+    );
+    return { message: response.data.message };
+  },
+
+  resendInvite: async (wsId: string, inviteId: string) => {
+    const response = await apiJava.post<ApiResponse<null>>(
+      `/v1/workspaces/${wsId}/invites/${inviteId}/resend`
+    );
+    return { message: response.data.message };
   },
 };

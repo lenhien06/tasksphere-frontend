@@ -18,6 +18,7 @@ function RoleBadge({ role }: { role: string }) {
   const map: Record<string, { label: string }> = {
     project_manager: { label: "Quản lý dự án" },
     pm: { label: "Quản lý dự án" },
+    admin: { label: "Quản trị viên" },
     member: { label: "Thành viên" },
     viewer: { label: "Người xem" },
     owner: { label: "Chủ sở hữu" },
