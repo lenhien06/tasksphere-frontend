@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { AlertTriangle, Bug, Link2 } from "lucide-react"
+import type { AxiosError } from "axios"
 import { Modal, FieldLabel, InputStyled, PrimaryButton, SecondaryButton } from "@/components/projects/ProjectModals"
 import { TaskService } from "@/app/services/TaskService"
 import type { TaskResponse } from "@/app/types/task.schema"
@@ -82,9 +83,10 @@ export default function BugCreationDialog({
       onClose()
     },
     onError: (error: unknown) => {
+      const axiosError = error as AxiosError<{ meta?: { message: string }; message?: string }>
       toast.error(
-        error?.response?.data?.meta?.message ??
-          error?.response?.data?.message ??
+        axiosError?.response?.data?.meta?.message ??
+          axiosError?.response?.data?.message ??
           t("bug.createError", { defaultValue: "Failed to create bug" })
       )
     },
