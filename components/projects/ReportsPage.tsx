@@ -14,9 +14,6 @@ import {
   Tooltip,
   ReferenceLine,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   LabelList,
 } from "recharts";
 import {
@@ -38,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { TaskService } from "@/app/services/TaskService";
 import { usePermission } from "@/hooks/usePermission";
 import { useProjectOverview } from "@/hooks/useProjectOverview";
+import TaskDistributionCard from "@/components/project-overview/TaskDistributionCard";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -166,14 +164,7 @@ function OverviewTab({ projectId, sprintId }: { projectId: string; sprintId?: st
   const totalTasks = overview.totalTasks || 0;
   const total = totalTasks || 1;
   const overallProgress = overview.overallProgress ?? overview.completionRate;
-  const chartData = [
-    { name: t('task.status_TODO'),        value: s.TODO,        percentage: statusMap.TODO.percentage, fill: "#8C8C8C" },
-    { name: t('task.status_IN_PROGRESS'), value: s.IN_PROGRESS, percentage: statusMap.IN_PROGRESS.percentage, fill: "#1677FF" },
-    { name: t('task.status_IN_REVIEW'),   value: s.IN_REVIEW,   percentage: statusMap.IN_REVIEW.percentage, fill: "#FAAD14" },
-    { name: t('task.status_DONE'),        value: s.DONE,        percentage: statusMap.DONE.percentage, fill: "#52C41A" },
-    { name: t('task.status_CANCELLED'),   value: s.CANCELLED,   percentage: statusMap.CANCELLED.percentage, fill: "#FF4D4F" },
-  ].filter(d => d.value > 0);
-
+  
   const breakdownItems = [
     { label: t('task.status_TODO'),        count: s.TODO,        color: "#8C8C8C", pct: statusMap.TODO.percentage },
     { label: t('task.status_IN_PROGRESS'), count: s.IN_PROGRESS, color: "#1677FF", pct: statusMap.IN_PROGRESS.percentage },
@@ -219,49 +210,8 @@ function OverviewTab({ projectId, sprintId }: { projectId: string; sprintId?: st
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Donut chart */}
-        <div className="bg-white rounded-2xl border border-[#E8E8E8] p-6 shadow-sm flex flex-col">
-          <h3 className="text-lg font-bold text-[#141414] mb-4">{t('report.statusDistribution')}</h3>
-          {chartData.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-[#8C8C8C] text-sm">{t('task.noTasks')}</div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={65}
-                    outerRadius={95}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number, name: string) => [
-                      `${value} ${t('task.task', { defaultValue: 'tasks' })}`,
-                      name,
-                    ]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
-                {chartData.map(d => (
-                  <div key={d.name} className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
-                    <span className="text-xs text-[#595959] font-medium">
-                      {d.name} {Math.round(d.percentage)}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Status Distribution Card */}
+        <TaskDistributionCard statusDistribution={overview.statusDistribution} />
 
         {/* Right col */}
         <div className="lg:col-span-2 space-y-6">
