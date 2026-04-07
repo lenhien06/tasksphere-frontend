@@ -542,13 +542,7 @@ export default function WorkspaceCreatePage() {
               </section>
 
               <div className="rounded-xl border border-[#D8DEE4] bg-white p-5 shadow-sm">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#D8DEE4] bg-[#F6F8FA] text-[#57606A]">
-                      <Building2 size={18} />
-                    </div>
-                  </div>
-
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
                   <div className="flex flex-col-reverse gap-3 sm:flex-row">
                     <button
                       type="button"
