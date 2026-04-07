@@ -1,5 +1,6 @@
 import { apiJava } from "@/lib/axios";
 import { ApiResponse } from "@/app/types/common..schema";
+import { UserProfileResponse } from "@/app/services/profile.service";
 import {
   Workspace,
   WorkspaceMember,
@@ -71,6 +72,14 @@ export const WorkspaceService = {
   getMembers: async (wsId: string) => {
     const response = await apiJava.get<ApiResponse<WorkspaceMember[]>>(
       `/v1/workspaces/${wsId}/members`
+    );
+    return response.data;
+  },
+
+  /** Profile của một thành viên trong workspace. */
+  getMemberProfile: async (wsId: string, userId: string) => {
+    const response = await apiJava.get<ApiResponse<UserProfileResponse>>(
+      `/v1/workspaces/${wsId}/members/${userId}/profile`
     );
     return response.data;
   },

@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { WorkspaceService } from "@/app/services/workspace.service";
 import { ProjectService } from "@/app/services/ProjectService";
-import { ProfileService } from "@/app/services/profile.service";
+import { ProfileService, type UserProfileResponse } from "@/app/services/profile.service";
 import {
   type Workspace,
   type WorkspaceMember,
@@ -43,6 +43,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useWorkspaceWebSocket } from "@/hooks/useWorkspaceWebSocket";
 
 const ROLE_STYLES: Record<WorkspaceRole, string> = {
   OWNER: "border-[#fff1c2] bg-[#fff8c5] text-[#9a6700]",
@@ -359,8 +360,8 @@ function InviteWorkspaceMemberModal({
                   Checking account and profile skills...
                 </div>
               ) : inviteePreviewQuery.data?.existsInSystem ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
                     {inviteePreviewQuery.data.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -383,7 +384,7 @@ function InviteWorkspaceMemberModal({
                     </div>
                   </div>
 
-                  <div>
+                  <div className="md:max-w-[55%]">
                     <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#57606a]">
                       Profile skills
                     </div>
@@ -661,6 +662,142 @@ function SidebarCard({
   );
 }
 
+function MemberProfileModal({
+  isOpen,
+  onClose,
+  profile,
+  isLoading,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  profile?: UserProfileResponse;
+  isLoading: boolean;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d1117]/45 px-4">
+      <div className="w-full max-w-2xl rounded-2xl border border-[#d0d7de] bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-[#d8dee4] px-6 py-5">
+          <div>
+            <h3 className="text-lg font-semibold text-[#1f2328]">Member profile</h3>
+            <p className="mt-1 text-sm text-[#57606a]">
+              Workspace member details and shared capabilities.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-2 text-[#57606a] transition hover:bg-[#f6f8fa]"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="px-6 py-5">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 size={24} className="animate-spin text-[#0969da]" />
+            </div>
+          ) : profile ? (
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                {profile.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile.avatarUrl}
+                    alt={profile.fullName}
+                    className="h-16 w-16 rounded-full border border-[#d0d7de] object-cover"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#d0d7de] bg-[#f6f8fa] text-lg font-semibold text-[#57606a]">
+                    {getInitials(profile.fullName)}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="text-lg font-semibold text-[#1f2328]">{profile.fullName}</div>
+                  <div className="text-sm text-[#57606a]">{profile.email}</div>
+                  {profile.jobTitle ? (
+                    <div className="mt-2 text-sm font-medium text-[#1f2328]">{profile.jobTitle}</div>
+                  ) : null}
+                </div>
+              </div>
+
+              {profile.bio ? (
+                <div className="rounded-xl border border-[#d8dee4] bg-[#f6f8fa] p-4 text-sm leading-6 text-[#57606a]">
+                  {profile.bio}
+                </div>
+              ) : null}
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border border-[#d8dee4] p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
+                    Skill tags
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {profile.skillTags.length > 0 ? (
+                      profile.skillTags.map((skill) => (
+                        <span
+                          key={skill}
+                          className="rounded-full border border-[#b6e3ff] bg-[#ddf4ff] px-2.5 py-1 text-xs font-semibold text-[#0969da]"
+                        >
+                          {skill}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-[#8c959f]">No profile skills yet.</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#d8dee4] p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
+                    Work capacity
+                  </div>
+                  <div className="mt-3 text-2xl font-semibold text-[#1f2328]">
+                    {profile.workCapacityHours}h
+                  </div>
+                  <div className="mt-1 text-sm text-[#57606a]">per week</div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#d8dee4] p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
+                  Participated projects
+                </div>
+                <div className="mt-3 space-y-3">
+                  {profile.participatedProjects.length > 0 ? (
+                    profile.participatedProjects.slice(0, 6).map((project) => (
+                      <div
+                        key={project.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-[#d8dee4] bg-[#f6f8fa] px-3 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-[#1f2328]">{project.name}</div>
+                          <div className="truncate text-xs text-[#57606a]">{project.role}</div>
+                        </div>
+                        <span className="rounded-full border border-[#d0d7de] bg-white px-2 py-0.5 text-[11px] font-semibold text-[#57606a]">
+                          {project.visibility}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-[#8c959f]">No participated projects available.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="py-12 text-center text-sm text-[#57606a]">
+              Unable to load this member profile.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function WorkspaceDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -678,6 +815,7 @@ export default function WorkspaceDetailPage() {
   const [sortBy, setSortBy] = useState<"updated" | "name" | "progress">("updated");
   const [addingSkillToMemberId, setAddingSkillToMemberId] = useState<string | null>(null);
   const [newSkillText, setNewSkillText] = useState("");
+  const [selectedMemberProfileId, setSelectedMemberProfileId] = useState<string | null>(null);
 
   const {
     data: workspaceResponse,
@@ -726,6 +864,15 @@ export default function WorkspaceDetailPage() {
     [membersResponse]
   );
 
+  const {
+    data: memberProfileResponse,
+    isLoading: memberProfileLoading,
+  } = useQuery({
+    queryKey: ["workspace-member-profile", workspace?.id, selectedMemberProfileId],
+    queryFn: () => WorkspaceService.getMemberProfile(workspace!.id, selectedMemberProfileId!),
+    enabled: !!workspace?.id && !!selectedMemberProfileId,
+  });
+
   const filteredProjects = useMemo(() => {
     const keyword = search.trim().toLowerCase();
 
@@ -762,6 +909,8 @@ export default function WorkspaceDetailPage() {
 
   const canManage = workspace?.role === "OWNER" || workspace?.role === "ADMIN";
   const canManageMemberSkills = (userId: string) => canManage || currentUserId === userId;
+
+  useWorkspaceWebSocket(workspace?.id);
 
   const updateSkillMutation = useMutation({
     mutationFn: ({ userId, skillTags }: { userId: string; skillTags: string[] }) =>
@@ -1259,7 +1408,7 @@ export default function WorkspaceDetailPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48 rounded-xl border-slate-200 p-1 shadow-xl">
                                   <DropdownMenuItem
-                                    onClick={() => router.push("/profile")}
+                                    onClick={() => setSelectedMemberProfileId(member.userId)}
                                     className="cursor-pointer rounded-lg py-2 text-sm font-semibold text-slate-700"
                                   >
                                     <Eye size={16} className="mr-2" /> View Profile
@@ -1441,6 +1590,12 @@ export default function WorkspaceDetailPage() {
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}
         workspaceId={workspace.id}
+      />
+      <MemberProfileModal
+        isOpen={!!selectedMemberProfileId}
+        onClose={() => setSelectedMemberProfileId(null)}
+        profile={memberProfileResponse?.data}
+        isLoading={memberProfileLoading}
       />
     </div>
   );

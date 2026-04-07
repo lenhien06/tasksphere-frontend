@@ -467,8 +467,8 @@ export default function WorkspaceCreatePage() {
                               Checking account and profile skills...
                             </div>
                           ) : inviteePreviewQuery.data?.existsInSystem ? (
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-3">
+                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                              <div className="flex min-w-0 items-center gap-3">
                                 {inviteePreviewQuery.data.avatarUrl ? (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img
@@ -491,7 +491,7 @@ export default function WorkspaceCreatePage() {
                                 </div>
                               </div>
 
-                              <div>
+                              <div className="md:max-w-[55%]">
                                 <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#57606A]">
                                   Profile skills
                                 </p>
