@@ -318,7 +318,7 @@ function VelocityTab({ projectId }: { projectId: string }) {
     sprintId: item.sprintId,
     sprintName: item.sprintName,
     velocity: Number(item.velocity) || 0,
-    status: item.status === "active" ? "active" as const : "completed" as const,
+    status: "completed" as const,
   }));
 
   const trend = velocityData?.trend === "UP"
