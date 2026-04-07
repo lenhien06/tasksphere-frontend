@@ -50,7 +50,7 @@ export default function TaskBadgeCard({ dueSoon }: TaskBadgeCardProps) {
                 </span>
                 <div className="flex items-center justify-end gap-1">
                   <StatusBadge status={task.status} className="justify-center min-w-[80px] text-center" />
-                  {task.assignee && <AssigneeAvatar assignee={task.assignee} size={16} title={task.assignee.fullName} />}
+                  {task.assignee && <AssigneeAvatar assignee={task.assignee} size={16} />}
                 </div>
               </div>
             );
