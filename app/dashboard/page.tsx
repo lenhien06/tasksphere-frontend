@@ -14,18 +14,15 @@ import { DashboardPageSkeleton } from "@/components/dashboard/DashboardPageSkele
 import { DashboardRecentActivitySection } from "@/components/dashboard/DashboardRecentActivitySection";
 import { DashboardUpcomingDeadlinesSection } from "@/components/dashboard/DashboardUpcomingDeadlinesSection";
 import { sortTasksByUrgency } from "@/components/dashboard/dashboard-utils";
-import { ProjectService } from "@/app/services/ProjectService";
-import { CreateProjectModal } from "@/components/projects/ProjectModals";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useNotificationStore } from "@/stores/useNotificationStore";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 const DEFAULT_UPCOMING_DAYS = 5;
@@ -33,33 +30,15 @@ const DEFAULT_UPCOMING_DAYS = 5;
 export default function DashboardPage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const syncUnreadCount = useNotificationStore((state) => state.handleRealtimeUnreadCount);
   const [upcomingDays, setUpcomingDays] = useState(DEFAULT_UPCOMING_DAYS);
-  const [showCreateProject, setShowCreateProject] = useState(false);
   const { selectedContext } = useWorkspace();
 
   const dashboardQuery = useQuery({
     queryKey: ["dashboard", "me", upcomingDays],
     queryFn: () => DashboardService.getMe(upcomingDays),
     staleTime: 60_000,
-  });
-
-  const createProjectMutation = useMutation({
-    mutationFn: ProjectService.create,
-    onSuccess: (response) => {
-      toast.success(t("dashboard.toast.createSuccess", { name: response.data.name }));
-      setShowCreateProject(false);
-      queryClient.invalidateQueries({ queryKey: ["dashboard", "me"] });
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-      router.push(`/projects/${response.data.id}`);
-    },
-    onError: (error: unknown) => {
-      const message =
-        error instanceof Error ? error.message : t("dashboard.toast.createError");
-      toast.error(message);
-    },
   });
 
   const dashboard = dashboardQuery.data?.data;
@@ -101,12 +80,12 @@ export default function DashboardPage() {
     router.push("/projects");
   };
 
-  const handleCreateProject = async (payload: Parameters<typeof ProjectService.create>[0]) => {
-    await createProjectMutation.mutateAsync({
-      ...payload,
-      workspaceId:
-        selectedContext.kind === "workspace" ? selectedContext.workspace.id : undefined,
-    });
+  const handleCreateProject = () => {
+    const params = new URLSearchParams();
+    if (selectedContext.kind === "workspace") {
+      params.set("workspaceId", selectedContext.workspace.id);
+    }
+    router.push(params.toString() ? `/projects/new?${params.toString()}` : "/projects/new");
   };
 
   if (dashboardQuery.isLoading) {
@@ -153,7 +132,7 @@ export default function DashboardPage() {
         {showFullOnboarding ? (
           <DashboardEmptyState
             userName={userName}
-            onCreateProject={() => setShowCreateProject(true)}
+            onCreateProject={handleCreateProject}
             onOpenProjects={handleOpenProjects}
           />
         ) : (
@@ -161,7 +140,7 @@ export default function DashboardPage() {
             <DashboardHeader
               userName={userName}
               dashboard={dashboard}
-              onCreateProject={() => setShowCreateProject(true)}
+              onCreateProject={handleCreateProject}
               onOpenProjects={handleOpenProjects}
             />
 
@@ -200,11 +179,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <CreateProjectModal
-        isOpen={showCreateProject}
-        onClose={() => setShowCreateProject(false)}
-        onSubmit={handleCreateProject}
-      />
     </>
   );
 }

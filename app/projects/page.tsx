@@ -42,7 +42,6 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-    CreateProjectModal,
     EditProjectModal,
     ArchiveProjectModal,
     DeleteProjectModal,
@@ -52,7 +51,6 @@ import { UserAvatar } from "@/components/common/UserAvatar";
 import { toast } from "sonner";
 import { ProjectService } from "@/app/services/ProjectService";
 import { ProjectMemberService } from "@/app/services/project-member.service";
-import { ProjectRequest } from "@/app/types/project..schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { canActAsProjectManager, normalizeProjectMyRole } from "@/lib/projectRole";
@@ -278,7 +276,6 @@ export default function ProjectsPage() {
     const [page, setPage] = useState(1);
     
     // UI state
-    const [showCreate, setShowCreate] = useState(false);
     const searchParams = useSearchParams();
     const { selectedContext, selectedWorkspace, selectPersonal } = useWorkspace();
     const [activeProject, setActiveProject] = useState<any>(null);
@@ -362,26 +359,6 @@ export default function ProjectsPage() {
     const totalPages = apiResponse?.meta?.totalPages || 1;
 
     // Mutations
-    const createMutation = useMutation({
-        mutationFn: ProjectService.create,
-        onSuccess: (res) => {
-            queryClient.setQueriesData({ queryKey: ["projects"] }, (old: any) => {
-                if (!old?.data?.content) return old;
-                return {
-                    ...old,
-                    data: {
-                        ...old.data,
-                        content: [res.data, ...old.data.content],
-                    },
-                };
-            });
-            queryClient.invalidateQueries({ queryKey: ["projects"] });
-            setShowCreate(false);
-            toast.success(`Project "${res.data.name}" created successfully!`);
-            router.push(`/projects/${res.data.id}?tab=members`);
-        }
-    });
-
     const updateMutation = useMutation({
         mutationFn: ({ id, data }: { id: string; data: any }) => ProjectService.update(id, data),
         onSuccess: (res) => {
@@ -448,12 +425,12 @@ export default function ProjectsPage() {
         setDeleteLoading(false);
     }
 
-    async function handleCreate(data: ProjectRequest) {
-        await createMutation.mutateAsync({
-            ...data,
-            name: data.name.trim(),
-            workspaceId: effectiveWorkspace?.id,
-        });
+    function handleOpenCreateProject() {
+        const params = new URLSearchParams();
+        if (effectiveWorkspace?.id) {
+            params.set("workspaceId", effectiveWorkspace.id);
+        }
+        router.push(params.toString() ? `/projects/new?${params.toString()}` : "/projects/new");
     }
 
     function handleEdit(data: any) {
@@ -588,7 +565,7 @@ export default function ProjectsPage() {
                                 Tạo với AI
                             </button>
                         )}
-                        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 h-[38px] px-4 bg-[#111827] text-white rounded-xl text-[13px] font-bold hover:bg-gray-800 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)] active:scale-95">
+                        <button onClick={handleOpenCreateProject} className="flex items-center gap-2 h-[38px] px-4 bg-[#111827] text-white rounded-xl text-[13px] font-bold hover:bg-gray-800 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)] active:scale-95">
                             <Plus className="w-4 h-4 stroke-[3px]" /> <span>{t('project.newProject')}</span>
                         </button>
                     </div>
@@ -718,7 +695,7 @@ export default function ProjectsPage() {
                         // Empty state for no projects at all
                         <div
                             className="flex flex-col items-center justify-center pt-[3px] pb-12 rounded-3xl cursor-pointer group transition-all hover:bg-blue-50/50"
-                            onClick={() => setShowCreate(true)}
+                            onClick={handleOpenCreateProject}
                         >
                             <div className="relative w-[400px] h-[300px] md:w-[500px] md:h-[400px]">
                                 <Image 
@@ -984,7 +961,6 @@ export default function ProjectsPage() {
             </div>
 
             {/* Modals */}
-            <CreateProjectModal isOpen={showCreate} onClose={() => setShowCreate(false)} onSubmit={handleCreate} />
             {activeProject && modalType && (
                 <>
                     <EditProjectModal isOpen={modalType === "edit"} onClose={closeModal} project={activeProject} onSubmit={handleEdit} />

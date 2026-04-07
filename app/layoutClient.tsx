@@ -26,6 +26,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const isAuthPage = pathname === '/' || pathname?.startsWith('/signin') || pathname?.startsWith('/signup') || pathname?.startsWith('/forgot-password')
+  const isHeaderOnlyPage = pathname === '/projects/new'
   const { setTheme } = useTheme()
 
   const { data: currentUser } = useCurrentUser({ enabled: !isAuthPage })
@@ -81,6 +82,22 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       <main className="w-full" suppressHydrationWarning>
         {children}
       </main>
+    )
+  }
+
+  if (isHeaderOnlyPage) {
+    return (
+      <div className="flex h-screen flex-col overflow-hidden bg-[#F6F8FA]" suppressHydrationWarning>
+        <Header
+          currentUser={currentUser || undefined}
+          showSidebarToggle={false}
+        />
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
+        <AIModalGlobal />
+        <AISkillModalGlobal />
+      </div>
     )
   }
 

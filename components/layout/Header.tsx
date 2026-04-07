@@ -43,9 +43,11 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function Header({
   onMenuToggle,
   currentUser,
+  showSidebarToggle = true,
 }: {
   onMenuToggle?: () => void;
   currentUser?: UserType;
+  showSidebarToggle?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -134,13 +136,15 @@ export default function Header({
       ref={dropdownRef}
     >
       <div className="flex shrink-0 items-center gap-4">
-        <button
-          onClick={onMenuToggle}
-          className="flex h-9 w-9 items-center justify-center rounded-[10px] text-[#595959] transition-colors hover:bg-[#F5F5F5]"
-          aria-label="Open menu"
-        >
-          <Menu size={20} />
-        </button>
+        {showSidebarToggle && (
+          <button
+            onClick={onMenuToggle}
+            className="flex h-9 w-9 items-center justify-center rounded-[10px] text-[#595959] transition-colors hover:bg-[#F5F5F5]"
+            aria-label="Open menu"
+          >
+            <Menu size={20} />
+          </button>
+        )}
 
         <div className="hidden flex-col lg:flex">
           <div className="flex items-center gap-2 text-[13px] font-bold text-[#141414]">
