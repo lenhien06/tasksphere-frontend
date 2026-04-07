@@ -3,8 +3,6 @@
 import { useMemo } from "react";
 import StatCardsRow from "./StatCardsRow";
 import ProjectSummaryCard from "./ProjectSummaryCard";
-import SprintOverviewCard from "./SprintOverviewCard";
-import TaskDistributionCard from "./TaskDistributionCard";
 import DueSoonCard from "./DueSoonCard";
 import VelocityCard from "./VelocityCard";
 import TaskBadgeCard from "./TaskBadgeCard";
@@ -36,42 +34,28 @@ export default function ProjectOverviewPage(props: ProjectOverviewPageProps) {
           teamPreview={teamPreview}
         />
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-3">
-          <SprintOverviewCard
-            className="xl:col-span-7"
-            activeSprint={props.activeSprint}
-            burndown={props.burndown}
-            burndownIsLoading={props.burndownIsLoading}
-            userRole={props.userRole}
-            onNavigateToBoard={props.onNavigateToBoard}
-            onNavigateToBacklog={props.onNavigateToBacklog}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          <VelocityCard
+            velocity={props.velocity}
+            averageVelocity={props.averageVelocity}
+            velocityTrend={props.velocityTrend}
           />
-          <div className="xl:col-span-5 grid grid-cols-1 gap-3">
-            <VelocityCard
-              velocity={props.velocity}
-              averageVelocity={props.averageVelocity}
-              velocityTrend={props.velocityTrend}
-            />
-            <PerformanceSummaryCard
-              memberPerformance={props.memberPerformance}
-              canViewMemberPerformance={props.canViewMemberPerformance}
-            />
-          </div>
+          <PerformanceSummaryCard
+            memberPerformance={props.memberPerformance}
+            canViewMemberPerformance={props.canViewMemberPerformance}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
           <ProjectSummaryCard
-            className="lg:col-span-6 xl:col-span-5"
+            className="lg:col-span-7"
             project={props.project}
             overview={props.overview}
             userRole={props.userRole}
             onCreateTask={props.onCreateTask}
             onOpenAISkillModal={props.onOpenAISkillModal}
           />
-          <div className="lg:col-span-3 xl:col-span-3">
-            <TaskDistributionCard statusDistribution={props.overview.statusDistribution} />
-          </div>
-          <div className="lg:col-span-3 xl:col-span-4">
+          <div className="lg:col-span-5">
             <TaskBadgeCard dueSoon={props.dueSoon} />
           </div>
         </div>

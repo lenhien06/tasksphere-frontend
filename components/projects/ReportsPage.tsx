@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import {
-  LineChart,
-  Line,
   BarChart,
   Bar,
   XAxis,
@@ -36,14 +35,9 @@ import { TaskService } from "@/app/services/TaskService";
 import { usePermission } from "@/hooks/usePermission";
 import { useProjectOverview } from "@/hooks/useProjectOverview";
 import TaskDistributionCard from "@/components/project-overview/TaskDistributionCard";
+import SprintOverviewCard from "@/components/project-overview/SprintOverviewCard";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-
-// ── Helpers ──────────────────────────────────────────────────
-
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString("en-US", { day: "2-digit", month: "2-digit" });
-}
 
 // ── KPICard ──────────────────────────────────────────────────
 
@@ -86,15 +80,6 @@ function OverviewSkeleton() {
           <div className="h-24 bg-gray-100 rounded-2xl" />
         </div>
       </div>
-    </div>
-  );
-}
-
-function BurndownSkeleton() {
-  return (
-    <div className="animate-pulse bg-white rounded-2xl border border-[#E8E8E8] p-8 shadow-sm space-y-6">
-      <div className="h-7 w-64 bg-gray-100 rounded-lg" />
-      <div className="h-[400px] bg-gray-100 rounded-xl" />
     </div>
   );
 }
@@ -162,7 +147,6 @@ function OverviewTab({ projectId, sprintId }: { projectId: string; sprintId?: st
     CANCELLED:   statusMap.CANCELLED.count,
   };
   const totalTasks = overview.totalTasks || 0;
-  const total = totalTasks || 1;
   const overallProgress = overview.overallProgress ?? overview.completionRate;
   
   const breakdownItems = [
@@ -268,6 +252,8 @@ function OverviewTab({ projectId, sprintId }: { projectId: string; sprintId?: st
 
 function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string; sprintId?: string }) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const { isPM } = usePermission(projectId);
   const { data: sprints = [] } = useQuery({
     queryKey: ["sprints", projectId],
     queryFn: () => TaskService.getSprints(projectId),
@@ -283,28 +269,26 @@ function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string;
     enabled: !!sprintId,
     staleTime: 5 * 60_000,
   });
+  const { data: overview } = useProjectOverview(projectId, sprintId || undefined);
 
   const currentSprint = sprints.find(s => s.id === sprintId) ?? defaultSprint;
 
-  const chartData = useMemo(() => {
+  const burndownSeries = useMemo(() => {
     if (!burndown) return [];
 
-    // Defensive: actualLine may be undefined/null from API
     const idealArr: any[] = Array.isArray(burndown.idealLine) ? burndown.idealLine : [];
     const actualArr: any[] = Array.isArray((burndown as any).actualLine) ? (burndown as any).actualLine : [];
 
-    // Build a map by date for actual values
     const actualByDate = new Map<string, number | null>();
     for (const p of actualArr) {
       actualByDate.set(p.date, p.remainingPoints ?? null);
     }
 
-    // If no separate actualLine, fall back to idealLine's remainingPoints
     const hasActualLine = actualArr.length > 0;
 
     return idealArr.map((p, i) => ({
       day: i,
-      label: fmtDate(p.date),
+      date: p.date,
       ideal: p.idealPoints ?? 0,
       actual: hasActualLine
         ? (actualByDate.get(p.date) ?? actualArr[i]?.remainingPoints ?? null)
@@ -312,111 +296,41 @@ function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string;
     }));
   }, [burndown]);
 
-  const interpretation = useMemo(() => {
-    const validPoints = chartData.filter(p => p.actual !== null);
-    if (validPoints.length === 0) return null;
-    const latest = validPoints[validPoints.length - 1];
-    const diff = (latest.actual ?? 0) - latest.ideal;
-    if (diff > 10) return t('report.behindSchedule', { diff });
-    if (diff < -5) return t('report.aheadSchedule', { diff: Math.abs(diff) });
-    return null;
-  }, [chartData, t]);
-  const lastActual = chartData.filter(p => p.actual !== null).pop();
+  const activeSprintCard = useMemo(() => {
+    if (!currentSprint) return null;
+    const doneTasks = overview?.statusDistribution.find((s) => s.status === "done")?.count ?? 0;
+    const inProgressTasks = overview?.statusDistribution.find((s) => s.status === "in_progress")?.count ?? 0;
+    const totalTasks = overview?.totalTasks ?? doneTasks + inProgressTasks;
+    const completedStoryPoints = overview?.doneStoryPoints ?? 0;
+    const totalStoryPoints = burndown?.totalStoryPoints ?? overview?.totalStoryPoints ?? 0;
 
-  if (isLoading) return <BurndownSkeleton />;
+    return {
+      id: currentSprint.id,
+      name: currentSprint.name,
+      startDate: currentSprint.startDate,
+      endDate: currentSprint.endDate,
+      totalTasks,
+      doneTasks,
+      inProgressTasks,
+      totalStoryPoints,
+      completedStoryPoints,
+      completionRate: totalStoryPoints > 0
+        ? Math.round((completedStoryPoints / totalStoryPoints) * 100)
+        : (overview?.completionRate ?? 0),
+    };
+  }, [burndown?.totalStoryPoints, currentSprint, overview]);
+
   if (!sprintId) return <EmptyState message={t('report.selectSprint')} />;
-  if (!burndown || chartData.length === 0) return <EmptyState message={t('report.noBurndownData')} />;
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E8E8E8] p-8 shadow-sm space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-xl font-bold text-[#141414]">
-            {t('report.burndownTitle', { name: currentSprint?.name ?? t('sprint.title') })}
-          </h3>
-          {burndown.startDate && burndown.endDate && (
-            <p className="text-sm text-[#8C8C8C] mt-0.5">
-              {fmtDate(burndown.startDate)} → {fmtDate(burndown.endDate)}
-              {" · "}{burndown.totalStoryPoints} {t('task.storyPoints').toLowerCase()}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-6 text-sm font-semibold">
-          <div className="flex items-center gap-2">
-            <div className="w-6 border-t-2 border-dashed border-[#BFBFBF]" />
-            <span className="text-[#8C8C8C]">{t('report.ideal')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 border-t-2 border-[#1677FF]" />
-            <span className="text-[#1677FF]">{t('report.actual')}</span>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ width: "100%", height: 380 }}>
-        <ResponsiveContainer width="100%" height={380}>
-          <LineChart data={chartData} margin={{ top: 20, right: 40, left: 20, bottom: 30 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0F0F0" />
-            <XAxis
-              dataKey="label"
-              label={{ value: t('sprint.days'), position: "insideBottom", offset: -10, fontSize: 12, fill: "#8C8C8C" }}
-              tick={{ fontSize: 11, fill: "#8C8C8C" }}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              label={{ value: t('task.storyPoints'), angle: -90, position: "insideLeft", offset: 15, fontSize: 12, fill: "#8C8C8C" }}
-              tick={{ fontSize: 11, fill: "#8C8C8C" }}
-            />
-            <Tooltip
-              formatter={(value: number | string, name: string) => [
-                value !== null ? `${value} ${t('report.pointsShort')}` : "—",
-                name === "ideal" ? t('report.ideal') : t('report.actual'),
-              ]}
-              labelFormatter={(label) => `${t('sprint.days')}: ${label}`}
-            />
-            <Line
-              type="monotone"
-              dataKey="ideal"
-              stroke="#BFBFBF"
-              strokeDasharray="8 5"
-              dot={false}
-              strokeWidth={2}
-              connectNulls
-            />
-            <Line
-              type="monotone"
-              dataKey="actual"
-              stroke="#1677FF"
-              strokeWidth={3}
-              dot={{ r: 4, fill: "#1677FF", strokeWidth: 0 }}
-              activeDot={{ r: 7, fill: "#1677FF" }}
-              connectNulls={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {lastActual && (
-        <div className="flex items-center gap-3 text-sm text-[#595959]">
-          <div className="w-3 h-3 rounded-full bg-[#1677FF]" />
-          <span>
-            {t('report.currentPoints')}: <span className="font-bold text-[#141414]">{lastActual.actual} {t('task.storyPoints').toLowerCase()}</span>
-            {" · "}{t('report.ideal')}: <span className="font-semibold">{lastActual.ideal} {t('report.pointsShort')}</span>
-          </span>
-        </div>
-      )}
-
-      {interpretation && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-          <div className="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-            <AlertTriangle className="text-white" size={13} />
-          </div>
-          <p className="text-sm text-[#141414]">
-            <span className="font-bold">{t('report.interpretation')}:</span> {interpretation}
-          </p>
-        </div>
-      )}
-    </div>
+    <SprintOverviewCard
+      activeSprint={activeSprintCard}
+      burndown={burndownSeries}
+      burndownIsLoading={isLoading}
+      userRole={isPM ? "PROJECT_MANAGER" : "MEMBER"}
+      onNavigateToBoard={() => router.push(`/projects/${projectId}/board`)}
+      onNavigateToBacklog={() => router.push(`/projects/${projectId}/backlog`)}
+    />
   );
 }
 
