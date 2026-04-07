@@ -1,0 +1,70 @@
+
+> tasksphere-fe-react@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.9
+   - Environments: .env.production
+   - Experiments (use with caution):
+     ✓ webpackMemoryOptimizations
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 24.2s
+   Skipping linting
+   Checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/9) ...
+   Generating static pages (2/9) 
+   Generating static pages (4/9) 
+   Generating static pages (6/9) 
+ ✓ Generating static pages (9/9)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                   Size  First Load JS
+┌ ƒ /                                      25.8 kB         190 kB
+├ ƒ /_not-found                              159 B         102 kB
+├ ƒ /api/auth/logout                         159 B         102 kB
+├ ƒ /api/auth/me                             159 B         102 kB
+├ ƒ /api/auth/me-token                       159 B         102 kB
+├ ƒ /api/auth/refresh                        159 B         102 kB
+├ ƒ /api/auth/send-otp                       159 B         102 kB
+├ ƒ /api/auth/signin                         159 B         102 kB
+├ ƒ /api/auth/signup                         159 B         102 kB
+├ ƒ /dashboard                             12.3 kB         221 kB
+├ ƒ /forgot-password                       5.92 kB         180 kB
+├ ƒ /invites/[token]                         422 B         103 kB
+├ ƒ /invites/accept                        6.05 kB         155 kB
+├ ƒ /my-tasks                              4.14 kB         173 kB
+├ ƒ /profile                               7.39 kB         167 kB
+├ ƒ /projects                              11.6 kB         246 kB
+├ ƒ /projects/[id]                         49.9 kB         679 kB
+├ ƒ /projects/[id]/backlog                 1.44 kB         456 kB
+├ ƒ /projects/[id]/board                   5.31 kB         462 kB
+├ ƒ /projects/[id]/calendar                5.02 kB         436 kB
+├ ƒ /projects/[id]/members                 1.29 kB         103 kB
+├ ƒ /projects/[id]/reports                 5.85 kB         326 kB
+├ ƒ /projects/[id]/settings                  683 B         103 kB
+├ ƒ /projects/[id]/settings/custom-fields  7.55 kB         202 kB
+├ ƒ /projects/[id]/settings/versions       7.87 kB         209 kB
+├ ƒ /projects/[id]/settings/webhooks        7.8 kB         203 kB
+├ ƒ /projects/[id]/sprint                  19.7 kB         245 kB
+├ ƒ /projects/[id]/sprints                 7.26 kB         215 kB
+├ ƒ /projects/[id]/tasks/[taskId]            417 B         103 kB
+├ ƒ /settings                              5.77 kB         163 kB
+├ ƒ /signin                                7.58 kB         184 kB
+├ ƒ /signup                                10.4 kB         191 kB
+├ ƒ /test                                    159 B         102 kB
+├ ƒ /workspaces                            4.69 kB         144 kB
+├ ƒ /workspaces/new                        7.41 kB         172 kB
+├ ƒ /ws/[slug]                             11.4 kB         159 kB
+└ ƒ /ws/[slug]/projects/new-with-ai        9.13 kB         156 kB
++ First Load JS shared by all               102 kB
+  ├ chunks/1255-8befde0980f5cba9.js        45.6 kB
+  ├ chunks/4bd1b696-100b9d70ed4e49c1.js    54.2 kB
+  └ other shared chunks (total)            2.31 kB
+
+
+ƒ Middleware                               34.1 kB
+
+ƒ  (Dynamic)  server-rendered on demand
+
