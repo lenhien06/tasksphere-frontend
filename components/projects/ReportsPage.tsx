@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { TaskService } from "@/app/services/TaskService";
 import { usePermission } from "@/hooks/usePermission";
 import { useProjectOverview } from "@/hooks/useProjectOverview";
+import { useBurndownData } from "@/hooks/useBurndownData";
 import TaskDistributionCard from "@/components/project-overview/TaskDistributionCard";
 import SprintOverviewCard from "@/components/project-overview/SprintOverviewCard";
 import { toast } from "sonner";
@@ -263,38 +264,19 @@ function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string;
   const defaultSprint = sprints.find(s => s.status === "ACTIVE") ?? sprints[0];
   const sprintId = propSprintId || defaultSprint?.id || "";
 
-  const { data: burndown, isLoading } = useQuery({
-    queryKey: ["burndown", sprintId],
-    queryFn: () => TaskService.getBurndown(sprintId),
-    enabled: !!sprintId,
-    staleTime: 5 * 60_000,
-  });
+  const { data: burndownData, isLoading } = useBurndownData(sprintId || null);
   const { data: overview } = useProjectOverview(projectId, sprintId || undefined);
 
   const currentSprint = sprints.find(s => s.id === sprintId) ?? defaultSprint;
 
   const burndownSeries = useMemo(() => {
-    if (!burndown) return [];
-
-    const idealArr: any[] = Array.isArray(burndown.idealLine) ? burndown.idealLine : [];
-    const actualArr: any[] = Array.isArray((burndown as any).actualLine) ? (burndown as any).actualLine : [];
-
-    const actualByDate = new Map<string, number | null>();
-    for (const p of actualArr) {
-      actualByDate.set(p.date, p.remainingPoints ?? null);
-    }
-
-    const hasActualLine = actualArr.length > 0;
-
-    return idealArr.map((p, i) => ({
-      day: i,
-      date: p.date,
-      ideal: p.idealPoints ?? 0,
-      actual: hasActualLine
-        ? (actualByDate.get(p.date) ?? actualArr[i]?.remainingPoints ?? null)
-        : (p.remainingPoints ?? null),
+    return (burndownData?.data ?? []).map((item) => ({
+      day: item.day,
+      date: item.date,
+      ideal: item.ideal,
+      actual: item.actual,
     }));
-  }, [burndown]);
+  }, [burndownData]);
 
   const activeSprintCard = useMemo(() => {
     if (!currentSprint) return null;
@@ -302,7 +284,7 @@ function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string;
     const inProgressTasks = overview?.statusDistribution.find((s) => s.status === "in_progress")?.count ?? 0;
     const totalTasks = overview?.totalTasks ?? doneTasks + inProgressTasks;
     const completedStoryPoints = overview?.doneStoryPoints ?? 0;
-    const totalStoryPoints = burndown?.totalStoryPoints ?? overview?.totalStoryPoints ?? 0;
+    const totalStoryPoints = burndownData?.totalPoints ?? overview?.totalStoryPoints ?? 0;
 
     return {
       id: currentSprint.id,
@@ -318,7 +300,7 @@ function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string;
         ? Math.round((completedStoryPoints / totalStoryPoints) * 100)
         : (overview?.completionRate ?? 0),
     };
-  }, [burndown?.totalStoryPoints, currentSprint, overview]);
+  }, [burndownData?.totalPoints, currentSprint, overview]);
 
   if (!sprintId) return <EmptyState message={t('report.selectSprint')} />;
 
