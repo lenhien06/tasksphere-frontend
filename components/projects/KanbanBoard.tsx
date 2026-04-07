@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 import { TaskService } from "@/app/services/TaskService";
 import { ProjectService } from "@/app/services/ProjectService";
 import { ProjectMemberService } from "@/app/services/project-member.service";
-import type { TaskType } from "@/app/types/task.schema";
+import type { TaskType, TaskPriority } from "@/app/types/task.schema";
 import { useCreateTask } from "@/hooks/useTaskQueries";
 import { useKanbanColumns, DEFAULT_COLUMNS } from "@/hooks/useKanbanColumns";
 import { useProjectWebSocket } from "@/hooks/useProjectWebSocket";
@@ -601,7 +601,7 @@ export default function KanbanBoard({
             taskCode: bugParentTask.taskId,
             title: bugParentTask.title,
             type: (bugParentTask.type === "sub_task" ? "SUBTASK" : bugParentTask.type.toUpperCase()) as TaskType,
-            priority: bugParentTask.priority,
+            priority: bugParentTask.priority.toUpperCase() as TaskPriority,
             taskStatus: "DONE",
             columnId: "",
             columnName: "",
