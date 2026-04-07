@@ -5,7 +5,6 @@ import StatCardsRow from "./StatCardsRow";
 import ProjectSummaryCard from "./ProjectSummaryCard";
 import DueSoonCard from "./DueSoonCard";
 import TaskBadgeCard from "./TaskBadgeCard";
-import PerformanceSummaryCard from "./PerformanceSummaryCard";
 import type { ProjectOverviewPageProps } from "./types";
 
 export type { ProjectOverviewPageProps };
@@ -32,13 +31,6 @@ export default function ProjectOverviewPage(props: ProjectOverviewPageProps) {
           onNavigateToMembers={props.onNavigateToMembers}
           teamPreview={teamPreview}
         />
-
-        <div className="grid grid-cols-1 gap-3">
-          <PerformanceSummaryCard
-            memberPerformance={props.memberPerformance}
-            canViewMemberPerformance={props.canViewMemberPerformance}
-          />
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
           <ProjectSummaryCard
