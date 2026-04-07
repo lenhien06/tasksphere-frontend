@@ -538,6 +538,20 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
                     </div>
                 ) : (
                     <div className="space-y-6">
+                        {/* Unfinished Items Info */}
+                        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                            <p className="text-sm font-bold text-blue-900 mb-3">⚠️ Unfinished Items Details</p>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-blue-800">Tasks & Bugs Remaining:</span>
+                                    <span className="font-bold text-blue-900">{unfinishedCount} item(s)</span>
+                                </div>
+                                <p className="text-xs text-blue-700">
+                                    These items are not yet in the Done column. Choose an action below to handle them.
+                                </p>
+                            </div>
+                        </div>
+
                         <RadioGroup value={action} onValueChange={(v: any) => setAction(v)} className="space-y-3">
                             <div className={cn(
                                 "flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer",

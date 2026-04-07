@@ -23,6 +23,7 @@ export interface TaskDetailPanelProps {
     currentUserRole?: "PM" | "MEMBER" | "VIEWER"
     onClose: () => void
     onTaskUpdated?: () => void
+    onCreateBug?: (taskId: string) => void
 }
 
 // ── Panel wrapper ─────────────────────────────────────────────
@@ -32,6 +33,7 @@ export default function TaskDetailPanel({
     projectId,
     currentUserRole: roleProp,
     onClose,
+    onCreateBug,
 }: TaskDetailPanelProps) {
     // Get role from project if caller didn't pass it
     const { data: projectData } = useQuery({
@@ -62,6 +64,7 @@ export default function TaskDetailPanel({
                     taskId={taskId}
                     currentUserRole={myRole}
                     onClose={onClose}
+                    onCreateBug={onCreateBug}
                 />
             </div>
         </>

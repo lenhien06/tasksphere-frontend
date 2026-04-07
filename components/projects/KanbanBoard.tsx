@@ -31,6 +31,7 @@ import {
 import { AiAssignReview } from "@/components/ai/AiAssignReview";
 import { AiTaskGenerator } from "@/components/ai/AiTaskGenerator";
 import TaskDetailPanel, { type Member } from "./TaskDetailPanel";
+import BugCreationDialog from "./BugCreationDialog";
 import {
     FullCreateTask,
   type CreateTaskPayload,
@@ -168,6 +169,8 @@ export default function KanbanBoard({
   const [showCreate, setShowCreate] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
   const [showAiAssign, setShowAiAssign] = useState(false);
+  const [showBugCreation, setShowBugCreation] = useState(false);
+  const [bugParentTask, setBugParentTask] = useState<TaskCardData | null>(null);
   const [createDefaults, setCreateDefaults] = useState<{ columnId?: string; title?: string; parentTask?: ParentTask }>({});
   const [filters, setFilters] = useState<ToolbarFilterState>(DEFAULT_TASK_FILTER_STATE);
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -511,6 +514,13 @@ export default function KanbanBoard({
         projectMembers={members}
         currentUserRole={roleForPanel}
         onClose={() => setSelectedTaskId(null)}
+        onCreateBug={(taskId) => {
+          const task = tasks.find(t => t.id === taskId)
+          if (task) {
+            setBugParentTask(task)
+            setShowBugCreation(true)
+          }
+        }}
       />
 
       <AnimatePresence>
@@ -575,6 +585,46 @@ export default function KanbanBoard({
             queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
           }}
           onClose={() => setShowAiAssign(false)}
+        />
+      )}
+
+      {showBugCreation && bugParentTask && (
+        <BugCreationDialog
+          open={showBugCreation}
+          onClose={() => {
+            setShowBugCreation(false);
+            setBugParentTask(null);
+          }}
+          parentTask={{
+            id: bugParentTask.id,
+            taskCode: bugParentTask.taskId,
+            title: bugParentTask.title,
+            type: bugParentTask.type,
+            priority: bugParentTask.priority,
+            taskStatus: "DONE",
+            columnId: "",
+            columnName: "",
+            taskPosition: 0,
+            sprintId: null,
+            sprintName: null,
+            storyPoints: null,
+            dueDate: null,
+            overdue: false,
+            subtaskCount: 0,
+            subtaskDone: 0,
+            subtaskProgress: null,
+            commentsCount: 0,
+            attachmentsCount: 0,
+            assignee: null,
+            reporter: { id: "", fullName: "", avatarUrl: null },
+            createdAt: "",
+            updatedAt: "",
+          }}
+          projectId={projectId}
+          onBugCreated={() => {
+            queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
+          }}
         />
       )}
         </div>

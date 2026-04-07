@@ -63,6 +63,7 @@ interface TaskDetailPageContentProps {
     taskId: string
     currentUserRole: "PM" | "MEMBER" | "VIEWER"
     onClose?: () => void
+    onCreateBug?: (taskId: string) => void
 }
 
 const STATUS_OPTIONS = [
@@ -87,6 +88,7 @@ export default function TaskDetailPageContent({
     taskId,
     currentUserRole,
     onClose,
+    onCreateBug,
 }: TaskDetailPageContentProps) {
     const router = useRouter()
     const qc = useQueryClient()
@@ -318,6 +320,18 @@ export default function TaskDetailPageContent({
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-44 p-1.5 rounded-xl border-slate-200 shadow-xl">
+                                    {task.taskStatus === "IN_REVIEW" && onCreateBug && (
+                                        <>
+                                            <DropdownMenuItem
+                                                className="text-red-600 font-semibold focus:text-red-600 focus:bg-red-50 rounded-lg cursor-pointer"
+                                                onClick={() => {
+                                                    onCreateBug(taskId)
+                                                }}
+                                            >
+                                                <Bug size={16} className="mr-2" /> Report Bug
+                                            </DropdownMenuItem>
+                                        </>
+                                    )}
                                     <DropdownMenuItem
                                         className="text-rose-600 font-semibold focus:text-rose-600 focus:bg-rose-50 rounded-lg cursor-pointer"
                                         onClick={() => {
