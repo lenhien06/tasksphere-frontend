@@ -212,6 +212,14 @@ export const TaskService = {
         return res.data.data;
     },
 
+    updateDueDate: async (projectId: string, taskId: string, dueDate: string): Promise<TaskDetailResponse> => {
+        const res = await apiJava.patch<ApiResponse<TaskDetailResponse>>(
+            `${BASE}/${projectId}/tasks/${taskId}/due-date`,
+            { dueDate }
+        );
+        return res.data.data;
+    },
+
     // ── SPRINT ────────────────────────────────────────────────
 
     getSprints: async (projectId: string): Promise<SprintDetail[]> => {

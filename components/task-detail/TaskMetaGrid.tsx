@@ -205,9 +205,38 @@ function PriorityField({
 
 // ── Helper Fields ──────────────────────────────────────────
 
-function AssigneeField({ assignee, projectId, onSave, readOnly }: { assignee: UserSummary | null; projectId: string; onSave: (id: string | null) => void; readOnly: boolean }) {
+function AssigneeField({ assignee, projectId, task, onSave, readOnly }: { assignee: UserSummary | null; projectId: string; task: TaskDetailResponse; onSave: (id: string | null) => void; readOnly: boolean }) {
     const { data: members = [] } = useQuery({ queryKey: ["project-members", projectId], queryFn: () => ProjectMemberService.getMembers(projectId), staleTime: 60000 })
-    const memberList = (members as any[]).map(m => ({ id: m.user?.id || m.id, fullName: m.user?.fullName || m.fullName || "Unknown", avatarUrl: m.user?.avatarUrl || m.avatarUrl || null }))
+    const fallbackMembers = (members as any[]).map(m => ({ id: m.user?.id || m.id, fullName: m.user?.fullName || m.fullName || "Unknown", avatarUrl: m.user?.avatarUrl || m.avatarUrl || null, skillTags: m.skillTags || [] }))
+    const suggestionMap = new Map((task.assigneeSuggestions ?? []).map((item) => [item.userId, item]))
+    const memberList = (task.assigneeSuggestions?.length
+        ? task.assigneeSuggestions.map((item) => ({
+            id: item.userId,
+            fullName: item.fullName,
+            avatarUrl: item.avatarUrl,
+            matchedSkills: item.matchedSkills,
+            similarityScore: item.similarityScore,
+            currentWeeklyLoadHours: item.currentWeeklyLoadHours,
+            projectedWeeklyLoadHours: item.projectedWeeklyLoadHours,
+            weeklyCapacityHours: item.weeklyCapacityHours,
+            willExceedWeeklyCapacity: item.willExceedWeeklyCapacity,
+        }))
+        : fallbackMembers.map((item) => ({
+            id: item.id,
+            fullName: item.fullName,
+            avatarUrl: item.avatarUrl,
+            matchedSkills: [],
+            similarityScore: 0,
+            currentWeeklyLoadHours: 0,
+            projectedWeeklyLoadHours: 0,
+            weeklyCapacityHours: 40,
+            willExceedWeeklyCapacity: false,
+        })))
+        .sort((a, b) => {
+            const scoreDiff = (b.similarityScore ?? 0) - (a.similarityScore ?? 0)
+            if (scoreDiff !== 0) return scoreDiff
+            return a.fullName.localeCompare(b.fullName)
+        })
 
     if (readOnly) return <span className="text-[14px] font-semibold text-slate-900">{assignee?.fullName || "Unassigned"}</span>
 
@@ -219,12 +248,33 @@ function AssigneeField({ assignee, projectId, onSave, readOnly }: { assignee: Us
                     <ChevronDown size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56 p-1.5 rounded-lg border-slate-200 shadow-xl">
+            <DropdownMenuContent align="start" className="w-80 p-1.5 rounded-lg border-slate-200 shadow-xl">
                 <DropdownMenuItem onClick={() => onSave(null)} className="rounded-md text-[11px] font-bold text-slate-400">Unassign</DropdownMenuItem>
                 {memberList.map(m => (
-                    <DropdownMenuItem key={m.id} onClick={() => onSave(m.id)} className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md cursor-pointer hover:bg-slate-50">
+                    <DropdownMenuItem key={m.id} onClick={() => onSave(m.id)} className="flex items-start gap-2.5 px-2.5 py-2 rounded-md cursor-pointer hover:bg-slate-50">
                         <UserAvatar src={m.avatarUrl ?? undefined} name={m.fullName} size={20} />
-                        <span className="text-[12px] font-semibold text-slate-700">{m.fullName}</span>
+                        <div className="min-w-0 flex-1">
+                            <div className={cn("text-[12px] font-semibold", m.willExceedWeeklyCapacity ? "text-rose-600" : "text-slate-700")}>
+                                {m.fullName}
+                            </div>
+                            <div className={cn("text-[10px] font-medium", m.willExceedWeeklyCapacity ? "text-rose-500" : "text-slate-500")}>
+                                Load: {m.projectedWeeklyLoadHours}/{m.weeklyCapacityHours}h this week
+                            </div>
+                            {m.matchedSkills.length > 0 && (
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                    {m.matchedSkills.slice(0, 3).map((skill) => (
+                                        <span key={skill} className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">
+                                            {skill}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        {suggestionMap.has(m.id) && (
+                            <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-700">
+                                {(m.similarityScore * 100).toFixed(0)}%
+                            </span>
+                        )}
                     </DropdownMenuItem>
                 ))}
             </DropdownMenuContent>
@@ -335,6 +385,40 @@ export default function TaskMetaGrid({ task, projectId, canEdit, etag, onBlocked
         },
     })
 
+    const handleDueDateSave = (dueDate: string | null) => {
+        if (!dueDate) {
+            return
+        }
+        if (task.sprint?.startDate && task.sprint?.endDate) {
+            const insideSprint = dueDate >= task.sprint.startDate && dueDate <= task.sprint.endDate
+            if (!insideSprint) {
+                toast.error("Lỗi: Hạn chót không được vượt quá phạm vi thời gian của Sprint")
+                return
+            }
+        }
+        if (task.sprint?.status === "ACTIVE" && task.dueDate !== dueDate) {
+            const confirmed = window.confirm(
+                "Cảnh báo: Bạn đang thay đổi kế hoạch của Sprint đang chạy. Việc này sẽ làm biến động biểu đồ Burn-down. Bạn có chắc chắn không?"
+            )
+            if (!confirmed) {
+                return
+            }
+        }
+
+        TaskService.updateDueDate(projectId, task.id, dueDate)
+            .then((response) => {
+                patchTaskCollections(qc, projectId, task.id, { dueDate: response.dueDate, overdue: response.overdue })
+                qc.invalidateQueries({ queryKey: ["task", projectId, task.id] })
+                qc.invalidateQueries({ queryKey: ["activity", projectId, task.id] })
+                qc.invalidateQueries({ queryKey: ["calendar", projectId] })
+                invalidateTaskCollections(qc, projectId)
+                toast.success("Updated due date")
+            })
+            .catch((err: any) => {
+                toast.error(err?.response?.data?.message ?? "Error updating due date")
+            })
+    }
+
     return (
         <div className="grid grid-cols-2 gap-x-12 gap-y-5 py-4">
             <div className="space-y-5">
@@ -342,7 +426,7 @@ export default function TaskMetaGrid({ task, projectId, canEdit, etag, onBlocked
                     <UserAvatar src={task.assignee?.avatarUrl ?? undefined} name={task.assignee?.fullName ?? "U"} size={36} />
                     <div className="flex-1 min-w-0">
                         <FieldLabel icon={User} label="Assignee" />
-                        <AssigneeField assignee={task.assignee} projectId={projectId} onSave={id => updateTask.mutate({ assigneeId: id })} readOnly={!canEdit} />
+                        <AssigneeField assignee={task.assignee} task={task} projectId={projectId} onSave={id => updateTask.mutate({ assigneeId: id })} readOnly={!canEdit} />
                     </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -352,7 +436,7 @@ export default function TaskMetaGrid({ task, projectId, canEdit, etag, onBlocked
                         <span className="text-[14px] font-semibold text-slate-900">{task.reporter.fullName}</span>
                     </div>
                 </div>
-                <div><FieldLabel icon={Calendar} label="Due Date" /><DateField value={task.dueDate} isOverdue={task.overdue} onSave={d => updateTask.mutate({ dueDate: d })} readOnly={!canEdit} /></div>
+                <div><FieldLabel icon={Calendar} label="Due Date" /><DateField value={task.dueDate} isOverdue={task.overdue} onSave={handleDueDateSave} readOnly={!canEdit} /></div>
                 <div><FieldLabel icon={Hash} label="Story Points" /><InlineNumberField value={task.storyPoints} onSave={v => updateTask.mutate({ storyPoints: v })} readOnly={!canEdit} /></div>
             </div>
             <div className="space-y-5">

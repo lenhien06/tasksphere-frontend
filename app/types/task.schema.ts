@@ -22,6 +22,8 @@ export interface SprintSummary {
     id: string
     name: string
     status: "PLANNED" | "ACTIVE" | "COMPLETED"
+    startDate?: string | null
+    endDate?: string | null
 }
 
 // ── TaskResponse — list/board (100% matches BE response) ────
@@ -68,6 +70,20 @@ export interface TaskDetailResponse extends TaskResponse {
     customFieldValues?: CustomFieldValue[]
     canEdit?: boolean               // BE-computed — true if current user may edit
     canDelete?: boolean             // BE-computed — true if current user may delete
+    assigneeSuggestions?: AssigneeSuggestion[]
+}
+
+export interface AssigneeSuggestion {
+    userId: string
+    fullName: string
+    avatarUrl: string | null
+    skillTags: string[]
+    matchedSkills: string[]
+    similarityScore: number
+    currentWeeklyLoadHours: number
+    projectedWeeklyLoadHours: number
+    weeklyCapacityHours: number
+    willExceedWeeklyCapacity: boolean
 }
 
 export interface SubTaskSummary {
@@ -127,6 +143,7 @@ export interface UpdateTaskRequest {
     type?: TaskType
     priority?: TaskPriority | TaskPriority[]
     assigneeId?: string | null          // null = unassign
+    startDate?: string | null
     dueDate?: string | null
     storyPoints?: number | null         // 1–100; null = keep
     estimatedHours?: number | null
@@ -466,12 +483,40 @@ export interface CalendarApiTask {
     title:       string
     priority:    TaskPriority
     taskStatus:  TaskStatus
+    startDate:   string | null
     dueDate:     string
+    storyPoints?: number | null
+    skillTagsRequired?: string[] | null
     columnName:  string
     columnColor: string
+    dependencyConflict?: boolean
+    blockedBy?: CalendarDependencySummary[]
     isOverdue:   boolean
     assignee:    UserSummary | null
     sprint?:     SprintSummary | null
+}
+
+export interface CalendarDependencySummary {
+    taskId: string
+    taskCode: string
+    title: string
+    dueDate: string | null
+    linkType: string
+}
+
+export interface CalendarUserWorkload {
+    user: UserSummary
+    storyPoints: number
+    estimatedHours: number
+    overloaded: boolean
+}
+
+export interface CalendarDayWorkload {
+    date: string
+    totalStoryPoints: number
+    estimatedHours: number
+    overloaded: boolean
+    users: CalendarUserWorkload[]
 }
 
 export interface CalendarResponse {
@@ -479,6 +524,8 @@ export interface CalendarResponse {
     month:      number
     totalTasks: number
     tasks:      CalendarApiTask[]
+    workloadHeatmap: CalendarDayWorkload[]
+    hoursPerStoryPoint: number
 }
 
 // ── Timeline / Gantt ──────────────────────────────────────────

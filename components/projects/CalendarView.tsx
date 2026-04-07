@@ -52,7 +52,7 @@ const PRIORITY_CONFIG: Record<TaskPriority, { bg: string; text: string; border: 
   CRITICAL: { bg: 'bg-red-200',   text: 'text-red-800',   border: 'border-red-400' },
   HIGH:     { bg: 'bg-red-100',   text: 'text-red-700',   border: 'border-red-300' },
   MEDIUM:   { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
-  LOW:      { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300' },
+  LOW:      { bg: 'bg-blue-100',  text: 'text-blue-700',  border: 'border-blue-300' },
 }
 
 const STATUS_DOT: Record<TaskStatus, string> = {
@@ -162,7 +162,8 @@ function DroppableDay({
   isDaySelected,
   onClick,
   children,
-  taskCount
+  taskCount,
+  workload
 }: {
   dateStr: string
   isToday: boolean
@@ -171,6 +172,7 @@ function DroppableDay({
   onClick: () => void
   children: React.ReactNode
   taskCount: number
+  workload?: { totalStoryPoints: number; estimatedHours: number; overloaded: boolean } | null
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: dateStr,
@@ -198,7 +200,26 @@ function DroppableDay({
         )}>
           {parseInt(dateStr.split('-')[2])}
         </span>
+        {workload && workload.totalStoryPoints > 0 && (
+          <span
+            className={cn(
+              "rounded-full px-1.5 py-0.5 text-[9px] font-bold border",
+              workload.overloaded
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-blue-200 bg-blue-50 text-blue-700"
+            )}
+            title={`${workload.totalStoryPoints} SP • ${workload.estimatedHours}h`}
+          >
+            {workload.totalStoryPoints} SP
+          </span>
+        )}
       </div>
+
+      {workload?.overloaded && (
+        <div className="mb-1 rounded-md border border-red-200 bg-red-50 px-1.5 py-1 text-[9px] font-semibold text-red-700">
+          Overloaded • {workload.estimatedHours}h
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden">
         <div className="flex flex-col gap-1">
@@ -260,6 +281,17 @@ function normalizeCalendarTask(task: CalendarTaskPayload, todayKey: string): Cal
     ...task,
     isOverdue: isCalendarTaskOverdue(task, todayKey),
   }
+}
+
+function isDateWithinSprint(task: CalendarApiTask, nextDueDate: string) {
+  if (!task.sprint?.startDate || !task.sprint?.endDate) {
+    return true
+  }
+  return nextDueDate >= task.sprint.startDate && nextDueDate <= task.sprint.endDate
+}
+
+function needsActiveSprintConfirmation(task: CalendarApiTask, nextDueDate: string) {
+  return task.sprint?.status === 'ACTIVE' && task.dueDate !== nextDueDate
 }
 
 // ════════════════════════════════════════
@@ -340,7 +372,7 @@ export default function CalendarView({
 
   const updateTaskMutation = useMutation({
     mutationFn: ({ taskId, dueDate }: { taskId: string; dueDate: string }) => 
-      TaskService.updateTask(projectId!, taskId, { dueDate }),
+      TaskService.updateDueDate(projectId!, taskId, dueDate),
     onMutate: async ({ taskId, dueDate }) => {
       await queryClient.cancelQueries({ queryKey: ['calendar', projectId, currentYear, currentMonth] })
       const previousData = queryClient.getQueryData(['calendar', projectId, currentYear, currentMonth])
@@ -419,6 +451,14 @@ export default function CalendarView({
     [selectedDate, tasksByDate]
   )
 
+  const workloadByDate = useMemo(() => {
+    const map: Record<string, NonNullable<typeof data>['workloadHeatmap'][number]> = {}
+    ;(data?.workloadHeatmap ?? []).forEach((entry) => {
+      map[entry.date] = entry
+    })
+    return map
+  }, [data?.workloadHeatmap])
+
   const hasMoreFilters = filters.onlyMy || !!filters.sprint
 
   const days = useMemo(
@@ -456,9 +496,22 @@ export default function CalendarView({
     const activeData = active.data.current as { type?: string; task?: CalendarApiTask } | undefined
     const overData = over.data.current as { type?: string; dateStr?: string } | undefined
     if (activeData?.type === 'task' && overData?.type === 'day') {
-      const taskId = activeData.task?.id
+      const task = activeData.task
+      const taskId = task?.id
       const newDate = overData.dateStr
-      if (taskId && newDate && activeData.task?.dueDate !== newDate) {
+      if (taskId && newDate && task?.dueDate !== newDate) {
+        if (task && !isDateWithinSprint(task, newDate)) {
+          toast.error('Lỗi: Hạn chót không được vượt quá phạm vi thời gian của Sprint')
+          return
+        }
+        if (task && needsActiveSprintConfirmation(task, newDate)) {
+          const confirmed = window.confirm(
+            'Cảnh báo: Bạn đang thay đổi kế hoạch của Sprint đang chạy. Việc này sẽ làm biến động biểu đồ Burn-down. Bạn có chắc chắn không?'
+          )
+          if (!confirmed) {
+            return
+          }
+        }
         updateTaskMutation.mutate({ taskId, dueDate: newDate })
       }
     }
@@ -707,6 +760,7 @@ export default function CalendarView({
                     const isDaySelected = selectedDate === dateStr
                     const dayTasks   = tasksByDate[dateStr] ?? []
                     const isToday    = toDateStr(new Date()) === dateStr
+                    const workload = workloadByDate[dateStr] ?? null
 
                     return (
                       <DroppableDay
@@ -716,6 +770,7 @@ export default function CalendarView({
                         isCurrentMonth={dayObj.isCurrentMonth}
                         isDaySelected={isDaySelected}
                         taskCount={dayTasks.length}
+                        workload={workload}
                         onClick={() => { setSelectedDate(dateStr); setIsSidebarOpen(true) }}
                       >
                         {dayTasks.slice(0, 3).map(task => (
@@ -777,7 +832,7 @@ export default function CalendarView({
                         <div className={cn(
                           'absolute left-0 top-3 bottom-3 w-[4px] rounded-r-full',
                           task.priority === 'CRITICAL' || task.priority === 'HIGH' ? 'bg-red-500'
-                            : task.priority === 'MEDIUM' ? 'bg-amber-500' : 'bg-green-500'
+                            : task.priority === 'MEDIUM' ? 'bg-amber-500' : 'bg-blue-500'
                         )} />
 
                         <div className="flex items-center gap-2 mb-2 pl-1">
@@ -790,6 +845,11 @@ export default function CalendarView({
                           {task.isOverdue && !isDone && (
                             <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-200">
                               ⚠ {t('task.overdue')}
+                            </span>
+                          )}
+                          {task.dependencyConflict && (
+                            <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
+                              Conflict
                             </span>
                           )}
                           {isDone && (

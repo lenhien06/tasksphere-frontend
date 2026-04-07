@@ -29,6 +29,10 @@ export interface ProjectMember {
   };
   projectRole: ProjectRole;
   joinedAt: string;
+  skillTags?: string[];
+  activeTaskCount?: number;
+  avgStoryPoints?: number | null;
+  workCapacityHours?: number;
 }
 
 /** GET .../invites — ProjectInviteListItem (spec A8) */
