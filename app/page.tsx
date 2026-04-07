@@ -312,7 +312,6 @@ export default function LandingPage() {
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600 dark:text-gray-400">
             <Link href="#solution" className="hover:text-gray-900 dark:hover:text-white transition-colors">{tr("Solution", "Giải pháp")}</Link>
-            <Link href="#pricing" className="hover:text-gray-900 dark:hover:text-white transition-colors">{tr("Pricing", "Bảng giá")}</Link>
             <Link href="#security" className="hover:text-gray-900 dark:hover:text-white transition-colors">{tr("Security", "Bảo mật")}</Link>
             <Link href="/signin" className="hover:text-gray-900 dark:hover:text-white transition-colors">{tr("Sign In", "Đăng nhập")}</Link>
           </nav>
@@ -681,40 +680,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── SECTION 6: Bảng giá dịch vụ ── */}
-        <section id="pricing" className="pt-20 px-6 max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">{tr("Scale With Your Business Growth", "Quy Mô Mở Rộng Cùng Sự Phát Triển Của Doanh Nghiệp")}</h2>
-            <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
-              {tr("Choose the right plan for your team size and scale when needed.", "Chọn gói phù hợp với quy mô đội nhóm của bạn và mở rộng khi nhu cầu tăng lên.")}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-10 rounded-[28px] bg-gradient-to-br from-white to-blue-100 dark:from-[#0F172A] dark:to-[#020617] border border-gray-300/80 dark:border-white/10 shadow-[0_10px_28px_rgba(2,6,23,0.10)]">
-              <h3 className="text-2xl font-bold mb-4">{tr("🌱 Starter Plan (Free)", "🌱 Gói Khởi Tạo (Miễn phí)")}</h3>
-              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                {tr("Ideal for small teams getting started (up to 5 members).", "Giải pháp số hóa bước đầu dành cho các nhóm dự án nhỏ (Tối đa 5 nhân sự).")}
-              </p>
-            </div>
-
-            <div className="p-10 rounded-[28px] bg-white dark:bg-[#0F172A] border border-gray-300/80 dark:border-white/10 shadow-[0_10px_28px_rgba(2,6,23,0.10)]">
-              <h3 className="text-2xl font-bold mb-4">{tr("🚀 Standard Plan", "🚀 Gói Tiêu Chuẩn")}</h3>
-              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                {tr("Built for startups and growing teams (up to 50 members).", "Tối ưu hóa vận hành cho startup và doanh nghiệp đang tăng trưởng (Tối đa 50 nhân sự).")}
-              </p>
-            </div>
-
-            <div className="p-10 rounded-[28px] bg-gradient-to-br from-white to-blue-100 dark:from-[#0F172A] dark:to-[#020617] border border-gray-300/80 dark:border-white/10 shadow-[0_10px_28px_rgba(2,6,23,0.10)]">
-              <h3 className="text-2xl font-bold mb-4">{tr("🏢 Enterprise Plan", "🏢 Gói Mở Rộng")}</h3>
-              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                {tr("Full platform power with unlimited scale for large organizations.", "Mở khóa toàn bộ sức mạnh hệ thống, không giới hạn quy mô dành cho các tổ chức lớn.")}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 7: CTA cuối trang ── */}
+        {/* ── SECTION 6: CTA cuối trang ── */}
         <section className="pt-32 pb-10 px-6">
           <div className="max-w-5xl mx-auto rounded-[32px] bg-white border border-gray-300/80 dark:bg-[#0F172A] dark:border-white/10 p-12 md:p-20 text-center relative overflow-hidden shadow-[0_10px_28px_rgba(2,6,23,0.10)]">
             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
@@ -754,7 +720,6 @@ export default function LandingPage() {
             <ul className="space-y-2 text-sm text-gray-500">
               <li><Link href="#solution" className="hover:text-blue-400 transition-colors">{tr("Solutions", "Tính Năng")}</Link></li>
               <li><Link href="#security" className="hover:text-blue-400 transition-colors">{tr("Security", "Bảo Mật")}</Link></li>
-              <li><Link href="#pricing" className="hover:text-blue-400 transition-colors">{tr("Pricing", "Bảng Giá")}</Link></li>
             </ul>
           </div>
 

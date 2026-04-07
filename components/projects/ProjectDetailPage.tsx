@@ -301,7 +301,6 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen: boolean; onClose: () => void; projectId: string; initialEmail?: string; }) {
     const { t } = useTranslation()
-    const router = useRouter()
     const [email, setEmail] = useState(initialEmail);
     const [role, setRole] = useState<"MEMBER" | "VIEWER" | "">("");
     const [emailError, setEmailError] = useState<string | null>(null);
@@ -334,28 +333,12 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
         onError: (error: any) => {
             const status = error?.response?.status;
             const code = getStructuredErrorCode(error);
-            const data = error?.response?.data;
             if (status === 409 || code === "ALREADY_MEMBER") {
                 toast.error(getBeErrorMessage(error) || "Người dùng này đã là thành viên của dự án");
                 return;
             }
             if (status === 403 || code === "FORBIDDEN") {
                 toast.error(getBeErrorMessage(error) || "Bạn không có quyền thực hiện thao tác này");
-                return;
-            }
-            if (status === 422 || code === "MEMBER_LIMIT_EXCEEDED") {
-                const { currentCount, limit, plan } = data?.meta || {};
-                const base =
-                    getBeErrorMessage(error) ||
-                    (currentCount != null && limit != null
-                        ? `Đã đạt giới hạn ${currentCount}/${limit} thành viên${plan ? ` (Gói ${plan})` : ""}.`
-                        : "Đã đạt giới hạn thành viên theo gói dịch vụ.");
-                toast.error(base, {
-                    action: {
-                        label: "Nâng cấp",
-                        onClick: () => router.push("/settings/page?tab=billing"),
-                    },
-                });
                 return;
             }
             if (status === 400) {
