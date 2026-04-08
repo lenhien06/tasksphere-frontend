@@ -88,6 +88,8 @@ export default function TimelineGanttChart({
     const chartWidth = Math.max(slots.length * dayWidth, 900);
     const headerHeight = 72;
     const timelineHeight = rows.length * rowHeight;
+    const parentBarHeight = Math.min(rowHeight - 24, 44);
+    const childBarHeight = Math.min(rowHeight - 28, 40);
 
     const getX = (date: Date) => differenceInCalendarDays(startOfDay(date), startOfDay(startDate)) * dayWidth;
 
@@ -128,15 +130,16 @@ export default function TimelineGanttChart({
         return rows.map((row, index) => {
             const startX = getX(row.startDateObj) + 4;
             const durationWidth = Math.max(row.durationDays * dayWidth - 8, Math.min(72, dayWidth * 2));
+            const height = row.children.length > 0 ? parentBarHeight : childBarHeight;
             return {
                 ...row,
                 x: startX,
-                y: index * rowHeight + 10,
+                y: index * rowHeight + (rowHeight - height) / 2,
                 width: durationWidth,
-                height: row.children.length > 0 ? rowHeight - 20 : rowHeight - 24,
+                height,
             };
         });
-    }, [rows, rowHeight, dayWidth]);
+    }, [rows, rowHeight, dayWidth, childBarHeight, parentBarHeight]);
 
     useEffect(() => {
         if (!dragState) return;

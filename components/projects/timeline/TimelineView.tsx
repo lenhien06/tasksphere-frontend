@@ -19,7 +19,7 @@ interface TimelineViewProps {
     onTaskClick: (taskId: string) => void;
 }
 
-const ROW_HEIGHT = 60;
+const ROW_HEIGHT = 88;
 
 function collectNodeIds(nodes: TimelineRow[]) {
     const ids = new Set<string>();
