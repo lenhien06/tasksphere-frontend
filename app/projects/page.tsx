@@ -2,13 +2,11 @@
 
 import Image from "next/image";
 import { useState, useMemo, useEffect } from "react";
-import { useTranslation } from "react-i18next";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
     Plus,
     Search,
     ChevronDown,
-    Building2,
     LayoutGrid,
     List,
     MoreVertical,
@@ -271,23 +269,17 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
 }
 
 function GlobalKPIBanner({
-    workspaceCount,
     projectCount,
     riskCount,
     overdueCount,
 }: {
-    workspaceCount: number;
     projectCount: number;
     riskCount: number;
     overdueCount: number;
 }) {
     return (
         <section className="rounded-[22px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_34%),linear-gradient(135deg,_#ffffff,_#f4f7fc)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-[16px] border border-white/80 bg-white/90 px-5 py-4 shadow-sm">
-                    <div className="text-[12px] font-medium text-slate-500">Workspaces</div>
-                    <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-slate-950">{workspaceCount}</div>
-                </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <div className="rounded-[16px] border border-white/80 bg-white/90 px-5 py-4 shadow-sm">
                     <div className="text-[12px] font-medium text-slate-500">Projects</div>
                     <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-slate-950">{projectCount}</div>
@@ -310,7 +302,6 @@ function GlobalKPIBanner({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function ProjectsPage() {
-    const { t } = useTranslation()
     const router = useRouter();
     const queryClient = useQueryClient();
     const { data: currentUser } = useCurrentUser({ required: false });
@@ -352,9 +343,9 @@ export default function ProjectsPage() {
 
         try {
             await navigator.clipboard.writeText(projectUrl);
-            toast.success(t('project.copyLinkSuccess', { defaultValue: 'Đã sao chép liên kết dự án' }));
+            toast.success("Project link copied");
         } catch {
-            toast.error(t('project.copyLinkError', { defaultValue: 'Không thể sao chép liên kết dự án' }));
+            toast.error("Unable to copy project link");
         }
     }
 
@@ -436,7 +427,7 @@ export default function ProjectsPage() {
         mutationFn: ({ id, data }: { id: string; data: any }) => ProjectService.update(id, data),
         onSuccess: (res) => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
-            toast.success("Đã lưu thay đổi");
+            toast.success("Changes saved");
             closeModal();
         },
         onError: (error: any) => {
@@ -449,11 +440,11 @@ export default function ProjectsPage() {
             ProjectService.archiveWithConfirmation(id, confirmName),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
-            toast.success("Đã lưu trữ dự án");
+            toast.success("Project archived");
             closeModal();
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.message || "Không thể lưu trữ dự án");
+            toast.error(error.response?.data?.message || "Unable to archive project");
         }
     });
 
@@ -461,11 +452,11 @@ export default function ProjectsPage() {
         mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) => ProjectService.deleteWithConfirmation(id, confirmName),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
-            toast.success("Đã xóa vĩnh viễn dự án");
+            toast.success("Project permanently deleted");
             closeModal();
         },
         onError: (error: any) => {
-            const errorMsg = error.response?.data?.message || "Không thể xóa dự án";
+            const errorMsg = error.response?.data?.message || "Unable to delete project";
             setDeleteError(errorMsg);
             toast.error(errorMsg);
         }
@@ -475,13 +466,13 @@ export default function ProjectsPage() {
         mutationFn: (id: string) => ProjectService.restore(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
-            toast.success(t('project.restoreSuccess', { defaultValue: 'Dự án đã được khôi phục thành công' }));
+            toast.success("Project restored");
             closeModal();
             // If we are on the Archived filter, the project will disappear, which is correct.
             // If we want to switch to Active, we could do it here, but typically invalidation is enough.
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.message || t('project.restoreFailed', { defaultValue: 'Không thể khôi phục dự án' }));
+            toast.error(error.response?.data?.message || "Unable to restore project");
         }
     });
 
@@ -619,103 +610,130 @@ export default function ProjectsPage() {
             <div className="px-2 md:px-4 py-2 flex flex-col gap-4 flex-shrink-0 mb-4">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
-                        <h1 className="text-[24px] md:text-[30px] font-extrabold text-gray-900 tracking-tight">Risk Control Center</h1>
-                        <p className="text-[13px] text-gray-500 font-medium">Monitor project health, delivery risk, and urgent execution hotspots in one place.</p>
-                        <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-700">
-                            <Building2 className="h-3.5 w-3.5" />
-                            {effectiveWorkspace
-                                ? `Workspace: ${effectiveWorkspace.name}`
-                                : "Personal Workspace"}
-                        </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                        {effectiveWorkspace && selectedWorkspace && (
-                            <button
-                                onClick={() => router.push(`/ws/${selectedWorkspace.slug}/projects/new-with-ai`)}
-                                className="flex items-center gap-2 h-[38px] px-4 rounded-xl text-[13px] font-bold border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition-all"
-                            >
-                                <Sparkles className="w-4 h-4" />
-                                Tạo với AI
-                            </button>
-                        )}
-                        <button onClick={handleOpenCreateProject} className="flex items-center gap-2 h-[38px] px-4 bg-[#111827] text-white rounded-xl text-[13px] font-bold hover:bg-gray-800 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)] active:scale-95">
-                            <Plus className="w-4 h-4 stroke-[3px]" /> <span>{t('project.newProject')}</span>
-                        </button>
+                        <h1 className="text-[24px] md:text-[30px] font-extrabold text-gray-900 tracking-tight">Personal Project Management</h1>
+                        <p className="text-[13px] text-gray-500 font-medium">Track delivery progress, overdue work, and project risk across your personal portfolio.</p>
                     </div>
                 </div>
 
                 <GlobalKPIBanner
-                    workspaceCount={globalMetrics.workspaceCount}
                     projectCount={globalMetrics.projectCount}
                     riskCount={globalMetrics.riskCount}
                     overdueCount={globalMetrics.overdueCount}
                 />
 
                 {/* Toolbar */}
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* Search */}
-                    <div className="relative flex items-center min-w-[180px] max-w-[240px] w-full">
-                        <Search className="absolute left-3 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                        <input type="text" placeholder={t('project.quickSearch')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="w-full h-[36px] bg-white border border-gray-200 rounded-xl pl-10 pr-4 text-[13px] focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all shadow-sm" />
+                <div className="flex flex-wrap items-center gap-2 overflow-x-auto rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+                    <div className="relative min-w-[240px] flex-1 md:max-w-sm">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Search by project name or key..."
+                            value={search}
+                            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm outline-none transition-colors placeholder:text-slate-400 focus:border-blue-400"
+                        />
+                        {search ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSearch("");
+                                    setPage(1);
+                                }}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-700"
+                            >
+                                <X size={14} />
+                            </button>
+                        ) : null}
                     </div>
 
-                    {/* Status Filter */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <button className="flex items-center gap-2 h-[36px] px-3 border border-gray-200 rounded-xl text-[12px] font-bold text-gray-700 bg-white hover:bg-gray-50 transition-all shadow-sm">
-                                <Filter className="w-3.5 h-3.5 text-gray-500" />
-                                <span>{t('task.status')}: {statusFilter === "All" ? t('common.all') : statusFilter}</span>
-                                <ChevronDown size={12} className="text-gray-400" />
+                            <button className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
+                                <Filter className="h-4 w-4 text-slate-500" />
+                                <span>Status: {statusFilter}</span>
+                                <ChevronDown size={12} className="text-slate-400" />
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-48 rounded-xl border-gray-200 p-1 shadow-lg bg-white z-[100]">
                             {["All", "Active", "Archived", "Completed"].map(s => (
-                                <DropdownMenuItem key={s} onClick={() => setStatusFilter(s)} className="rounded-lg px-3 py-2 text-xs font-bold cursor-pointer">{s === "All" ? t('project.allStatuses') : s === "Active" ? t('project.status_active') : s === "Archived" ? t('project.status_archived') : t('project.status_completed')}</DropdownMenuItem>
+                                <DropdownMenuItem key={s} onClick={() => setStatusFilter(s)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">{s}</DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {/* Visibility Filter */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <button className="flex items-center gap-2 h-[36px] px-3 border border-gray-200 rounded-xl text-[12px] font-bold text-gray-700 bg-white hover:bg-gray-50 transition-all shadow-sm">
-                                <Globe className="w-3.5 h-3.5 text-gray-500" />
-                                <span>{t('project.visibility')}: {visibilityFilter === "All" ? t('common.all') : visibilityFilter}</span>
-                                <ChevronDown size={12} className="text-gray-400" />
+                            <button className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
+                                <Globe className="h-4 w-4 text-slate-500" />
+                                <span>Visibility: {visibilityFilter}</span>
+                                <ChevronDown size={12} className="text-slate-400" />
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-48 rounded-xl border-gray-200 p-1 shadow-lg bg-white z-[100]">
                             {["All", "Private", "Internal", "Public"].map(v => (
-                                <DropdownMenuItem key={v} onClick={() => setVisibilityFilter(v)} className="rounded-lg px-3 py-2 text-xs font-bold cursor-pointer">{v === "All" ? t('project.allVisibilities') : v === "Private" ? t('project.visibility_private') : v === "Internal" ? t('project.visibility_internal') : t('project.visibility_public')}</DropdownMenuItem>
+                                <DropdownMenuItem key={v} onClick={() => setVisibilityFilter(v)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">{v}</DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {/* Archive quick filter */}
                     <button
                         onClick={() => {
                             setStatusFilter(isArchiveView ? "All" : "Archived");
                             setPage(1);
                         }}
                         className={cn(
-                            "flex items-center gap-2 h-[36px] px-3 border rounded-xl text-[12px] font-bold transition-all shadow-sm",
+                            "flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors",
                             isArchiveView
                                 ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
-                                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                         )}
                     >
-                        <Archive className="w-3.5 h-3.5" />
-                        <span>{t('project.archiveVault', { defaultValue: 'Kho lưu trữ' })}</span>
+                        <Archive className="h-4 w-4" />
+                        <span>Archive vault</span>
                     </button>
 
-                    <div className="flex-1" />
-
-                    <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 shrink-0">
-                        <button onClick={() => setView("grid")} className={cn("px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 text-[10px] font-bold", view === "grid" ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600")}>
-                            <LayoutGrid size={12} /> <span>{t('project.grid')}</span>
+                    {(search || statusFilter !== "All" || visibilityFilter !== "All") ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsResettingFilters(true);
+                                setSearch("");
+                                setStatusFilter("All");
+                                setVisibilityFilter("All");
+                                setPage(1);
+                            }}
+                            className="h-10 rounded-xl px-3 text-sm font-medium text-slate-600 transition-colors hover:text-red-600"
+                        >
+                            Clear filters
                         </button>
-                        <button onClick={() => setView("list")} className={cn("px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 text-[10px] font-bold", view === "list" ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600")}>
-                            <List size={12} /> <span>{t('project.table')}</span>
+                    ) : null}
+
+                    {isFetching ? <Loader2 size={14} className="animate-spin text-blue-500" /> : null}
+
+                    <div className="ml-auto flex items-center gap-2">
+                        <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-100 p-1 shrink-0">
+                            <button onClick={() => setView("grid")} className={cn("flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all", view === "grid" ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600")}>
+                                <LayoutGrid size={12} /> <span>Grid</span>
+                            </button>
+                            <button onClick={() => setView("list")} className={cn("flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all", view === "list" ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600")}>
+                                <List size={12} /> <span>Table</span>
+                            </button>
+                        </div>
+                        {effectiveWorkspace && selectedWorkspace && (
+                            <button
+                                onClick={() => router.push(`/ws/${selectedWorkspace.slug}/projects/new-with-ai`)}
+                                className="flex h-10 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-semibold text-violet-700 transition-all hover:bg-violet-100"
+                            >
+                                <Sparkles className="h-4 w-4" />
+                                Create with AI
+                            </button>
+                        )}
+                        <button
+                            onClick={handleOpenCreateProject}
+                            className="flex h-10 items-center gap-2 rounded-xl bg-[#111827] px-4 text-sm font-semibold text-white transition-all hover:bg-gray-800 shadow-[0_4px_20px_rgba(0,0,0,0.18)]"
+                        >
+                            <Plus className="h-4 w-4 stroke-[3px]" />
+                            <span>New project</span>
                         </button>
                     </div>
                 </div>
@@ -749,12 +767,12 @@ export default function ProjectsPage() {
                                 )}
                             </div>
                             <h3 className="text-[20px] md:text-[24px] font-bold text-gray-800 mb-2">
-                                {statusFilter === "Archived" ? t('project.noArchivedProjects', { defaultValue: 'Không có dự án lưu trữ' }) : t('project.noResults')}
+                                {statusFilter === "Archived" ? "No archived projects" : "No projects match your filters"}
                             </h3>
                             <p className="text-[13px] md:text-[14px] text-gray-500 text-center max-w-sm mb-6 font-medium">
                                 {statusFilter === "Archived" 
-                                    ? t('project.noArchivedHint', { defaultValue: 'Các dự án sau khi lưu trữ sẽ xuất hiện tại đây.' }) 
-                                    : t('project.noResultsHint')}
+                                    ? "Archived projects will appear here once they are moved out of the active portfolio."
+                                    : "Try adjusting the search or filters to widen the result set."}
                             </p>
                             {(search || statusFilter !== "All" || visibilityFilter !== "All") && statusFilter !== "Archived" && (
                                 <button
@@ -767,7 +785,7 @@ export default function ProjectsPage() {
                                     }}
                                     className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[13px] hover:bg-blue-700 transition-all shadow-sm"
                                 >
-                                    {t('project.clearFilters')}
+                                    Clear filters
                                 </button>
                             )}
                         </div>
@@ -786,22 +804,22 @@ export default function ProjectsPage() {
                                 />
                             </div>
                             <div className="text-center -mt-4 relative z-10 px-4">
-                                <h3 className="text-[22px] md:text-[26px] font-extrabold text-gray-800 group-hover:text-blue-600 transition-colors">{t('project.startFirstProject')}</h3>
-                                <p className="text-[14px] md:text-[15px] text-gray-500 mt-2 font-medium max-w-md mx-auto">{t('project.clickToCreate')}</p>
+                                <h3 className="text-[22px] md:text-[26px] font-extrabold text-gray-800 group-hover:text-blue-600 transition-colors">Start your first project</h3>
+                                <p className="text-[14px] md:text-[15px] text-gray-500 mt-2 font-medium max-w-md mx-auto">Create a delivery workspace and begin tracking progress, risks, and execution health.</p>
                                 <div className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-white border-2 border-blue-100 text-blue-600 rounded-2xl font-bold text-sm shadow-sm group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
                                     <Plus size={18} strokeWidth={3} />
-                                    {t('project.create')}
+                                    Create project
                                 </div>
                             </div>
                         </div>
                     )
                 ) : view === "grid" ? (
-                    <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6 pb-10">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 pb-10">
                         {projects.map((p) => (
                             <div
                                 key={p.id}
                                 className={cn(
-                                    "group flex flex-col rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(15,23,42,0.05)] transition-all cursor-pointer relative",
+                                    "group flex flex-col rounded-[18px] border border-slate-200 bg-white p-3.5 shadow-[0_12px_36px_rgba(15,23,42,0.05)] transition-all cursor-pointer relative",
                                     p.status === "Archived"
                                         ? "opacity-70 grayscale-[20%] hover:shadow-md"
                                         : "hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_44px_rgba(15,23,42,0.08)]"
@@ -809,26 +827,26 @@ export default function ProjectsPage() {
                                 onClick={() => router.push(`/projects/${p.id}`)}
                             >
                                 {currentUser && (
-                                    <div className="absolute top-4 right-4 z-10" onClick={(e) => e.stopPropagation()}>
+                                    <div className="absolute right-3 top-3 z-10" onClick={(e) => e.stopPropagation()}>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <button className="flex h-9 w-9 items-center justify-center rounded-[12px] text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-600">
+                                                <button className="flex h-8 w-8 items-center justify-center rounded-[10px] text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-600">
                                                     <MoreVertical size={16} />
                                                 </button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-44 rounded-xl border-gray-200 p-1 shadow-xl bg-white z-[100]">
                                                 <DropdownMenuItem onClick={() => router.push(`/projects/${p.id}`)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                    <Folder size={14} className="mr-2" /> {t('project.viewDetails', { defaultValue: 'View details' })}
+                                                    <Folder size={14} className="mr-2" /> View details
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => handleCopyProjectLink(p.id)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                    <Link2 size={14} className="mr-2" /> {t('project.copyLink', { defaultValue: 'Copy link' })}
+                                                    <Link2 size={14} className="mr-2" /> Copy link
                                                 </DropdownMenuItem>
 
                                                 {p.status === "Archived" ? (
                                                     <>
                                                         {(p.isOwner || isAdmin) && (
                                                             <DropdownMenuItem onClick={() => openModal(p, "restore")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                                <RotateCcw size={14} className="mr-2" /> {t('common.restore', { defaultValue: 'Restore project' })}
+                                                                <RotateCcw size={14} className="mr-2" /> Restore project
                                                             </DropdownMenuItem>
                                                         )}
                                                     </>
@@ -836,12 +854,12 @@ export default function ProjectsPage() {
                                                     <>
                                                         {canEditProject(p) && (
                                                             <DropdownMenuItem onClick={() => openModal(p, "edit")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                                <Pencil size={14} className="mr-2" /> {t('project.edit')}
+                                                                <Pencil size={14} className="mr-2" /> Edit project
                                                             </DropdownMenuItem>
                                                         )}
                                                         {canArchiveProject(p) && (
                                                             <DropdownMenuItem onClick={() => openModal(p, "archive")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                                <Archive size={14} className="mr-2" /> {t('project.archive')}
+                                                                <Archive size={14} className="mr-2" /> Archive project
                                                             </DropdownMenuItem>
                                                         )}
                                                     </>
@@ -851,7 +869,7 @@ export default function ProjectsPage() {
                                                     <>
                                                         <DropdownMenuSeparator className="my-1" />
                                                         <DropdownMenuItem onClick={() => openModal(p, "delete")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer text-red-600 hover:bg-red-50">
-                                                            <Trash2 size={14} className="mr-2" /> {t('project.deletePermanently')}
+                                                            <Trash2 size={14} className="mr-2" /> Delete permanently
                                                         </DropdownMenuItem>
                                                     </>
                                                 )}
@@ -862,16 +880,16 @@ export default function ProjectsPage() {
 
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
-                                        <div className="mb-3 flex flex-wrap items-center gap-2">
-                                            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">
+                                        <div className="mb-2.5 flex flex-wrap items-center gap-2">
+                                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
                                                 {p.key}
                                             </span>
                                             <StatusBadge status={p.status} />
                                         </div>
-                                        <h3 className="truncate pr-8 text-[22px] font-black tracking-tight text-slate-950 transition-colors group-hover:text-blue-700">
+                                        <h3 className="truncate pr-8 text-[20px] font-black tracking-tight text-slate-950 transition-colors group-hover:text-blue-700">
                                             {p.name}
                                         </h3>
-                                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
+                                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-slate-500">
                                             <VisibilityInfo visibility={p.visibility} />
                                             <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:inline-block" />
                                             <div className="flex items-center gap-1">
@@ -882,52 +900,58 @@ export default function ProjectsPage() {
                                     </div>
                                 </div>
 
-                                <div className="mt-5 rounded-[20px] border border-slate-100 bg-slate-50/80 p-4">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div>
-                                            <div className="text-[11px] font-medium text-slate-500">Completion</div>
-                                            <div className="mt-2 text-4xl font-extrabold tracking-tight text-[#4F46E5]">
-                                                {Number(p.progress).toFixed(1)}%
+                                <div className="mt-3 border-t border-slate-100 pt-3">
+                                    <div className="flex items-end justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <div className="text-[12px] font-medium text-slate-500">
+                                                Completion ({p.tasksCompleted}/{p.tasksTotal} tasks)
                                             </div>
                                         </div>
-                                        <div className="rounded-[14px] bg-white px-3 py-2 shadow-sm">
-                                            <div className="text-[11px] font-medium text-slate-500">Tasks</div>
-                                            <div className="mt-1 whitespace-nowrap text-lg font-bold tabular-nums text-slate-900">
-                                                {p.tasksCompleted}/{p.tasksTotal}
-                                            </div>
+                                        <div className="whitespace-nowrap text-[26px] leading-none font-extrabold tracking-tight text-[#4F46E5] tabular-nums">
+                                            {Number(p.progress).toFixed(1)}%
                                         </div>
                                     </div>
 
-                                    <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
+                                    <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-slate-200">
                                         <div
                                             className="h-full rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-500 transition-all duration-700"
                                             style={{ width: `${Math.max(0, Math.min(p.progress, 100))}%` }}
                                         />
                                     </div>
 
-                                    <div className="mt-4 flex flex-wrap gap-2">
+                                    <div className="mt-2.5 flex flex-wrap gap-2">
                                         {p.overdueTasks > 0 && (
-                                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700">
+                                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-700">
                                                 {pluralize(p.overdueTasks, "overdue task")}
                                             </span>
                                         )}
-                                        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600">
+                                        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
                                             {pluralize(p.memberCount, "member")}
                                         </span>
                                         {p.status === "Completed" && (
-                                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
+                                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
                                                 Delivery complete
                                             </span>
                                         )}
                                     </div>
                                 </div>
 
-                                <p className="mt-4 line-clamp-2 min-h-[40px] text-[13px] leading-relaxed text-slate-500">
+                                <p className="mt-3 line-clamp-2 min-h-[34px] text-[12px] leading-relaxed text-slate-500">
                                     {p.description || "No project summary has been provided yet."}
                                 </p>
 
-                                <div className="mt-auto flex items-center justify-between gap-4 pt-5">
-                                    <ProjectMembers projectId={p.id} count={p.memberCount} />
+                                <div className="mt-auto flex items-center justify-between gap-3 pt-3.5">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            router.push(`/projects/${p.id}?tab=members`);
+                                        }}
+                                        className="rounded-[12px] transition-opacity hover:opacity-80"
+                                        title="Open members"
+                                    >
+                                        <ProjectMembers projectId={p.id} count={p.memberCount} />
+                                    </button>
 
                                     <button
                                         type="button"
@@ -935,9 +959,9 @@ export default function ProjectsPage() {
                                             e.stopPropagation();
                                             setHealthProject(p);
                                         }}
-                                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-[14px] bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-[12px] bg-gray-900 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-700"
                                     >
-                                        Khám sức khỏe
+                                        Open health view
                                         <ArrowRight size={16} />
                                     </button>
                                 </div>
@@ -949,14 +973,14 @@ export default function ProjectsPage() {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="border-b border-gray-100 bg-gray-50/50">
-                                    <th className="py-4 pl-6 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">{t('nav.projects')}</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">{t('project.progress')}</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">{t('task.status')}</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center hidden md:table-cell">{t('project.visibility')}</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap hidden sm:table-cell">{t('project.owner')}</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap hidden md:table-cell">{t('common.members')}</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center hidden lg:table-cell">{t('project.created')}</th>
-                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">{t('project.completed')}</th>
+                                    <th className="py-4 pl-6 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Projects</th>
+                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">Progress</th>
+                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">Status</th>
+                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center hidden md:table-cell">Visibility</th>
+                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap hidden sm:table-cell">Owner</th>
+                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap hidden md:table-cell">Members</th>
+                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center hidden lg:table-cell">Created</th>
+                                    <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">Completed</th>
                                     <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center"></th>
                                 </tr>
                             </thead>
@@ -994,7 +1018,17 @@ export default function ProjectsPage() {
                                             </div>
                                         </td>
                                         <td className="px-4 py-4 hidden md:table-cell w-[150px]">
-                                            <ProjectMembers projectId={p.id} count={p.memberCount} />
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    router.push(`/projects/${p.id}?tab=members`);
+                                                }}
+                                                className="rounded-[12px] transition-opacity hover:opacity-80"
+                                                title="Open members"
+                                            >
+                                                <ProjectMembers projectId={p.id} count={p.memberCount} />
+                                            </button>
                                         </td>
                                         <td className="px-4 py-4 text-center text-[10px] font-bold text-gray-400 hidden lg:table-cell w-[110px]">
                                             {p.startDate}
@@ -1008,7 +1042,7 @@ export default function ProjectsPage() {
                                                 {p.status === "Archived" && (p.isOwner || isAdmin) && (
                                                     <button
                                                         onClick={() => openModal(p, "restore")}
-                                                        title={t('common.restore', { defaultValue: 'Khôi phục dự án' })}
+                                                        title="Restore project"
                                                         className="h-8 w-8 flex items-center justify-center rounded-lg text-blue-500 hover:bg-blue-50 hover:text-blue-700 transition-all"
                                                     >
                                                         <RotateCcw size={15} />
@@ -1022,10 +1056,10 @@ export default function ProjectsPage() {
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-44 rounded-xl border-gray-200 p-1 shadow-xl bg-white z-[100]">
                                                         <DropdownMenuItem onClick={() => router.push(`/projects/${p.id}`)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                            <Folder size={14} className="mr-2" /> {t('project.viewDetails', { defaultValue: 'Xem chi tiết' })}
+                                                            <Folder size={14} className="mr-2" /> View details
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleCopyProjectLink(p.id)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                            <Link2 size={14} className="mr-2" /> {t('project.copyLink', { defaultValue: 'Sao chép liên kết' })}
+                                                            <Link2 size={14} className="mr-2" /> Copy link
                                                         </DropdownMenuItem>
                                                         
                                                         {p.status === "Archived" ? (
@@ -1033,7 +1067,7 @@ export default function ProjectsPage() {
                                                             <>
                                                                 {(p.isOwner || isAdmin) && (
                                                                     <DropdownMenuItem onClick={() => openModal(p, "restore")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                                        <RotateCcw size={14} className="mr-2" /> {t('common.restore', { defaultValue: 'Khôi phục dự án' })}
+                                                                        <RotateCcw size={14} className="mr-2" /> Restore project
                                                                     </DropdownMenuItem>
                                                                 )}
                                                             </>
@@ -1042,12 +1076,12 @@ export default function ProjectsPage() {
                                                             <>
                                                                 {canEditProject(p) && (
                                                                     <DropdownMenuItem onClick={() => openModal(p, "edit")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                                        <Pencil size={14} className="mr-2" /> {t('project.edit')}
+                                                                        <Pencil size={14} className="mr-2" /> Edit project
                                                                     </DropdownMenuItem>
                                                                 )}
                                                                 {canArchiveProject(p) && (
                                                                     <DropdownMenuItem onClick={() => openModal(p, "archive")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                                        <Archive size={14} className="mr-2" /> {t('project.archive')}
+                                                                        <Archive size={14} className="mr-2" /> Archive project
                                                                     </DropdownMenuItem>
                                                                 )}
                                                             </>
@@ -1057,7 +1091,7 @@ export default function ProjectsPage() {
                                                             <>
                                                                 <DropdownMenuSeparator className="my-1" />
                                                                 <DropdownMenuItem onClick={() => openModal(p, "delete")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer text-red-600 hover:bg-red-50">
-                                                                    <Trash2 size={14} className="mr-2" /> {t('project.deletePermanently')}
+                                                                    <Trash2 size={14} className="mr-2" /> Delete permanently
                                                                 </DropdownMenuItem>
                                                             </>
                                                         )}
@@ -1078,13 +1112,13 @@ export default function ProjectsPage() {
                 {/* Pagination */}
                 {projects.length > 0 && (
                     <div className="mt-4 flex items-center justify-center gap-3 pb-10">
-                        <button disabled={page === 1} onClick={() => setPage(page - 1)} className="flex items-center justify-center h-9 px-4 rounded-xl border border-gray-200 bg-white text-[12px] font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-all shadow-sm">{t('common.previous')}</button>
+                        <button disabled={page === 1} onClick={() => setPage(page - 1)} className="flex items-center justify-center h-9 px-4 rounded-xl border border-gray-200 bg-white text-[12px] font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-all shadow-sm">Previous</button>
                         <div className="flex items-center gap-2">
                             {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
                                 <button key={p} onClick={() => setPage(p)} className={cn("h-9 w-9 rounded-xl text-[12px] font-bold transition-all shadow-sm", page === p ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:border-blue-300")}>{p}</button>
                             ))}
                         </div>
-                        <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="flex items-center justify-center h-9 px-4 rounded-xl border border-gray-200 bg-white text-[12px] font-black text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-all shadow-sm">{t('common.next')}</button>
+                        <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="flex items-center justify-center h-9 px-4 rounded-xl border border-gray-200 bg-white text-[12px] font-black text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-all shadow-sm">Next</button>
                     </div>
                 )}
             </div>
