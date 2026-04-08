@@ -24,7 +24,7 @@ function DashboardHero({
   totalRisks: number;
 }) {
   return (
-    <section className="rounded-[22px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_34%),linear-gradient(135deg,_#ffffff,_#f4f7fc)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+    <section className="rounded-[16px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_34%),linear-gradient(135deg,_#ffffff,_#f4f7fc)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
         <div className="max-w-3xl pr-0 xl:pr-8">
           <div className="text-[12px] font-medium text-slate-500">
@@ -40,15 +40,15 @@ function DashboardHero({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="min-w-[156px] rounded-[18px] border border-white/80 bg-white/90 px-5 py-4 shadow-sm">
+          <div className="min-w-[156px] rounded-[14px] border border-white/80 bg-white/90 px-5 py-4 shadow-sm">
             <div className="whitespace-nowrap text-[12px] font-medium text-slate-500">Workspaces</div>
             <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-slate-950">{totalWorkspaces}</div>
           </div>
-          <div className="min-w-[168px] rounded-[18px] border border-amber-100 bg-amber-50/90 px-5 py-4 shadow-sm">
+          <div className="min-w-[168px] rounded-[14px] border border-amber-100 bg-amber-50/90 px-5 py-4 shadow-sm">
             <div className="whitespace-nowrap text-[12px] font-medium text-amber-700">Projects at risk</div>
             <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-amber-700">{totalRisks}</div>
           </div>
-          <div className="min-w-[168px] rounded-[18px] border border-rose-100 bg-rose-50/90 px-5 py-4 shadow-sm">
+          <div className="min-w-[168px] rounded-[14px] border border-rose-100 bg-rose-50/90 px-5 py-4 shadow-sm">
             <div className="whitespace-nowrap text-[12px] font-medium text-rose-700">Overdue tasks</div>
             <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-rose-700">{totalOverdue}</div>
           </div>
@@ -145,13 +145,13 @@ export default function WorkspaceListPage() {
         )}
 
         {isError && (
-          <div className="rounded-[18px] border border-rose-200 bg-rose-50 px-6 py-5 text-sm text-rose-700">
+          <div className="rounded-[14px] border border-rose-200 bg-rose-50 px-6 py-5 text-sm text-rose-700">
             Unable to load workspaces. Please try again.
           </div>
         )}
 
         {!isLoading && !isError && organizationWorkspaces.length === 0 && (
-          <div className="rounded-[20px] border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
+          <div className="rounded-[16px] border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
             <Building2 size={42} className="mx-auto mb-3 text-slate-400" />
             <h2 className="text-lg font-semibold text-slate-950">No organization workspace found</h2>
             <p className="mt-2 text-sm text-slate-500">
@@ -160,7 +160,7 @@ export default function WorkspaceListPage() {
             <button
               type="button"
               onClick={() => router.push("/workspaces/new")}
-              className="mt-5 inline-flex items-center gap-2 rounded-[14px] bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              className="mt-5 inline-flex items-center gap-2 rounded-[12px] bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               <Plus className="h-4 w-4" />
               Create your first workspace
@@ -174,7 +174,7 @@ export default function WorkspaceListPage() {
               Workspace health cards
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
               {organizationWorkspaces.map((workspace) => (
                 <WorkspaceHealthCard
                   key={workspace.id}
