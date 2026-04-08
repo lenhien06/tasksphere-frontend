@@ -421,17 +421,15 @@ export default function KanbanBoard({
       }
     }
 
-    // Original validation: warn about incomplete subtasks
+    // Scrum rule: parent task cannot be completed while any sub-task is still unfinished.
     if (
       targetColumn?.status === "DONE" &&
       task &&
       (task.subTaskCount ?? 0) > (task.subTaskDoneCount ?? 0)
     ) {
       const remaining = (task.subTaskCount ?? 0) - (task.subTaskDoneCount ?? 0);
-      const confirmed = window.confirm(
-        `Còn ${remaining} sub-task chưa xong. Vẫn chuyển sang Done?`
-      );
-      if (!confirmed) return;
+      toast.error(`Cần hoàn thành tất cả công việc con trước khi đóng task cha. Còn ${remaining} sub-task chưa xong.`);
+      return;
     }
 
     moveTaskMutation.mutate(payload);

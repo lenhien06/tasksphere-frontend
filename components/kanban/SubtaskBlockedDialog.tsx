@@ -86,7 +86,7 @@ export function SubtaskBlockedDialog({
           </div>
 
           <p className="text-sm text-gray-500 text-center mt-2 mb-8">
-            Hoàn thành hoặc hủy tất cả sub-task bên trên để tiếp tục.
+            Hoàn thành tất cả sub-task bên trên để tiếp tục.
           </p>
 
           {/* Actions */}

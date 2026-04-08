@@ -160,11 +160,17 @@ function StatusField({ task, projectId, canEdit, currentUserRole, etag, onBlocke
                                             s === "DONE" &&
                                             (task.subtaskCount ?? 0) > subtaskDone
                                         ) {
-                                            const remaining = (task.subtaskCount ?? 0) - subtaskDone
-                                            const confirmed = window.confirm(
-                                                `Còn ${remaining} sub-task chưa xong. Vẫn chuyển sang Done?`
-                                            )
-                                            if (!confirmed) return
+                                            const pending = (task.subtasks ?? [])
+                                                .filter((sub) => sub.status !== "DONE")
+                                                .map((sub) => ({
+                                                    id: sub.id,
+                                                    taskCode: sub.taskCode,
+                                                    title: sub.title,
+                                                    taskStatus: sub.status,
+                                                }))
+                                            onBlockedBySubtask?.(pending)
+                                            toast.error("Cần hoàn thành tất cả công việc con trước khi đóng task cha.")
+                                            return
                                         }
                                         updateStatus.mutate({ status: s })
                                     }}
