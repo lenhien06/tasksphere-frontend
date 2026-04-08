@@ -444,7 +444,11 @@ export default function ProjectsPage() {
             closeModal();
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.message || "Unable to archive project");
+            const errorMsg =
+                error?.response?.data?.meta?.message ||
+                error?.response?.data?.message ||
+                "Unable to archive project";
+            toast.error(errorMsg);
         }
     });
 
