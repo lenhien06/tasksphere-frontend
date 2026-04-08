@@ -451,12 +451,16 @@ export default function ProjectsPage() {
     const deleteMutation = useMutation({
         mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) => ProjectService.deleteWithConfirmation(id, confirmName),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            queryClient.invalidateQueries({ queryKey: ["projects"], exact: false });
+            queryClient.invalidateQueries({ queryKey: ["projects-portfolio-metrics"], exact: false });
             toast.success("Project permanently deleted");
             closeModal();
         },
         onError: (error: any) => {
-            const errorMsg = error.response?.data?.message || "Unable to delete project";
+            const errorMsg =
+                error?.response?.data?.meta?.message ||
+                error?.response?.data?.message ||
+                "Unable to delete project";
             setDeleteError(errorMsg);
             toast.error(errorMsg);
         }
@@ -866,7 +870,7 @@ export default function ProjectsPage() {
                                                     </>
                                                 )}
 
-                                                {(isAdmin || canArchiveProject(p)) && (
+                                                {p.status === "Archived" && (isAdmin || canArchiveProject(p)) && (
                                                     <>
                                                         <DropdownMenuSeparator className="my-1" />
                                                         <DropdownMenuItem onClick={() => openModal(p, "delete")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer text-red-600 hover:bg-red-50">
@@ -1088,12 +1092,12 @@ export default function ProjectsPage() {
                                                             </>
                                                         )}
 
-                                                        {(isAdmin || canArchiveProject(p)) && (
-                                                            <>
-                                                                <DropdownMenuSeparator className="my-1" />
-                                                                <DropdownMenuItem onClick={() => openModal(p, "delete")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer text-red-600 hover:bg-red-50">
-                                                                    <Trash2 size={14} className="mr-2" /> Delete permanently
-                                                                </DropdownMenuItem>
+                                                {p.status === "Archived" && (isAdmin || canArchiveProject(p)) && (
+                                                    <>
+                                                        <DropdownMenuSeparator className="my-1" />
+                                                        <DropdownMenuItem onClick={() => openModal(p, "delete")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer text-red-600 hover:bg-red-50">
+                                                            <Trash2 size={14} className="mr-2" /> Delete permanently
+                                                        </DropdownMenuItem>
                                                             </>
                                                         )}
                                                     </DropdownMenuContent>
