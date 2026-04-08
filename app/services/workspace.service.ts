@@ -8,6 +8,7 @@ import {
   InviteMemberRequest,
   WorkspaceInviteResponse,
   WorkspaceInviteListItem,
+  WorkspaceHealthMetrics,
 } from "@/app/types/workspace.schema";
 
 export const WorkspaceService = {
@@ -34,6 +35,14 @@ export const WorkspaceService = {
   getBySlug: async (slug: string) => {
     const response = await apiJava.get<ApiResponse<Workspace>>(
       `/v1/workspaces/${slug}`
+    );
+    return response.data;
+  },
+
+  /** Dashboard sức khỏe workspace. */
+  getHealthMetrics: async (wsId: string) => {
+    const response = await apiJava.get<ApiResponse<WorkspaceHealthMetrics>>(
+      `/v1/workspaces/${wsId}/health-metrics`
     );
     return response.data;
   },

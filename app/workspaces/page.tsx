@@ -1,114 +1,69 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  Building2,
-  FolderKanban,
-  Loader2,
-  Plus,
-  Users,
-} from "lucide-react";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { Activity, Building2, Loader2, Plus, ShieldAlert } from "lucide-react";
+
 import { WorkspaceService } from "@/app/services/workspace.service";
 import {
   type Workspace,
-  type WorkspaceRole,
+  type WorkspaceHealthMetrics,
 } from "@/app/types/workspace.schema";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { cn } from "@/lib/utils";
+import WorkspaceHealthCard from "@/components/workspaces/WorkspaceHealthCard";
+import HealthCheckDrawer from "@/components/workspaces/HealthCheckDrawer";
 
-const ROLE_STYLES: Record<WorkspaceRole, string> = {
-  OWNER: "border-[#bfd8ff] bg-[#ddf4ff] text-[#0969da]",
-  ADMIN: "border-[#c2e5c4] bg-[#dafbe1] text-[#1a7f37]",
-  MEMBER: "border-[#d0d7de] bg-[#f6f8fa] text-[#57606a]",
-};
-
-function getInitials(name?: string | null) {
-  return (name && typeof name === "string" ? name.slice(0, 2) : "WS").toUpperCase();
-}
-
-function WorkspaceRow({
-  workspace,
-  onOpen,
-  actionLabel,
+function DashboardHero({
+  totalWorkspaces,
+  totalOverdue,
+  totalRisks,
 }: {
-  workspace: Workspace;
-  onOpen: () => void;
-  actionLabel: string;
+  totalWorkspaces: number;
+  totalOverdue: number;
+  totalRisks: number;
 }) {
-  const role = workspace.role ?? "MEMBER";
-
   return (
-    <div className="flex flex-col gap-4 border-t border-[#d8dee4] px-4 py-4 first:border-t-0 md:flex-row md:items-center md:justify-between">
-      <div className="flex min-w-0 items-center gap-4">
-        {workspace.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={workspace.avatarUrl}
-            alt={workspace.name}
-            className="h-11 w-11 rounded-lg border border-[#d0d7de] object-cover"
-          />
-        ) : (
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#d0d7de] bg-[#f6f8fa] text-sm font-semibold text-[#57606a]">
-            {getInitials(workspace.name)}
+    <section className="rounded-[32px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_35%),linear-gradient(135deg,_#ffffff,_#eef4ff)] p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">
+            <Activity className="h-3.5 w-3.5" />
+            Workspace Health Dashboard
           </div>
-        )}
+          <h1 className="mt-4 text-[28px] font-black tracking-tight text-slate-950 sm:text-[34px]">
+            Theo dõi sức khỏe tổ chức theo thời gian thực
+          </h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
+            Xem tiến độ tổng hợp, điểm nóng rủi ro và cảnh báo quá tải nguồn lực của từng workspace
+            trong cùng một bảng điều khiển.
+          </p>
+        </div>
 
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={onOpen}
-              className="truncate text-left text-[18px] font-semibold text-[#0969da] hover:underline"
-            >
-              {workspace.name}
-            </button>
-            <span
-              className={cn(
-                "rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-                ROLE_STYLES[role]
-              )}
-            >
-              {role}
-            </span>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-[24px] border border-white/80 bg-white/90 px-5 py-4 shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Workspace</div>
+            <div className="mt-2 text-3xl font-black text-slate-950">{totalWorkspaces}</div>
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#57606a]">
-            <span>/{workspace.slug}</span>
-            <span className="inline-flex items-center gap-1">
-              <Users size={14} />
-              {workspace.memberCount} thành viên
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <FolderKanban size={14} />
-              {workspace.projectCount} dự án
-            </span>
+          <div className="rounded-[24px] border border-amber-100 bg-amber-50/90 px-5 py-4 shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-600">Rủi ro</div>
+            <div className="mt-2 text-3xl font-black text-amber-700">{totalRisks}</div>
           </div>
-          {workspace.description && (
-            <p className="mt-1 line-clamp-1 text-sm text-[#57606a]">
-              {workspace.description}
-            </p>
-          )}
+          <div className="rounded-[24px] border border-rose-100 bg-rose-50/90 px-5 py-4 shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-600">Quá hạn</div>
+            <div className="mt-2 text-3xl font-black text-rose-700">{totalOverdue}</div>
+          </div>
         </div>
       </div>
-
-      <div className="flex items-center gap-2 self-start md:self-center">
-        <button
-          type="button"
-          onClick={onOpen}
-          className="inline-flex items-center gap-2 rounded-md border border-[#d0d7de] bg-white px-3 py-1.5 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
-        >
-          {actionLabel}
-          <ArrowRight size={14} />
-        </button>
-      </div>
-    </div>
+    </section>
   );
 }
 
 export default function WorkspaceListPage() {
   const router = useRouter();
   const { selectWorkspace } = useWorkspace();
+  const [drawerWorkspace, setDrawerWorkspace] = useState<Workspace | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["my-workspaces"],
@@ -117,86 +72,137 @@ export default function WorkspaceListPage() {
   });
 
   const workspaces: Workspace[] = (data?.data as Workspace[]) ?? [];
-  const organizationWorkspaces = workspaces.filter(
-    (workspace) => workspace.type !== "PERSONAL"
-  );
+  const organizationWorkspaces = workspaces.filter((workspace) => workspace.type !== "PERSONAL");
+
+  const healthQueries = useQueries({
+    queries: organizationWorkspaces.map((workspace) => ({
+      queryKey: ["workspace-health", workspace.id],
+      queryFn: () => WorkspaceService.getHealthMetrics(workspace.id),
+      staleTime: 5 * 60 * 1000,
+      enabled: organizationWorkspaces.length > 0,
+    })),
+  });
+
+  const healthByWorkspaceId = useMemo(() => {
+    const entries = organizationWorkspaces.map((workspace, index) => {
+      const metrics = healthQueries[index]?.data?.data as WorkspaceHealthMetrics | undefined;
+      return [workspace.id, metrics ?? null] as const;
+    });
+    return new Map<string, WorkspaceHealthMetrics | null>(entries);
+  }, [organizationWorkspaces, healthQueries]);
+
+  const totals = useMemo(() => {
+    return organizationWorkspaces.reduce(
+      (acc, workspace) => {
+        const metrics = healthByWorkspaceId.get(workspace.id);
+        acc.workspaces += 1;
+        acc.overdue += metrics?.overdueTaskCount ?? 0;
+        acc.risky += metrics?.riskyProjectCount ?? 0;
+        return acc;
+      },
+      { workspaces: 0, overdue: 0, risky: 0 }
+    );
+  }, [organizationWorkspaces, healthByWorkspaceId]);
+
+  const drawerMetrics = drawerWorkspace ? healthByWorkspaceId.get(drawerWorkspace.id) ?? null : null;
 
   return (
-    <div className="flex h-full flex-col bg-transparent text-[#1f2328]">
-      <div className="mb-4 flex flex-col gap-3 px-2 py-2 md:px-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-[24px] md:text-[28px] font-extrabold tracking-tight text-[#1f2328]">
-            Workspaces
-          </h1>
-          <p className="mt-1 text-[13px] font-medium text-[#57606a]">
-            Quản lý các workspace tổ chức của bạn theo một nơi thống nhất.
-          </p>
-        </div>
+    <>
+      <div className="mx-auto w-full max-w-[1680px] space-y-6 px-4 pb-8 pt-4 sm:px-6 lg:px-8 2xl:px-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+              Organization View
+            </div>
+            <h1 className="mt-2 text-[28px] font-black tracking-tight text-slate-950 sm:text-[32px]">
+              Workspaces
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-600">
+              Refactor danh sách workspace thành bảng điều khiển sức khỏe đa chiều cho PM, giúp phát hiện
+              nhanh các workspace có nguy cơ chậm tiến độ hoặc quá tải nguồn lực.
+            </p>
+          </div>
 
-        <button
-          type="button"
-          onClick={() => router.push("/workspaces/new")}
-          className="inline-flex items-center gap-2 rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
-        >
-          <Plus size={15} />
-          Tạo workspace
-        </button>
-      </div>
-
-      <div className="px-2 pb-6 md:px-4">
-      {isLoading && (
-        <div className="flex items-center justify-center py-24">
-          <Loader2 size={32} className="animate-spin text-[#0969da]" />
-        </div>
-      )}
-
-      {isError && (
-        <div className="rounded-xl border border-[#ff818266] bg-[#ffebe9] px-6 py-5 text-sm text-[#cf222e]">
-          Không thể tải danh sách workspace. Vui lòng thử lại.
-        </div>
-      )}
-
-      {!isLoading && !isError && workspaces.length === 0 && (
-        <div className="rounded-xl border border-dashed border-[#d0d7de] bg-white px-6 py-16 text-center shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
-          <Building2 size={42} className="mx-auto mb-3 text-[#8c959f]" />
-          <h2 className="text-lg font-semibold text-[#1f2328]">
-            Bạn chưa có workspace nào
-          </h2>
-          <p className="mt-2 text-sm text-[#57606a]">
-            Tạo workspace đầu tiên để tách riêng không gian cá nhân và team.
-          </p>
           <button
             type="button"
             onClick={() => router.push("/workspaces/new")}
-            className="mt-5 inline-flex items-center gap-2 rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
+            className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            <Plus size={15} />
-            Tạo workspace đầu tiên
+            <Plus className="h-4 w-4" />
+            Tạo workspace
           </button>
         </div>
-      )}
 
-      {!isLoading && !isError && organizationWorkspaces.length > 0 && (
-        <section>
-          <div className="mb-3 text-sm font-semibold text-[#1f2328]">
-            Organization workspaces
+        <DashboardHero
+          totalWorkspaces={totals.workspaces}
+          totalOverdue={totals.overdue}
+          totalRisks={totals.risky}
+        />
+
+        {isLoading && (
+          <div className="flex items-center justify-center py-24">
+            <Loader2 size={32} className="animate-spin text-[#0969da]" />
           </div>
-          <div className="overflow-hidden rounded-xl border border-[#d0d7de] bg-white shadow-[0_1px_2px_rgba(31,35,40,0.04)]">
-            {organizationWorkspaces.map((workspace) => (
-              <WorkspaceRow
-                key={workspace.id}
-                workspace={workspace}
-                actionLabel="Xem chi tiết"
-                onOpen={() => {
-                  selectWorkspace(workspace);
-                  router.push(`/ws/${workspace.slug}`);
-                }}
-              />
-            ))}
+        )}
+
+        {isError && (
+          <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-6 py-5 text-sm text-rose-700">
+            Không thể tải danh sách workspace. Vui lòng thử lại.
           </div>
-        </section>
-      )}
+        )}
+
+        {!isLoading && !isError && organizationWorkspaces.length === 0 && (
+          <div className="rounded-[28px] border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
+            <Building2 size={42} className="mx-auto mb-3 text-slate-400" />
+            <h2 className="text-lg font-semibold text-slate-950">Bạn chưa có organization workspace nào</h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Tạo workspace đầu tiên để bắt đầu theo dõi sức khỏe đội ngũ và tiến độ dự án.
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push("/workspaces/new")}
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              Tạo workspace đầu tiên
+            </button>
+          </div>
+        )}
+
+        {!isLoading && !isError && organizationWorkspaces.length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <ShieldAlert className="h-4 w-4 text-amber-500" />
+              Smart Workspace Cards
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
+              {organizationWorkspaces.map((workspace) => (
+                <WorkspaceHealthCard
+                  key={workspace.id}
+                  workspace={workspace}
+                  metrics={healthByWorkspaceId.get(workspace.id)}
+                  onOpenHealth={() => {
+                    setDrawerWorkspace(workspace);
+                    setDrawerOpen(true);
+                  }}
+                  onOpenWorkspace={() => {
+                    selectWorkspace(workspace);
+                    router.push(`/ws/${workspace.slug}`);
+                  }}
+                />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
-    </div>
+
+      <HealthCheckDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        workspace={drawerWorkspace}
+        metrics={drawerMetrics}
+      />
+    </>
   );
 }

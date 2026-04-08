@@ -96,3 +96,95 @@ export const WorkspaceInviteListItemSchema = z.object({
 });
 
 export type WorkspaceInviteListItem = z.infer<typeof WorkspaceInviteListItemSchema>;
+
+// ── Workspace Health Dashboard ───────────────────────────────────────────────
+
+export interface WorkspaceHealthTaskDistribution {
+  todo: number;
+  inProgress: number;
+  done: number;
+}
+
+export interface WorkspaceHealthSprintHealth {
+  sprintName: string | null;
+  daysRemaining: number | null;
+  totalStoryPoints: number;
+  overdueTasks: number;
+}
+
+export interface WorkspaceHealthProjectHighlight {
+  projectId: string;
+  projectName: string;
+  projectKey: string;
+  riskLevel: "CRITICAL" | "WARNING" | "HEALTHY";
+}
+
+export interface WorkspaceHealthBurndownPoint {
+  label: string;
+  idealRemaining: number;
+  actualRemaining: number;
+}
+
+export interface WorkspaceHealthRiskHotspot {
+  taskId: string;
+  taskCode: string;
+  title: string;
+  dueDate: string | null;
+  priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | null;
+  overdue: boolean;
+  projectId: string;
+  projectName: string;
+  assigneeId: string | null;
+  assigneeName: string;
+  assigneeAvatarUrl: string | null;
+}
+
+export interface WorkspaceHealthResourceAlert {
+  userId: string;
+  fullName: string;
+  avatarUrl: string | null;
+  allocatedHours: number;
+  capacityHours: number;
+  overloaded: boolean;
+}
+
+export interface WorkspaceHealthProjectItem {
+  projectId: string;
+  projectName: string;
+  projectKey: string;
+  status: string;
+  riskLevel: "CRITICAL" | "WARNING" | "HEALTHY";
+  activeSprintName: string | null;
+  daysRemaining: number | null;
+  totalTasks: number;
+  doneTasks: number;
+  overdueTasks: number;
+  totalStoryPoints: number;
+}
+
+export interface WorkspaceHealthMemberPreview {
+  userId: string;
+  fullName: string;
+  avatarUrl: string | null;
+  role: WorkspaceRole;
+}
+
+export interface WorkspaceHealthMetrics {
+  workspaceId: string;
+  workspaceName: string;
+  globalProgress: number;
+  overdueTaskCount: number;
+  riskyProjectCount: number;
+  totalTaskCount: number;
+  doneTaskCount: number;
+  taskDistribution: WorkspaceHealthTaskDistribution;
+  sprintHealth: WorkspaceHealthSprintHealth | null;
+  focusProject: WorkspaceHealthProjectHighlight | null;
+  burndown: WorkspaceHealthBurndownPoint[];
+  hotspots: WorkspaceHealthRiskHotspot[];
+  overloadedMembers: WorkspaceHealthResourceAlert[];
+  projects: WorkspaceHealthProjectItem[];
+  memberPreview: WorkspaceHealthMemberPreview[];
+  generatedAt: string;
+  cachedUntil: string;
+}

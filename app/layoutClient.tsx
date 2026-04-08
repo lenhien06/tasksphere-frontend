@@ -54,6 +54,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     setMounted(true)
   }, [])
 
+  useEffect(() => {
+    if (!sidebarOpen) return
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+    }
+  }, [sidebarOpen])
+
   // Automatically detect the current project from the URL
   const pathParts = pathname?.split('/') || []
   const isProjectDetail = pathParts[1] === 'projects' && pathParts[2] && pathParts[2] !== 'all'

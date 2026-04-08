@@ -11,7 +11,7 @@ import {
     startOfDay,
     startOfWeek,
 } from "date-fns";
-import { AlertTriangle, GripVertical } from "lucide-react";
+import { AlertTriangle, Flag, GripVertical } from "lucide-react";
 
 import { TimelineDependency } from "@/app/types/task.schema";
 import { Button } from "@/components/ui/button";
@@ -330,11 +330,13 @@ export default function TimelineGanttChart({
                         {taskBars.map((bar) => {
                             const isHovered = hoveredTaskId === bar.id;
                             const isParent = bar.children.length > 0;
-                            const isLate = Boolean(bar.deadlineDateObj && bar.endDateObj > bar.deadlineDateObj);
+                            const deadlineDate = bar.deadlineDateObj;
+                            const hasDeadline = Boolean(deadlineDate);
+                            const isLate = Boolean(deadlineDate && bar.endDateObj > deadlineDate);
                             const statusStyle = isLate
                                 ? "from-red-600 to-rose-500 text-white border-red-600"
                                 : (BAR_STYLE_BY_STATUS[bar.status] ?? BAR_STYLE_BY_STATUS.TODO);
-                            const markerX = bar.deadlineDateObj ? getX(bar.deadlineDateObj) + dayWidth / 2 : null;
+                            const markerX = deadlineDate ? getX(deadlineDate) + dayWidth / 2 : null;
                             const leftOffset = dragState?.taskId === bar.id && dragState.mode === "move"
                                 ? dragState.deltaDays * dayWidth
                                 : 0;
@@ -352,10 +354,22 @@ export default function TimelineGanttChart({
                                                     className="absolute z-[2] flex flex-col items-center"
                                                     style={{ left: markerX, top: bar.rowTop, height: rowHeight }}
                                                 >
-                                                    <div className="mt-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
-                                                        !
+                                                    <div
+                                                        className={cn(
+                                                            "mt-1 flex h-5 w-5 items-center justify-center rounded-full border bg-white shadow-sm",
+                                                            isLate
+                                                                ? "border-red-200 text-red-600"
+                                                                : "border-rose-200 text-rose-500"
+                                                        )}
+                                                    >
+                                                        <Flag size={10} />
                                                     </div>
-                                                    <div className="mt-1 h-full w-[2px] bg-red-400/85" />
+                                                    <div
+                                                        className={cn(
+                                                            "mt-1 h-full w-[2px]",
+                                                            isLate ? "bg-red-500/90" : "bg-rose-300/90"
+                                                        )}
+                                                    />
                                                 </div>
                                             )}
 
@@ -417,8 +431,8 @@ export default function TimelineGanttChart({
                                                         Late
                                                     </span>
                                                 )}
-                                                {bar.blockedBy.length > 0 && (
-                                                    <AlertTriangle size={14} className="ml-auto shrink-0 text-white/90" />
+                                                {isLate && (
+                                                    <AlertTriangle size={14} className="ml-auto shrink-0 text-white/95" />
                                                 )}
 
                                                 <span

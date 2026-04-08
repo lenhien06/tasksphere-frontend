@@ -1530,13 +1530,13 @@ export default function WorkspaceDetailPage() {
                 <div className="border-b border-slate-100 bg-slate-100/80 px-6 py-3.5">
                   <h3 className="font-bold text-slate-900">Phân bổ kỹ năng</h3>
                 </div>
-                <div className="flex min-h-[92px] flex-wrap gap-2 px-6 py-5">
+                <div className="flex min-h-[92px] flex-wrap content-start items-start gap-2 px-6 py-5">
                   {Array.from(new Set(members.flatMap((member) => member.skillTags ?? [])))
                     .slice(0, 12)
                     .map((skill) => (
                       <span
                         key={skill}
-                        className="rounded-full bg-[#ddf4ff] px-2.5 py-1 text-xs font-semibold text-[#0969da]"
+                        className="inline-flex self-start rounded-full bg-[#ddf4ff] px-2.5 py-1 text-xs font-semibold leading-5 text-[#0969da]"
                       >
                         {skill}
                       </span>
