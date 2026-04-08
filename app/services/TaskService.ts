@@ -25,7 +25,9 @@ import {
     CompleteSprintResponse,
     SprintStatus,
     BurndownData,
+    BurnupReportData,
     VelocityData,
+    VelocityForecastData,
     ProjectOverview,
     MemberPerformance,
     MemberReportData,
@@ -382,9 +384,24 @@ export const TaskService = {
         return res.data.data;
     },
 
+    getBurnup: async (sprintId: string): Promise<BurnupReportData> => {
+        const res = await apiJava.get<ApiResponse<BurnupReportData>>(
+            `/v1/sprints/${sprintId}/burnup`
+        );
+        return res.data.data;
+    },
+
     getVelocity: async (projectId: string, limit = 5): Promise<VelocityData> => {
         const res = await apiJava.get<ApiResponse<VelocityData>>(
             `${BASE}/${projectId}/reports/velocity`,
+            { params: { limit } }
+        );
+        return res.data.data;
+    },
+
+    getVelocityForecast: async (projectId: string, limit = 5): Promise<VelocityForecastData> => {
+        const res = await apiJava.get<ApiResponse<VelocityForecastData>>(
+            `${BASE}/${projectId}/reports/velocity-forecast`,
             { params: { limit } }
         );
         return res.data.data;

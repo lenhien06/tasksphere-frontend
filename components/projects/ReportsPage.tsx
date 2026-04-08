@@ -1,484 +1,24 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslation } from "react-i18next";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ClipboardList,
-  TrendingUp,
-  AlertTriangle,
-  Zap,
+  ArrowLeft,
+  Download,
+  Lightbulb,
   Loader2,
-  InboxIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { TaskService } from "@/app/services/TaskService";
 import { usePermission } from "@/hooks/usePermission";
-import { useProjectOverview } from "@/hooks/useProjectOverview";
-import { useBurndownData } from "@/hooks/useBurndownData";
-import TaskDistributionCard from "@/components/project-overview/TaskDistributionCard";
-import SprintOverviewCard from "@/components/project-overview/SprintOverviewCard";
-import VelocityCard from "@/components/project-overview/VelocityCard";
-import PerformanceSummaryCard from "@/components/project-overview/PerformanceSummaryCard";
-import { toast } from "sonner";
-import { motion } from "framer-motion";
+import type {
+  BurnupReportData,
+  BurndownData,
+  SprintDetail,
+  VelocityForecastData,
+} from "@/app/types/task.schema";
 
-// ── KPICard ──────────────────────────────────────────────────
-
-function KPICard({ label, value, icon, iconBg, iconColor, danger }: {
-  label: string; value: string | number; icon: React.ReactElement;
-  iconBg: string; iconColor: string; danger?: boolean;
-}) {
-  return (
-    <div className={cn(
-      "bg-white rounded-2xl border border-[#E8E8E8] p-6 shadow-sm flex flex-col justify-between h-32",
-      danger && "border-red-100"
-    )}>
-      <div className="flex items-center justify-between">
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", iconBg)}>
-          {React.cloneElement(icon, { size: 20, className: iconColor } as React.HTMLAttributes<SVGElement>)}
-        </div>
-        <p className={cn("text-3xl font-bold tracking-tight", danger ? "text-red-500" : "text-[#141414]")}>
-          {value}
-        </p>
-      </div>
-      <p className="text-sm font-medium text-[#595959] mt-2">{label}</p>
-    </div>
-  );
-}
-
-// ── Skeleton Components ───────────────────────────────────────
-
-function OverviewSkeleton() {
-  return (
-    <div className="space-y-6 animate-pulse">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-32 bg-gray-100 rounded-2xl" />
-        ))}
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="h-80 bg-gray-100 rounded-2xl" />
-        <div className="lg:col-span-2 space-y-6">
-          <div className="h-52 bg-gray-100 rounded-2xl" />
-          <div className="h-24 bg-gray-100 rounded-2xl" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function VelocitySkeleton() {
-  return (
-    <div className="animate-pulse">
-      <div className="h-96 bg-gray-100 rounded-2xl" />
-    </div>
-  );
-}
-
-function MemberSkeleton() {
-  return (
-    <div className="bg-white rounded-2xl border border-[#E8E8E8] shadow-sm overflow-hidden animate-pulse">
-      <div className="p-6 border-b border-[#E8E8E8]">
-        <div className="h-7 w-72 bg-gray-100 rounded-lg" />
-      </div>
-      <div className="divide-y divide-[#F0F0F0]">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center gap-4 px-6 py-5">
-            <div className="w-9 h-9 rounded-full bg-gray-100" />
-            <div className="h-4 w-40 bg-gray-100 rounded" />
-            <div className="flex-1 h-3 bg-gray-100 rounded-full ml-4" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Empty State ───────────────────────────────────────────────
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="bg-white rounded-2xl border border-[#E8E8E8] py-24 text-center shadow-sm">
-      <InboxIcon size={48} className="mx-auto mb-4 text-gray-300" />
-      <p className="text-[#8C8C8C] font-medium">{message}</p>
-    </div>
-  );
-}
-
-// ── Tab 1: Overview ──────────────────────────────────────────
-
-function OverviewTab({ projectId, sprintId }: { projectId: string; sprintId?: string }) {
-  const { t } = useTranslation();
-  const { data: overview, isLoading } = useProjectOverview(projectId, sprintId);
-
-  if (isLoading) return <OverviewSkeleton />;
-  if (!overview) return <EmptyState message={t('report.noOverviewData')} />;
-
-  const statusMap = {
-    TODO: overview.statusDistribution.find((s) => s.status === "todo") ?? { count: 0, percentage: 0 },
-    IN_PROGRESS: overview.statusDistribution.find((s) => s.status === "in_progress") ?? { count: 0, percentage: 0 },
-    IN_REVIEW: overview.statusDistribution.find((s) => s.status === "in_review") ?? { count: 0, percentage: 0 },
-    DONE: overview.statusDistribution.find((s) => s.status === "done") ?? { count: 0, percentage: 0 },
-    CANCELLED: overview.statusDistribution.find((s) => s.status === "cancelled") ?? { count: 0, percentage: 0 },
-  };
-  const s = {
-    TODO:        statusMap.TODO.count,
-    IN_PROGRESS: statusMap.IN_PROGRESS.count,
-    IN_REVIEW:   statusMap.IN_REVIEW.count,
-    DONE:        statusMap.DONE.count,
-    CANCELLED:   statusMap.CANCELLED.count,
-  };
-  const totalTasks = overview.totalTasks || 0;
-  const overallProgress = overview.overallProgress ?? overview.completionRate;
-  
-  const breakdownItems = [
-    { label: t('task.status_TODO'),        count: s.TODO,        color: "#8C8C8C", pct: statusMap.TODO.percentage },
-    { label: t('task.status_IN_PROGRESS'), count: s.IN_PROGRESS, color: "#1677FF", pct: statusMap.IN_PROGRESS.percentage },
-    { label: t('task.status_IN_REVIEW'),   count: s.IN_REVIEW,   color: "#FAAD14", pct: statusMap.IN_REVIEW.percentage },
-    { label: t('task.status_DONE'),        count: s.DONE,        color: "#52C41A", pct: statusMap.DONE.percentage },
-    { label: t('task.status_CANCELLED'),   count: s.CANCELLED,   color: "#FF4D4F", pct: statusMap.CANCELLED.percentage },
-  ];
-
-  return (
-    <div className="space-y-6">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard
-          label={t('report.totalTasks')}
-          value={totalTasks}
-          icon={<ClipboardList />}
-          iconBg="bg-blue-50"
-          iconColor="text-blue-500"
-        />
-        <KPICard
-          label={t('report.completionRate')}
-          value={`${overview.completionRate}%`}
-          icon={<TrendingUp />}
-          iconBg="bg-green-50"
-          iconColor="text-green-500"
-        />
-        <KPICard
-          label={t('task.overdue')}
-          value={overview.overdueTasks}
-          icon={<AlertTriangle />}
-          iconBg="bg-red-50"
-          iconColor="text-red-500"
-          danger={overview.overdueTasks > 0}
-        />
-        <KPICard
-          label={t('report.storyPoints')}
-          value={`${overview.doneStoryPoints}/${overview.totalStoryPoints}`}
-          icon={<Zap />}
-          iconBg="bg-purple-50"
-          iconColor="text-purple-500"
-        />
-      </div>
-
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Status Distribution Card */}
-        <TaskDistributionCard statusDistribution={overview.statusDistribution} />
-
-        {/* Right col */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Status detail */}
-          <div className="bg-white rounded-2xl border border-[#E8E8E8] p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-[#141414] mb-5">{t('report.statusDetail')}</h3>
-            <div className="space-y-4">
-              {breakdownItems.map(item => (
-                <div key={item.label} className="space-y-1.5">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-semibold text-[#141414]">{item.label}</span>
-                    <span className="text-[#141414] font-medium">
-                      {item.count}{" "}
-                      <span className="text-[#8C8C8C] font-normal">({item.pct.toFixed(2)}%)</span>
-                    </span>
-                  </div>
-                  <div className="h-2 bg-[#F5F5F5] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${item.pct}%`, backgroundColor: item.color }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Overall progress */}
-          <div className="bg-white rounded-2xl border border-[#E8E8E8] p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-[#141414] mb-5">{t('report.overallProgress')}</h3>
-            <div className="flex flex-col items-center justify-center py-2">
-              <div className="w-full h-4 bg-[#F5F5F5] rounded-full overflow-hidden relative mb-5">
-                <div
-                  className="h-full bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] rounded-full transition-all duration-1000"
-                  style={{ width: `${overallProgress}%` }}
-                />
-              </div>
-              <p className="text-5xl font-black text-[#141414]">
-                {overallProgress}%
-              </p>
-              <p className="text-base text-[#555] mt-1 font-medium">{t('sprint.status_COMPLETED')}</p>
-              {totalTasks === 0 && (
-                <p className="text-xs text-[#8C8C8C] mt-2">{t('task.noTasks')}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Tab 2: Burndown ──────────────────────────────────────────
-
-function BurndownTab({ projectId, sprintId: propSprintId }: { projectId: string; sprintId?: string }) {
-  const { t } = useTranslation();
-  const router = useRouter();
-  const { isPM } = usePermission(projectId);
-  const { data: sprints = [] } = useQuery({
-    queryKey: ["sprints", projectId],
-    queryFn: () => TaskService.getSprints(projectId),
-    enabled: !!projectId,
-  });
-
-  const defaultSprint = sprints.find(s => s.status === "ACTIVE") ?? sprints[0];
-  const sprintId = propSprintId || defaultSprint?.id || "";
-
-  const { data: burndownData, isLoading } = useBurndownData(sprintId || null);
-  const { data: overview } = useProjectOverview(projectId, sprintId || undefined);
-
-  const currentSprint = sprints.find(s => s.id === sprintId) ?? defaultSprint;
-
-  const burndownSeries = useMemo(() => {
-    return (burndownData?.data ?? []).map((item) => ({
-      day: item.day,
-      date: item.date,
-      ideal: item.ideal,
-      actual: item.actual,
-    }));
-  }, [burndownData]);
-
-  const activeSprintCard = useMemo(() => {
-    if (!currentSprint) return null;
-    const doneTasks = overview?.statusDistribution.find((s) => s.status === "done")?.count ?? 0;
-    const inProgressTasks = overview?.statusDistribution.find((s) => s.status === "in_progress")?.count ?? 0;
-    const totalTasks = overview?.totalTasks ?? doneTasks + inProgressTasks;
-    const completedStoryPoints = overview?.doneStoryPoints ?? 0;
-    const totalStoryPoints = burndownData?.totalPoints ?? overview?.totalStoryPoints ?? 0;
-
-    return {
-      id: currentSprint.id,
-      name: currentSprint.name,
-      startDate: currentSprint.startDate,
-      endDate: currentSprint.endDate,
-      totalTasks,
-      doneTasks,
-      inProgressTasks,
-      totalStoryPoints,
-      completedStoryPoints,
-      completionRate: totalStoryPoints > 0
-        ? Math.round((completedStoryPoints / totalStoryPoints) * 100)
-        : (overview?.completionRate ?? 0),
-    };
-  }, [burndownData?.totalPoints, currentSprint, overview]);
-
-  if (!sprintId) return <EmptyState message={t('report.selectSprint')} />;
-
-  return (
-    <SprintOverviewCard
-      activeSprint={activeSprintCard}
-      burndown={burndownSeries}
-      burndownIsLoading={isLoading}
-      userRole={isPM ? "PROJECT_MANAGER" : "MEMBER"}
-      onNavigateToBoard={() => router.push(`/projects/${projectId}/board`)}
-      onNavigateToBacklog={() => router.push(`/projects/${projectId}/backlog`)}
-    />
-  );
-}
-
-// ── Tab 3: Velocity ──────────────────────────────────────────
-
-function VelocityTab({ projectId }: { projectId: string }) {
-  const { data: velocityData, isLoading } = useQuery({
-    queryKey: ["velocity", projectId, 5],
-    queryFn: () => TaskService.getVelocity(projectId, 5),
-    staleTime: 5 * 60_000,
-    enabled: !!projectId,
-  });
-
-  if (isLoading) return <VelocitySkeleton />;
-
-  const velocity = (velocityData?.sprints ?? []).map((item) => ({
-    sprintId: item.sprintId,
-    sprintName: item.sprintName,
-    velocity: Number(item.velocity) || 0,
-    status: "completed" as const,
-  }));
-
-  const trend = velocityData?.trend === "UP"
-    ? "increasing"
-    : velocityData?.trend === "DOWN"
-    ? "decreasing"
-    : "stable";
-
-  return (
-    <VelocityCard
-      velocity={velocity}
-      averageVelocity={Number(velocityData?.averageVelocity) || 0}
-      velocityTrend={trend}
-    />
-  );
-}
-
-// ── Tab 4: Member Performance ────────────────────────────────
-
-function MemberPerformanceTab({ projectId, sprintId }: { projectId: string; sprintId?: string }) {
-  const { isPM } = usePermission(projectId);
-
-  const { data: report, isLoading } = useQuery({
-    queryKey: ["member-perf", projectId, sprintId],
-    queryFn: () => TaskService.getMemberPerformance(projectId, { sprintId }),
-    enabled: isPM && !!projectId,
-    staleTime: 5 * 60_000,
-  });
-
-  if (isLoading) return <MemberSkeleton />;
-
-  return (
-    <PerformanceSummaryCard
-      memberPerformance={report?.members ?? []}
-      canViewMemberPerformance={isPM}
-    />
-  );
-}
-
-// ── Export Modal ─────────────────────────────────────────────
-
-function ExportModal({ projectId, onClose }: { projectId: string; onClose: () => void }) {
-  const { t } = useTranslation();
-  const [format, setFormat] = useState<"EXCEL" | "PDF">("EXCEL");
-  const [scope, setScope] = useState<"ALL" | "SPRINT">("ALL");
-  const [exporting, setExporting] = useState(false);
-
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const res = await TaskService.createExportJob(
-        projectId,
-        format,
-        scope === "SPRINT" ? "SPRINT" : "ALL"
-      );
-      if (res.status === 200 || res.status === 201) {
-        const url = URL.createObjectURL(res.data);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `tasksphere-report-${Date.now()}.${format === "EXCEL" ? "xlsx" : "pdf"}`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success(t('report.exportSuccess'));
-        onClose();
-      }
-    } catch {
-      toast.error(t('error.generic'));
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-10 w-full max-w-[480px] shadow-2xl relative animate-in zoom-in-95 duration-200">
-        <button
-          onClick={onClose}
-          className="absolute right-8 top-8 text-[#8C8C8C] hover:text-[#141414] text-xl font-light"
-        >
-          ✕
-        </button>
-        <h3 className="text-2xl font-bold text-[#141414] mb-8">{t('report.exportTitle')}</h3>
-
-        <div className="space-y-8">
-          <div>
-            <p className="text-base font-bold text-[#141414] mb-4">{t('report.exportFormat')}</p>
-            <div className="flex gap-8">
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="radio"
-                  checked={format === "EXCEL"}
-                  onChange={() => setFormat("EXCEL")}
-                  className="w-5 h-5 text-blue-600 cursor-pointer"
-                />
-                <span className="text-base text-[#595959] group-hover:text-[#141414] transition-colors">
-                  {t('report.format_excel')}
-                </span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="radio"
-                  checked={format === "PDF"}
-                  onChange={() => setFormat("PDF")}
-                  className="w-5 h-5 text-blue-600 cursor-pointer"
-                />
-                <span className="text-base text-[#595959] group-hover:text-[#141414] transition-colors">
-                  {t('report.format_pdf')}
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-base font-bold text-[#141414] mb-4">{t('report.exportScope')}</p>
-            <div className="flex gap-8">
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="radio"
-                  checked={scope === "ALL"}
-                  onChange={() => setScope("ALL")}
-                  className="w-5 h-5 text-blue-600 cursor-pointer"
-                />
-                <span className="text-base text-[#595959] group-hover:text-[#141414] transition-colors">
-                  {t('report.scope_all')}
-                </span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="radio"
-                  checked={scope === "SPRINT"}
-                  onChange={() => setScope("SPRINT")}
-                  className="w-5 h-5 text-blue-600 cursor-pointer"
-                />
-                <span className="text-base text-[#595959] group-hover:text-[#141414] transition-colors">
-                  {t('report.scope_sprint')}
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-4 pt-2">
-            <button
-              onClick={onClose}
-              className="px-8 py-2.5 border border-[#D9D9D9] rounded-lg text-base font-bold text-[#595959] hover:bg-gray-50 transition-all"
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              onClick={handleExport}
-              disabled={exporting}
-              className="px-8 py-2.5 bg-[#1677FF] text-white rounded-lg text-base font-bold hover:bg-blue-600 transition-all shadow-lg shadow-blue-100 flex items-center gap-2 disabled:opacity-60"
-            >
-              {exporting && <Loader2 className="animate-spin" size={18} />}
-              {t('report.exportNow')}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main Component ───────────────────────────────────────────
+type ReportType = "burnup" | "burndown" | "velocity";
 
 interface ReportsPageProps {
   projectId: string;
@@ -489,64 +29,765 @@ interface ReportsPageProps {
   onCloseExportModal?: () => void;
 }
 
+function mapTabToReport(activeTab?: number): ReportType | null {
+  if (activeTab === 1) return "burndown";
+  if (activeTab === 2) return "velocity";
+  return null;
+}
+
+function formatShortDate(date?: string | null) {
+  if (!date) return "No recorded date";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "Date unavailable";
+  return parsed.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" });
+}
+
+function formatRangeLabel(start?: string | null, end?: string | null) {
+  if (!start || !end) return "Sprint dates are not configured yet.";
+  return `${formatShortDate(start)} - ${formatShortDate(end)}`;
+}
+
+function buildLinePath(values: number[], width: number, height: number, padding = 32) {
+  if (!values.length) return "";
+  const maxValue = Math.max(...values, 1);
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+
+  return values
+    .map((value, index) => {
+      const x = padding + (index * plotWidth) / Math.max(values.length - 1, 1);
+      const y = padding + plotHeight - (value / maxValue) * plotHeight;
+      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+    })
+    .join(" ");
+}
+
+function buildStepPath(values: number[], width: number, height: number, padding = 32) {
+  if (!values.length) return "";
+  const maxValue = Math.max(...values, 1);
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+
+  let path = "";
+  values.forEach((value, index) => {
+    const x = padding + (index * plotWidth) / Math.max(values.length - 1, 1);
+    const y = padding + plotHeight - (value / maxValue) * plotHeight;
+
+    if (index === 0) {
+      path += `M ${x} ${y}`;
+      return;
+    }
+
+    path += ` H ${x} V ${y}`;
+  });
+  return path;
+}
+
+function buildStepArea(values: number[], width: number, height: number, padding = 32) {
+  if (!values.length) return "";
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+  const firstX = padding;
+  const baselineY = padding + plotHeight;
+  const lastX = padding + plotWidth;
+  return `${buildStepPath(values, width, height, padding)} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
+}
+
+function ReportCard({
+  title,
+  description,
+  illustration,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  illustration: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+    >
+      <div className="mb-5 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+        {illustration}
+      </div>
+      <h3 className="text-2xl font-bold text-slate-950">{title}</h3>
+      <p className="mt-3 text-base leading-7 text-slate-600">{description}</p>
+      <div className="mt-6 inline-flex items-center text-sm font-semibold text-slate-950">
+        Open report
+      </div>
+    </button>
+  );
+}
+
+function MiniBurnupIllustration() {
+  return (
+    <svg viewBox="0 0 280 150" className="h-36 w-full">
+      <rect x="64" y="10" width="66" height="124" fill="#E5E7EB" />
+      <path d="M 16 124 H 78 V 96 H 138 V 64 H 204 V 64 H 252" fill="none" stroke="#16A34A" strokeWidth="3.5" />
+      <path d="M 16 40 H 78 V 40 H 138 V 40 H 204 V 24 H 252" fill="none" stroke="#EA580C" strokeWidth="3.5" strokeDasharray="8 7" />
+      <path d="M 16 124 H 52 V 78 H 130 V 78 H 204 V 48 H 252" fill="none" stroke="#64748B" strokeWidth="3.5" />
+    </svg>
+  );
+}
+
+function MiniBurndownIllustration() {
+  return (
+    <svg viewBox="0 0 280 150" className="h-36 w-full">
+      <rect x="42" y="10" width="66" height="124" fill="#E5E7EB" />
+      <path d="M 14 34 H 90 V 66 H 176 V 96 H 252" fill="none" stroke="#F97316" strokeWidth="3.5" />
+      <path d="M 14 34 L 90 66 L 176 118 L 252 118" fill="none" stroke="#64748B" strokeWidth="3.5" strokeDasharray="8 7" />
+    </svg>
+  );
+}
+
+function MiniVelocityIllustration() {
+  return (
+    <svg viewBox="0 0 280 150" className="h-36 w-full">
+      {[0, 1, 2, 3, 4].map((column) => {
+        const baseX = 16 + column * 50;
+        const leftHeight = [86, 78, 98, 86, 98][column];
+        const rightHeight = [112, 52, 78, 124, 78][column];
+        return (
+          <g key={column}>
+            <rect x={baseX} y={134 - leftHeight} width="18" height={leftHeight} rx="4" fill="#7C6DDB" />
+            <rect x={baseX + 24} y={134 - rightHeight} width="18" height={rightHeight} rx="4" fill="#C4BDF4" />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function ChartShell({
+  title,
+  description,
+  controls,
+  children,
+}: {
+  title: string;
+  description: string;
+  controls?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-slate-200 px-8 py-7 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-[2rem] font-black tracking-tight text-slate-950">{title}</h2>
+          <p className="mt-2 text-lg text-slate-600">{description}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">{controls}</div>
+      </div>
+      <div className="px-8 py-8">
+        <div className="mb-4 flex justify-end">
+          <div className="inline-flex items-center rounded-full border border-indigo-100 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700">
+            AI insights
+          </div>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ReportEmpty({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 px-8 py-16 text-center">
+      <p className="text-lg font-semibold text-slate-900">{title}</p>
+      <p className="mt-2 text-base text-slate-600">{description}</p>
+    </div>
+  );
+}
+
+function InsightPanel({ insights }: { insights: string[] }) {
+  return (
+    <div className="rounded-[24px] border border-indigo-100 bg-indigo-50/70 px-7 py-6">
+      <div className="flex items-center gap-3">
+        <Lightbulb className="h-5 w-5 text-indigo-600" />
+        <h3 className="text-2xl font-bold text-slate-950">AI insights</h3>
+      </div>
+      <div className="mt-4 space-y-3">
+        {insights.map((insight) => (
+          <p key={insight} className="text-base leading-8 text-slate-700">
+            {insight}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SelectControl({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: SprintDetail[];
+  placeholder: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-12 min-w-[240px] rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base font-medium text-slate-900 outline-none transition-colors focus:border-indigo-400"
+    >
+      {options.length === 0 ? <option value="">{placeholder}</option> : null}
+      {options.map((sprint) => (
+        <option key={sprint.id} value={sprint.id}>
+          {sprint.name} {sprint.status === "ACTIVE" ? "(Current)" : ""}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function ExportButton({
+  disabled,
+  loading,
+  onClick,
+}: {
+  disabled?: boolean;
+  loading?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled || loading}
+      onClick={onClick}
+      className="inline-flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-base font-semibold text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+      Export PDF
+    </button>
+  );
+}
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      Back to report library
+    </button>
+  );
+}
+
+function BurndownChart({ data }: { data: BurndownData }) {
+  const width = 1080;
+  const height = 420;
+  const padding = 52;
+  const points = data.idealLine.map((idealPoint, index) => ({
+    label: formatShortDate(idealPoint.date),
+    ideal: Number(idealPoint.remainingPoints ?? 0),
+    actual: data.actualLine[index]?.remainingPoints == null
+      ? null
+      : Number(data.actualLine[index]?.remainingPoints),
+  }));
+  const values = points.flatMap((point) => [point.ideal, point.actual ?? 0]);
+  const maxValue = Math.max(...values, 1);
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+  const idealPath = buildLinePath(points.map((point) => point.ideal), width, height, padding);
+  const actualPath = buildLinePath(points.map((point) => point.actual ?? point.ideal), width, height, padding);
+
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
+      <div className="mb-5 flex items-center justify-between">
+        <h3 className="text-2xl font-bold text-slate-950">Remaining work across the sprint</h3>
+        <div className="flex items-center gap-5 text-sm text-slate-500">
+          <span className="inline-flex items-center gap-2">
+            <span className="h-0.5 w-10 bg-slate-400" />
+            Ideal
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-0.5 w-10 bg-indigo-600" />
+            Actual
+          </span>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} className="min-h-[420px] min-w-full">
+          {[0, 1, 2, 3, 4].map((grid) => {
+            const y = padding + (grid * plotHeight) / 4;
+            const value = Math.round(maxValue - (grid * maxValue) / 4);
+            return (
+              <g key={grid}>
+                <line x1={padding} x2={width - padding} y1={y} y2={y} stroke="#E2E8F0" />
+                <text x={padding - 12} y={y + 4} textAnchor="end" fontSize="14" fill="#64748B">
+                  {value}
+                </text>
+              </g>
+            );
+          })}
+          <line x1={padding} x2={padding} y1={padding} y2={height - padding} stroke="#CBD5E1" />
+          <line x1={padding} x2={width - padding} y1={height - padding} y2={height - padding} stroke="#CBD5E1" />
+          <path d={idealPath} fill="none" stroke="#94A3B8" strokeWidth="4" strokeDasharray="10 10" />
+          <path d={actualPath} fill="none" stroke="#4F46E5" strokeWidth="4" />
+          {points.map((point, index) => {
+            const x = padding + (index * plotWidth) / Math.max(points.length - 1, 1);
+            const y = padding + plotHeight - ((point.actual ?? point.ideal) / maxValue) * plotHeight;
+            return (
+              <g key={`${point.label}-${index}`}>
+                <circle cx={x} cy={y} r="5" fill="#4F46E5" />
+                <text x={x} y={height - 18} textAnchor="middle" fontSize="13" fill="#64748B">
+                  {point.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function BurnupChart({ data }: { data: BurnupReportData }) {
+  const width = 1080;
+  const height = 420;
+  const padding = 52;
+  const maxValue = Math.max(...data.data.flatMap((point) => [point.scopePoints, point.completedPoints]), 1);
+  const plotHeight = height - padding * 2;
+  const plotWidth = width - padding * 2;
+  const scopeValues = data.data.map((point) => point.scopePoints);
+  const completedValues = data.data.map((point) => point.completedPoints);
+
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
+      <div className="mb-5 flex items-center justify-between">
+        <h3 className="text-2xl font-bold text-slate-950">Completed work vs total scope</h3>
+        <div className="flex items-center gap-5 text-sm text-slate-500">
+          <span className="inline-flex items-center gap-2">
+            <span className="h-0.5 w-10 bg-rose-500" />
+            Scope
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-0.5 w-10 bg-emerald-500" />
+            Completed
+          </span>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} className="min-h-[420px] min-w-full">
+          {[0, 1, 2, 3, 4].map((grid) => {
+            const y = padding + (grid * plotHeight) / 4;
+            const value = Math.round(maxValue - (grid * maxValue) / 4);
+            return (
+              <g key={grid}>
+                <line x1={padding} x2={width - padding} y1={y} y2={y} stroke="#E2E8F0" />
+                <text x={padding - 12} y={y + 4} textAnchor="end" fontSize="14" fill="#64748B">
+                  {value}
+                </text>
+              </g>
+            );
+          })}
+          <line x1={padding} x2={padding} y1={padding} y2={height - padding} stroke="#CBD5E1" />
+          <line x1={padding} x2={width - padding} y1={height - padding} y2={height - padding} stroke="#CBD5E1" />
+          <path d={buildStepArea(completedValues, width, height, padding)} fill="rgba(16, 185, 129, 0.12)" />
+          <path d={buildStepPath(scopeValues, width, height, padding)} fill="none" stroke="#EF4444" strokeWidth="4" strokeDasharray="10 9" />
+          <path d={buildStepPath(completedValues, width, height, padding)} fill="none" stroke="#22C55E" strokeWidth="4" />
+          {data.data.map((point, index) => {
+            const x = padding + (index * plotWidth) / Math.max(data.data.length - 1, 1);
+            const scopeY = padding + plotHeight - (point.scopePoints / maxValue) * plotHeight;
+            const completedY = padding + plotHeight - (point.completedPoints / maxValue) * plotHeight;
+            return (
+              <g key={`${point.date}-${index}`}>
+                <circle cx={x} cy={scopeY} r="4.5" fill="#EF4444" />
+                <circle cx={x} cy={completedY} r="4.5" fill="#22C55E" />
+                <text x={x} y={height - 18} textAnchor="middle" fontSize="13" fill="#64748B">
+                  {formatShortDate(point.date)}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function VelocityChart({ data }: { data: VelocityForecastData }) {
+  const width = 1080;
+  const height = 420;
+  const padding = 52;
+  const maxValue = Math.max(...data.committedSeries, ...data.completedSeries, 1);
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+  const groupWidth = plotWidth / Math.max(data.categories.length, 1);
+  const barWidth = Math.min(32, groupWidth * 0.26);
+
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
+      <div className="mb-5 flex items-center justify-between">
+        <h3 className="text-2xl font-bold text-slate-950">Committed vs completed across recent sprints</h3>
+        <div className="flex items-center gap-5 text-sm text-slate-500">
+          <span className="inline-flex items-center gap-2">
+            <span className="h-3 w-8 rounded-full bg-slate-300" />
+            Committed
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-3 w-8 rounded-full bg-indigo-600" />
+            Completed
+          </span>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} className="min-h-[420px] min-w-full">
+          {[0, 1, 2, 3, 4].map((grid) => {
+            const y = padding + (grid * plotHeight) / 4;
+            const value = Math.round(maxValue - (grid * maxValue) / 4);
+            return (
+              <g key={grid}>
+                <line x1={padding} x2={width - padding} y1={y} y2={y} stroke="#E2E8F0" />
+                <text x={padding - 12} y={y + 4} textAnchor="end" fontSize="14" fill="#64748B">
+                  {value}
+                </text>
+              </g>
+            );
+          })}
+          <line x1={padding} x2={padding} y1={padding} y2={height - padding} stroke="#CBD5E1" />
+          <line x1={padding} x2={width - padding} y1={height - padding} y2={height - padding} stroke="#CBD5E1" />
+          {data.categories.map((label, index) => {
+            const groupCenter = padding + groupWidth * index + groupWidth / 2;
+            const committed = data.committedSeries[index] ?? 0;
+            const completed = data.completedSeries[index] ?? 0;
+            const committedHeight = (committed / maxValue) * plotHeight;
+            const completedHeight = (completed / maxValue) * plotHeight;
+            return (
+              <g key={label}>
+                <rect x={groupCenter - barWidth - 8} y={height - padding - committedHeight} width={barWidth} height={committedHeight} rx="8" fill="#D1D5DB" />
+                <rect x={groupCenter + 8} y={height - padding - completedHeight} width={barWidth} height={completedHeight} rx="8" fill="#4F46E5" />
+                <text x={groupCenter} y={height - 18} textAnchor="middle" fontSize="13" fill="#64748B">
+                  {label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function buildBurndownInsights(data?: BurndownData | null) {
+  if (!data || data.idealLine.length === 0) {
+    return [
+      "This sprint does not have enough burndown history yet. The chart will populate after the sprint dates and sprint tasks are in place.",
+      "Move work to Done as progress happens so the actual remaining line reflects the team’s daily burn rate.",
+    ];
+  }
+
+  const points = data.idealLine.map((idealPoint, index) => ({
+    ideal: Number(idealPoint.remainingPoints ?? 0),
+    actual: data.actualLine[index]?.remainingPoints ?? idealPoint.remainingPoints,
+  }));
+  const last = points[points.length - 1];
+  const lastActual = last.actual ?? last.ideal;
+  const gap = Math.round((lastActual - last.ideal) * 10) / 10;
+  const insights = [];
+
+  if (gap > 0) {
+    insights.push(`Actual remaining work is ${gap} story points above the ideal line. The sprint is burning work slower than planned and needs tighter daily closeout on in-progress items.`);
+  } else if (gap < 0) {
+    insights.push(`Actual remaining work is ${Math.abs(gap)} story points below the ideal line. The team is currently ahead of the planned burn rate.`);
+  } else {
+    insights.push("Actual remaining work is aligned with the ideal line. The sprint is tracking closely to plan.");
+  }
+
+  let flatDays = 0;
+  for (let index = points.length - 1; index > 0; index -= 1) {
+    if (points[index].actual === points[index - 1].actual) {
+      flatDays += 1;
+    } else {
+      break;
+    }
+  }
+  if (flatDays >= 2) {
+    insights.push(`Remaining work has been flat for ${flatDays + 1} consecutive days. That usually means tasks are staying open too long or the team is waiting on review or dependency resolution.`);
+  } else {
+    insights.push("The remaining work line is moving consistently, which suggests work is being closed rather than accumulating in the middle of the sprint.");
+  }
+
+  return insights;
+}
+
+function buildBurnupInsights(data?: BurnupReportData | null) {
+  if (!data || data.data.length === 0) {
+    return [
+      "This sprint does not have enough scope history yet. Once the sprint is active and tasks start moving, the burnup report will show both delivery progress and scope change.",
+      "Use this report to spot scope growth early before it pushes completion risk into the final days of the sprint.",
+    ];
+  }
+
+  const scopeChange = data.latestScopePoints - data.initialScopePoints;
+  const completionRate = data.latestScopePoints > 0
+    ? Math.round((data.latestCompletedPoints / data.latestScopePoints) * 1000) / 10
+    : 0;
+  const insights = [];
+
+  if (scopeChange > 0) {
+    insights.push(`Scope increased by ${scopeChange} story points after the sprint started. This is a clear sign of mid-sprint scope growth and should be reviewed with the project manager.`);
+  } else if (scopeChange < 0) {
+    insights.push(`Scope reduced by ${Math.abs(scopeChange)} story points during the sprint. The team narrowed the sprint scope to protect delivery.`);
+  } else {
+    insights.push("Sprint scope has remained stable since kickoff. This makes the completion trend easier to trust.");
+  }
+
+  if (completionRate >= 100) {
+    insights.push("Completed work has caught up to total scope. The team has fully burned up the sprint scope that is currently recorded.");
+  } else {
+    insights.push(`The team has completed ${completionRate}% of the current sprint scope. The remaining gap should be monitored together with any new scope added late in the sprint.`);
+  }
+
+  return insights;
+}
+
+function buildVelocityInsights(data?: VelocityForecastData | null) {
+  if (!data || data.sprints.length === 0) {
+    return [
+      "No closed sprint history is available yet. The velocity report will become useful after the team completes the first sprint.",
+      "Once several sprints are closed, compare committed and completed points to set a more reliable planning baseline.",
+    ];
+  }
+
+  const latest = data.sprints[data.sprints.length - 1];
+  const overCommit = latest.committedPoints - latest.completedPoints;
+  const insights = [];
+
+  insights.push(`Average completed velocity across the recent sprint history is ${data.averageCompleted} story points. This is the most stable baseline for the next planning conversation.`);
+
+  if (overCommit > 0) {
+    insights.push(`In the latest sprint, the team committed ${latest.committedPoints} points but completed ${latest.completedPoints}. The ${overCommit}-point gap suggests the plan was heavier than the team’s recent delivery capacity.`);
+  } else {
+    insights.push(`In the latest sprint, committed work and completed work were closely aligned. This indicates stronger planning accuracy and healthier sprint intake.`);
+  }
+
+  if (data.trend === "UP") {
+    insights.push("Completed velocity is trending upward. The team may be improving flow efficiency, but the next sprint should still stay close to proven historical throughput.");
+  } else if (data.trend === "DOWN") {
+    insights.push("Completed velocity is trending downward. Review blockers, review queues, and scope discipline before increasing future sprint commitments.");
+  } else {
+    insights.push("Velocity has remained relatively stable. Planning should be anchored to the historical average rather than optimistic stretch targets.");
+  }
+
+  return insights;
+}
+
 export default function ReportsPage({
   projectId,
   sprintId,
-  activeTab: controlledTab,
+  activeTab,
   onTabChange,
-  showExportModal,
-  onCloseExportModal,
 }: ReportsPageProps) {
-  const { t } = useTranslation();
-  const [internalTab, setInternalTab] = useState(0);
-  const activeTab = controlledTab ?? internalTab;
-  const setTab = (i: number) => {
-    setInternalTab(i);
-    onTabChange?.(i);
+  const { isViewer } = usePermission(projectId);
+  const [selectedReport, setSelectedReport] = useState<ReportType | null>(() => mapTabToReport(activeTab));
+  const [selectedSprintId, setSelectedSprintId] = useState(sprintId ?? "");
+  const [exporting, setExporting] = useState(false);
+
+  const { data: sprints = [] } = useQuery({
+    queryKey: ["reports-sprints", projectId],
+    queryFn: () => TaskService.getSprints(projectId),
+    enabled: !!projectId,
+    staleTime: 5 * 60_000,
+  });
+
+  useEffect(() => {
+    if (typeof activeTab === "number") {
+      setSelectedReport(mapTabToReport(activeTab));
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (sprintId) {
+      setSelectedSprintId(sprintId);
+    }
+  }, [sprintId]);
+
+  useEffect(() => {
+    if (!selectedSprintId && sprints.length > 0) {
+      const activeSprint = sprints.find((item) => item.status === "ACTIVE") ?? sprints[0];
+      setSelectedSprintId(activeSprint?.id ?? "");
+    }
+  }, [selectedSprintId, sprints]);
+
+  const selectedSprint = useMemo(
+    () => sprints.find((item) => item.id === selectedSprintId) ?? null,
+    [selectedSprintId, sprints]
+  );
+
+  const burndownQuery = useQuery({
+    queryKey: ["reports-burndown", selectedSprintId],
+    queryFn: () => TaskService.getBurndown(selectedSprintId),
+    enabled: selectedReport === "burndown" && !!selectedSprintId,
+    staleTime: 2 * 60_000,
+  });
+
+  const burnupQuery = useQuery({
+    queryKey: ["reports-burnup", selectedSprintId],
+    queryFn: () => TaskService.getBurnup(selectedSprintId),
+    enabled: selectedReport === "burnup" && !!selectedSprintId,
+    staleTime: 2 * 60_000,
+  });
+
+  const velocityQuery = useQuery({
+    queryKey: ["reports-velocity-forecast", projectId],
+    queryFn: () => TaskService.getVelocityForecast(projectId, 5),
+    enabled: selectedReport === "velocity" && !!projectId,
+    staleTime: 5 * 60_000,
+  });
+
+  const handleSelectReport = (report: ReportType) => {
+    setSelectedReport(report);
+    onTabChange?.(report === "burndown" ? 1 : report === "velocity" ? 2 : 0);
   };
 
-  const TABS = [
-    t('common.overview'),
-    t('report.tab_burndown'),
-    t('report.tab_velocity'),
-    t('report.tab_members'),
-  ];
+  const handleBack = () => {
+    setSelectedReport(null);
+    onTabChange?.(0);
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const scope = selectedReport === "velocity" ? "ALL" : "SPRINT";
+      const response = await TaskService.createExportJob(
+        projectId,
+        "PDF",
+        scope,
+        scope === "SPRINT" ? selectedSprintId : undefined
+      );
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `tasksphere-${selectedReport ?? "report"}-${Date.now()}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("The report export has been generated.");
+    } catch {
+      toast.error("The report export could not be generated right now.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  if (!selectedReport) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h2 className="text-3xl font-black tracking-tight text-slate-950">Report library</h2>
+          <p className="mt-2 max-w-3xl text-lg text-slate-600">
+            Open a sprint execution report to review burn rate, scope growth, and delivery capacity with business-ready diagnostics.
+          </p>
+        </div>
+        <div className="grid gap-6 xl:grid-cols-3">
+          <ReportCard title="Burnup report" description="Visualize completed scope against total sprint scope to spot mid-sprint scope growth and completion risk." illustration={<MiniBurnupIllustration />} onClick={() => handleSelectReport("burnup")} />
+          <ReportCard title="Sprint burndown chart" description="Track the remaining work in a sprint day by day and compare the actual burn rate with the planned ideal line." illustration={<MiniBurndownIllustration />} onClick={() => handleSelectReport("burndown")} />
+          <ReportCard title="Velocity report" description="Compare committed points and completed points across the latest closed sprints to forecast future delivery capacity." illustration={<MiniVelocityIllustration />} onClick={() => handleSelectReport("velocity")} />
+        </div>
+      </div>
+    );
+  }
+
+  const commonControls = (
+    <>
+      {selectedReport !== "velocity" ? (
+        <SelectControl value={selectedSprintId} onChange={setSelectedSprintId} options={sprints} placeholder="No sprint available yet" />
+      ) : (
+        <div className="inline-flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base font-medium text-slate-700">
+          Last 5 closed sprints
+        </div>
+      )}
+      {!isViewer ? (
+        <ExportButton disabled={selectedReport !== "velocity" && !selectedSprintId} loading={exporting} onClick={handleExport} />
+      ) : null}
+    </>
+  );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Tab Bar */}
-      <div className="flex items-center gap-2 border-b border-[#E8E8E8] overflow-x-auto">
-        {TABS.map((label, i) => (
-          <button
-            key={label}
-            onClick={() => setTab(i)}
-            className={cn(
-              "pb-4 text-base font-bold transition-all relative px-3 whitespace-nowrap shrink-0",
-              activeTab === i ? "text-[#1677FF]" : "text-[#595959] hover:text-[#1677FF]"
-            )}
-          >
-            {label}
-            {activeTab === i && (
-              <motion.div
-                layoutId="activeTabIndicator"
-                className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#1677FF] rounded-t-full"
-              />
-            )}
-          </button>
-        ))}
-      </div>
+    <div className="space-y-6">
+      <BackButton onClick={handleBack} />
 
-      {/* Tab Content */}
-      <div>
-        {activeTab === 0 && <OverviewTab projectId={projectId} sprintId={sprintId} />}
-        {activeTab === 1 && <BurndownTab projectId={projectId} sprintId={sprintId} />}
-        {activeTab === 2 && <VelocityTab projectId={projectId} />}
-        {activeTab === 3 && <MemberPerformanceTab projectId={projectId} sprintId={sprintId} />}
-      </div>
+      {selectedReport === "burndown" ? (
+        <ChartShell
+          title="Sprint Burndown"
+          description={selectedSprint ? `Remaining work through ${selectedSprint.name}. ${formatRangeLabel(selectedSprint.startDate, selectedSprint.endDate)}` : "Track the total remaining work across the selected sprint."}
+          controls={commonControls}
+        >
+          {!selectedSprintId ? (
+            <ReportEmpty title="Choose a sprint to load the burndown report." description="Once a sprint is selected, the chart will show the ideal remaining line and the actual remaining work for each day." />
+          ) : burndownQuery.isLoading ? (
+            <div className="flex min-h-[420px] items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50">
+              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+            </div>
+          ) : burndownQuery.data ? (
+            <>
+              <BurndownChart data={burndownQuery.data} />
+              <InsightPanel insights={buildBurndownInsights(burndownQuery.data)} />
+            </>
+          ) : (
+            <ReportEmpty title="Burndown data is not available for this sprint yet." description="The chart will appear after sprint dates are configured and work starts moving to Done." />
+          )}
+        </ChartShell>
+      ) : null}
 
-      {showExportModal && onCloseExportModal && (
-        <ExportModal projectId={projectId} onClose={onCloseExportModal} />
-      )}
+      {selectedReport === "burnup" ? (
+        <ChartShell
+          title="Burnup Report"
+          description={selectedSprint ? `Completed scope versus total scope for ${selectedSprint.name}. ${formatRangeLabel(selectedSprint.startDate, selectedSprint.endDate)}` : "Track scope growth and completed work across the selected sprint."}
+          controls={commonControls}
+        >
+          {!selectedSprintId ? (
+            <ReportEmpty title="Choose a sprint to load the burnup report." description="This report compares delivered work with the total sprint scope so you can spot scope creep early." />
+          ) : burnupQuery.isLoading ? (
+            <div className="flex min-h-[420px] items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50">
+              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+            </div>
+          ) : burnupQuery.data ? (
+            <>
+              <BurnupChart data={burnupQuery.data} />
+              <InsightPanel insights={buildBurnupInsights(burnupQuery.data)} />
+            </>
+          ) : (
+            <ReportEmpty title="Burnup data is not available for this sprint yet." description="Once the sprint has active work and scope history, this report will show how scope and completed work evolve day by day." />
+          )}
+        </ChartShell>
+      ) : null}
+
+      {selectedReport === "velocity" ? (
+        <ChartShell
+          title="Velocity Report"
+          description="Compare committed work and completed work across the most recent closed sprints to plan the next sprint with more confidence."
+          controls={commonControls}
+        >
+          {velocityQuery.isLoading ? (
+            <div className="flex min-h-[420px] items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50">
+              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+            </div>
+          ) : velocityQuery.data && velocityQuery.data.sprints.length > 0 ? (
+            <>
+              <VelocityChart data={velocityQuery.data} />
+              <InsightPanel insights={buildVelocityInsights(velocityQuery.data)} />
+            </>
+          ) : (
+            <ReportEmpty title="Closed sprint history is not available yet." description="The velocity report will become available after the team completes at least one sprint and records delivery history." />
+          )}
+        </ChartShell>
+      ) : null}
     </div>
   );
 }

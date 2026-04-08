@@ -451,6 +451,40 @@ export interface VelocityData {
     trend:           VelocityTrend
 }
 
+export interface BurnupReportPoint {
+    date: string
+    scopePoints: number
+    completedPoints: number
+}
+
+export interface BurnupReportData {
+    sprintId: string
+    sprintName: string
+    startDate: string
+    endDate: string
+    initialScopePoints: number
+    latestScopePoints: number
+    latestCompletedPoints: number
+    data: BurnupReportPoint[]
+}
+
+export interface VelocityForecastSprint {
+    sprintId: string
+    sprintName: string
+    completedAt: string | null
+    committedPoints: number
+    completedPoints: number
+}
+
+export interface VelocityForecastData {
+    categories: string[]
+    committedSeries: number[]
+    completedSeries: number[]
+    averageCompleted: number
+    trend: VelocityTrend
+    sprints: VelocityForecastSprint[]
+}
+
 // FR-28: Member Performance
 export interface MemberPerformance {
     user:                 UserSummary & { projectRole: string }
