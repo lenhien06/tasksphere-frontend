@@ -305,6 +305,11 @@ function AssigneeField({ assignee, projectId, task, onSave, readOnly }: { assign
                             <div className={cn("text-[10px] font-medium", m.willExceedWeeklyCapacity ? "text-rose-500" : "text-slate-500")}>
                                 Load: {m.projectedWeeklyLoadHours}/{m.weeklyCapacityHours}h this week
                             </div>
+                            {m.willExceedWeeklyCapacity && (
+                                <div className="mt-0.5 text-[10px] font-semibold text-rose-500">
+                                    Warning: this member may exceed 40h/week.
+                                </div>
+                            )}
                             {m.matchedSkills.length > 0 && (
                                 <div className="mt-1 flex flex-wrap gap-1">
                                     {m.matchedSkills.slice(0, 3).map((skill) => (

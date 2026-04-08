@@ -6,7 +6,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { motion } from "framer-motion";
 import {
   CalendarClock, MessageCircle, Paperclip, TriangleAlert,
-  Sparkles, RefreshCw, MoreHorizontal, Pencil, Trash2, Link as LinkIcon, ListTodo,
+  Sparkles, RefreshCw, MoreHorizontal, Pencil, Trash2, Link as LinkIcon, ListTodo, Lock,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,9 @@ export interface KanbanTaskCard {
   storyPoints: number | null;
   commentCount: number;
   attachmentCount: number;
+  blockedByDependency?: boolean;
+  blockingDependencyCount?: number;
+  blockedBy?: Array<{ taskId: string; taskCode: string; title: string; taskStatus: string }>;
   subTaskCount: number;
   subTaskDoneCount: number;
   position: number;
@@ -74,6 +77,9 @@ export default function TaskCard({
     ? new Date(task.dueDate).toLocaleDateString(i18n.language?.toLowerCase().startsWith("vi") ? "vi-VN" : "en-US")
     : t("task.noDate", { defaultValue: "No date" });
   const hasStoryPoints = typeof task.storyPoints === "number" && Number.isFinite(task.storyPoints);
+  const blockerTooltip = task.blockedBy?.length
+    ? `Blocked by: ${task.blockedBy.map((item) => item.taskCode).join(", ")}`
+    : "Blocked by unfinished dependencies";
 
   const handleCopyLink = () => {
     const url = projectId
@@ -100,7 +106,7 @@ export default function TaskCard({
           canDrag ? "cursor-pointer" : "cursor-not-allowed",
           task.isOverdue && "border-red-200 bg-red-50/30",
           isDragging && "opacity-0",
-          isDimmed && "opacity-30 blur-[1px]"
+          (isDimmed || task.blockedByDependency) && "opacity-50"
         )}
       >
         {/* 3-dot menu — hidden by default, shown on hover */}
@@ -141,7 +147,17 @@ export default function TaskCard({
         )}
 
         <div className="flex items-center justify-between gap-2 pr-4">
-          <span className="font-mono text-[11px] text-gray-500">{task.taskId}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[11px] text-gray-500">{task.taskId}</span>
+            {task.blockedByDependency ? (
+              <span
+                title={blockerTooltip}
+                className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-amber-700"
+              >
+                <Lock size={11} />
+              </span>
+            ) : null}
+          </div>
           <div className="flex items-center gap-2">
             <TypeBadge type={task.type} />
             <PriorityDot priority={task.priority} />
@@ -154,7 +170,10 @@ export default function TaskCard({
           <span className="inline-flex items-center gap-1"><Paperclip size={12} />{task.attachmentCount}</span>
           <span className="inline-flex items-center gap-1"><MessageCircle size={12} />{task.commentCount}</span>
           {hasStoryPoints && (
-            <span className="inline-flex items-center gap-1"><Sparkles size={12} />{task.storyPoints}pts</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700">
+              <Sparkles size={11} />
+              SP {task.storyPoints}
+            </span>
           )}
           {task.isRecurring && (
             <span className="inline-flex items-center gap-1 text-blue-500" title="Recurring task">

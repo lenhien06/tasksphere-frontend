@@ -91,7 +91,7 @@ export default function KanbanToolbar({
           onSaveCurrentFilter={onSaveCurrentFilter}
           onDeleteSavedFilter={onDeleteSavedFilter}
           showSmartFilters
-          showSprintFilter
+          showSprintFilter={false}
           showSearchInput={false}
         />
 

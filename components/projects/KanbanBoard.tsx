@@ -70,6 +70,7 @@ interface MoveTaskPayload {
   targetColumnId: string;
   newPosition: number;
   oldPosition: number;
+  transitionEvidence?: string;
 }
 
 const mapType = (type: string): TaskCardData["type"] => {
@@ -205,16 +206,18 @@ export default function KanbanBoard({
     enabled: !!projectId,
   });
 
-  const isBacklogOnly = filters.sprintScope === "backlog";
+  const activeSprint = useMemo(
+    () => sprintsData.find((s) => s.status === "ACTIVE") ?? null,
+    [sprintsData]
+  );
 
   const effectiveTaskParams = useMemo(() => {
-    const params: Record<string, unknown> = { page: 0, size: 200 };
+    const params: Record<string, unknown> = { page: 0, size: 200, activeSprintOnly: true };
     if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
     if (filters.assigneeId) params.assigneeId = filters.assigneeId;
     if (filters.priorities.length > 0) {
       params.priority = filters.priorities;
     }
-    if (filters.sprintScope === "sprint" && filters.sprintId) params.sprintId = filters.sprintId;
     if (filters.smartFilter === "in_progress") params.status = "IN_PROGRESS";
     if (filters.smartFilter === "overdue") params.overdue = true;
     if (filters.smartFilter === "my_tasks") params.assigneeId = "me";
@@ -222,11 +225,8 @@ export default function KanbanBoard({
   }, [debouncedSearch, filters]);
 
   const { data: tasksData, isLoading: tasksLoading, isFetching: tasksFetching } = useQuery({
-    queryKey: [isBacklogOnly ? "backlog-board-tasks" : "tasks", projectId, effectiveTaskParams],
-    queryFn: () =>
-      isBacklogOnly
-        ? TaskService.getBacklog(projectId, effectiveTaskParams as any)
-        : TaskService.getTasks(projectId, effectiveTaskParams as any),
+    queryKey: ["tasks", projectId, effectiveTaskParams],
+    queryFn: () => TaskService.getTasks(projectId, effectiveTaskParams as any),
     enabled: !!projectId,
     staleTime: 30_000,
   });
@@ -308,6 +308,9 @@ export default function KanbanBoard({
       storyPoints: t.storyPoints,
       commentCount: t.commentsCount,
       attachmentCount: t.attachmentsCount,
+      blockedByDependency: Boolean(t.blockedByDependency),
+      blockingDependencyCount: t.blockingDependencyCount ?? 0,
+      blockedBy: t.blockedBy,
       subTaskCount: t.subtaskCount,
       subTaskDoneCount: t.subtaskDone,
       position: t.taskPosition,
@@ -324,24 +327,18 @@ export default function KanbanBoard({
 
   const hasAnyFilterActive = useMemo(
     () =>
-      Boolean(
-        filters.search ||
+        Boolean(
+          filters.search ||
           filters.assigneeId ||
           filters.priorities.length ||
-          filters.sprintScope !== "all" ||
           filters.smartFilter !== "none"
       ),
     [filters]
   );
 
   const sprintOptions = useMemo(
-    () =>
-      sprintsData.map((s) => ({
-        id: s.id,
-        name: s.name,
-        isActive: s.status === "ACTIVE",
-      })),
-    [sprintsData]
+    () => (activeSprint ? [{ id: activeSprint.id, name: activeSprint.name, isActive: true }] : []),
+    [activeSprint]
   );
 
   const applySavedFilter = (filterId: string) => {
@@ -384,13 +381,8 @@ export default function KanbanBoard({
     
     if (!targetColumn || !task) return;
 
-    if (targetColumn.status === "DONE" && !isTesterActionAllowed) {
-      toast.error("Only PMs or members with QA/Testing skills can move a task to Done.");
-      return;
-    }
-
     if (
-      (sourceColumn?.status === "READY_FOR_TEST" || sourceColumn?.status === "TESTING" || sourceColumn?.status === "IN_REVIEW") &&
+      (sourceColumn?.status === "READY_FOR_TEST" || sourceColumn?.status === "TESTING" || sourceColumn?.status === "IN_REVIEW" || sourceColumn?.status === "DONE") &&
       (targetColumn.status === "IN_PROGRESS" || targetColumn.status === "TODO") &&
       !isTesterActionAllowed
     ) {
@@ -421,6 +413,17 @@ export default function KanbanBoard({
       }
     }
 
+    if ((sourceColumn?.status === "TESTING" || sourceColumn?.status === "IN_REVIEW") && targetColumn.status === "DONE") {
+      if (!isTesterActionAllowed) {
+        toast.error("A different QA/Testing reviewer must accept this task to keep the review objective.");
+        return;
+      }
+      if (task.assignee?.id && task.assignee.id === currentUserId) {
+        toast.error("A different QA/Testing reviewer must accept this task to keep the review objective.");
+        return;
+      }
+    }
+
     // Scrum rule: parent task cannot be completed while any sub-task is still unfinished.
     if (
       targetColumn?.status === "DONE" &&
@@ -430,6 +433,17 @@ export default function KanbanBoard({
       const remaining = (task.subTaskCount ?? 0) - (task.subTaskDoneCount ?? 0);
       toast.error(`Complete all sub-tasks before closing the parent task. ${remaining} sub-task${remaining === 1 ? "" : "s"} still unfinished.`);
       return;
+    }
+
+    if (sourceColumn?.status === "IN_PROGRESS" && targetColumn.status === "TESTING") {
+      const evidence = window.prompt(
+        "Optional: paste the Pull Request or Unit Test link before moving this task to Testing.",
+        ""
+      );
+      if (evidence === null) {
+        return;
+      }
+      payload.transitionEvidence = evidence.trim() || undefined;
     }
 
     moveTaskMutation.mutate(payload);
@@ -443,7 +457,6 @@ export default function KanbanBoard({
     mutationFn: (taskId: string) => TaskService.deleteTask(projectId, taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
       toast.success("Task deleted");
     },
     onError: (err: any) => {
@@ -459,6 +472,7 @@ export default function KanbanBoard({
       await TaskService.updatePosition(projectId, payload.taskId, {
         statusColumnId: payload.targetColumnId,
         newPosition: payload.newPosition,
+        transitionEvidence: payload.transitionEvidence,
       });
       return { payload, isColumnChange, targetStatus: targetColumn.status, targetColumnName: targetColumn.name };
     },
@@ -469,7 +483,7 @@ export default function KanbanBoard({
       }
     },
     onMutate: async (payload) => {
-      const key = [isBacklogOnly ? "backlog-board-tasks" : "tasks", projectId, effectiveTaskParams];
+      const key = ["tasks", projectId, effectiveTaskParams];
       await queryClient.cancelQueries({ queryKey: key });
       const snapshot = queryClient.getQueryData(key);
       const targetColumn = columns.find((c) => c.id === payload.targetColumnId);
@@ -492,7 +506,6 @@ export default function KanbanBoard({
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
     },
   });
 
@@ -614,7 +627,6 @@ export default function KanbanBoard({
           onSuccess={(count) => {
             toast.success(`Da tao ${count} task thanh cong!`);
             queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
-            queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
           }}
           onClose={() => setShowAiGenerator(false)}
         />
@@ -626,7 +638,6 @@ export default function KanbanBoard({
           onSuccess={(result) => {
             toast.success(`Assigned ${result.totalAssigned} task(s) (${result.aiConfirmed} AI, ${result.pmOverridden} overridden)`);
             queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
-            queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
           }}
           onClose={() => setShowAiAssign(false)}
         />
@@ -671,7 +682,6 @@ export default function KanbanBoard({
           projectId={projectId}
           onBugCreated={() => {
             queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
-            queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
           }}
         />
       )}

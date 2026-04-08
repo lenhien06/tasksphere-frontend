@@ -49,6 +49,14 @@ export interface TaskResponse {
     subtaskProgress: number | null  // 0–100, null if no subtasks
     commentsCount: number           // BE: commentsCount (not commentCount)
     attachmentsCount: number        // BE: attachmentsCount (not attachmentCount)
+    blockedByDependency?: boolean
+    blockingDependencyCount?: number
+    blockedBy?: Array<{
+        taskId: string
+        taskCode: string
+        title: string
+        taskStatus: TaskStatus
+    }>
     assignee: UserSummary | null
     reporter: UserSummary
     createdAt: string
@@ -167,6 +175,7 @@ export interface UpdateTaskStatusRequest {
 export interface UpdateTaskPositionRequest {
     newPosition: number
     statusColumnId: string
+    transitionEvidence?: string
 }
 
 export interface TaskFilterParams {
@@ -178,6 +187,7 @@ export interface TaskFilterParams {
     type?: TaskType
     overdue?: boolean                   // dueDate < today, not DONE/CANCELLED
     dueSoon?: boolean                   // dueDate within 7 days, not DONE/CANCELLED
+    activeSprintOnly?: boolean
     limit?: number                      // max 100
     sortBy?: "dueDate" | "priority" | "createdAt"
     order?: "asc" | "desc"
