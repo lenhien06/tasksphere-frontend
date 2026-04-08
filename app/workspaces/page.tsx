@@ -25,13 +25,13 @@ function DashboardHero({
 }) {
   return (
     <section className="rounded-[22px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_34%),linear-gradient(135deg,_#ffffff,_#f4f7fc)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-2xl">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+        <div className="max-w-3xl pr-0 xl:pr-8">
           <div className="text-[12px] font-medium text-slate-500">
             Workspace portfolio
           </div>
           <h1 className="mt-4 text-[28px] font-black tracking-tight text-slate-950 sm:text-[34px]">
-            Operational visibility across every workspace
+            Operational visibility across workspaces
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
             Monitor execution progress, delivery risk, and resource pressure across the organization
@@ -40,17 +40,17 @@ function DashboardHero({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-[18px] border border-white/80 bg-white/90 px-5 py-4 shadow-sm">
-            <div className="text-[12px] font-medium text-slate-500">Workspaces</div>
-            <div className="mt-2 text-3xl font-black text-slate-950">{totalWorkspaces}</div>
+          <div className="min-w-[156px] rounded-[18px] border border-white/80 bg-white/90 px-5 py-4 shadow-sm">
+            <div className="whitespace-nowrap text-[12px] font-medium text-slate-500">Workspaces</div>
+            <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-slate-950">{totalWorkspaces}</div>
           </div>
-          <div className="rounded-[18px] border border-amber-100 bg-amber-50/90 px-5 py-4 shadow-sm">
-            <div className="text-[12px] font-medium text-amber-700">Projects at risk</div>
-            <div className="mt-2 text-3xl font-black text-amber-700">{totalRisks}</div>
+          <div className="min-w-[168px] rounded-[18px] border border-amber-100 bg-amber-50/90 px-5 py-4 shadow-sm">
+            <div className="whitespace-nowrap text-[12px] font-medium text-amber-700">Projects at risk</div>
+            <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-amber-700">{totalRisks}</div>
           </div>
-          <div className="rounded-[18px] border border-rose-100 bg-rose-50/90 px-5 py-4 shadow-sm">
-            <div className="text-[12px] font-medium text-rose-700">Overdue tasks</div>
-            <div className="mt-2 text-3xl font-black text-rose-700">{totalOverdue}</div>
+          <div className="min-w-[168px] rounded-[18px] border border-rose-100 bg-rose-50/90 px-5 py-4 shadow-sm">
+            <div className="whitespace-nowrap text-[12px] font-medium text-rose-700">Overdue tasks</div>
+            <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-rose-700">{totalOverdue}</div>
           </div>
         </div>
       </div>

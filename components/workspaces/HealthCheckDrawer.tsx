@@ -2,19 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  CartesianGrid,
-  Cell,
-  Label,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { ArrowRight } from "lucide-react";
 
 import { Workspace, WorkspaceHealthMetrics } from "@/app/types/workspace.schema";
@@ -29,6 +16,8 @@ import {
 } from "@/components/ui/select";
 
 const PIE_COLORS = ["#8B9093", "#3F5CCF", "#3B7D3C"];
+const DONUT_RADIUS = 70;
+const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
 
 function initials(name?: string | null) {
   return (name?.trim().slice(0, 2) || "NA").toUpperCase();
@@ -50,6 +39,35 @@ function riskLabel(riskLevel?: string | null) {
   return "Stable";
 }
 
+function buildDonutSegments(data: { value: number }[]) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  if (total <= 0) return [];
+
+  let accumulated = 0;
+  return data.map((item, index) => {
+    const length = (item.value / total) * DONUT_CIRCUMFERENCE;
+    const segment = {
+      color: PIE_COLORS[index],
+      dashArray: `${length} ${DONUT_CIRCUMFERENCE - length}`,
+      dashOffset: -accumulated,
+    };
+    accumulated += length;
+    return segment;
+  });
+}
+
+function buildLinePath(values: number[], width: number, height: number, padding: number, maxValue: number) {
+  if (values.length === 0) return "";
+
+  return values
+    .map((value, index) => {
+      const x = padding + (index * (width - padding * 2)) / Math.max(values.length - 1, 1);
+      const y = height - padding - (value / Math.max(maxValue, 1)) * (height - padding * 2);
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
 export default function HealthCheckDrawer({
   open,
   onOpenChange,
@@ -63,33 +81,11 @@ export default function HealthCheckDrawer({
 }) {
   const router = useRouter();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [chartRenderKey, setChartRenderKey] = useState(0);
 
   useEffect(() => {
     if (!metrics) return;
     setSelectedProjectId(metrics.focusProject?.projectId ?? metrics.projects[0]?.projectId ?? "");
   }, [metrics]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const resizeSoon = window.setTimeout(() => {
-      window.dispatchEvent(new Event("resize"));
-    }, 80);
-    const remountCharts = window.setTimeout(() => {
-      setChartRenderKey((current) => current + 1);
-      window.dispatchEvent(new Event("resize"));
-    }, 220);
-    const resizeAfterAnimation = window.setTimeout(() => {
-      window.dispatchEvent(new Event("resize"));
-    }, 520);
-
-    return () => {
-      window.clearTimeout(resizeSoon);
-      window.clearTimeout(remountCharts);
-      window.clearTimeout(resizeAfterAnimation);
-    };
-  }, [open, metrics?.workspaceId]);
 
   const selectedProject = useMemo(
     () => metrics?.projects.find((project) => project.projectId === selectedProjectId) ?? metrics?.projects[0] ?? null,
@@ -109,6 +105,7 @@ export default function HealthCheckDrawer({
     () => pieData.reduce((sum, item) => sum + item.value, 0),
     [pieData]
   );
+  const donutSegments = useMemo(() => buildDonutSegments(pieData), [pieData]);
 
   const hasBurndownData = useMemo(
     () =>
@@ -116,6 +113,35 @@ export default function HealthCheckDrawer({
         (point) => point.idealRemaining > 0 || point.actualRemaining > 0
       ),
     [metrics]
+  );
+  const burndownMax = useMemo(() => {
+    if (!metrics?.burndown?.length) return 0;
+    return Math.max(
+      ...metrics.burndown.flatMap((point) => [point.idealRemaining, point.actualRemaining]),
+      1
+    );
+  }, [metrics]);
+  const idealPath = useMemo(
+    () =>
+      buildLinePath(
+        (metrics?.burndown ?? []).map((point) => point.idealRemaining),
+        480,
+        220,
+        28,
+        burndownMax
+      ),
+    [metrics, burndownMax]
+  );
+  const actualPath = useMemo(
+    () =>
+      buildLinePath(
+        (metrics?.burndown ?? []).map((point) => point.actualRemaining),
+        480,
+        220,
+        28,
+        burndownMax
+      ),
+    [metrics, burndownMax]
   );
 
   return (
@@ -178,34 +204,32 @@ export default function HealthCheckDrawer({
                   <h3 className="mb-4 text-base font-semibold text-slate-700">Task distribution</h3>
                   <div className="h-[220px]">
                     {metrics && pieTotal > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart key={`workspace-health-pie-${metrics.workspaceId}-${chartRenderKey}`}>
-                          <Pie
-                            data={pieData}
-                            dataKey="value"
-                            innerRadius={58}
-                            outerRadius={98}
-                            paddingAngle={0}
-                            strokeWidth={0}
-                          >
-                            {pieData.map((entry, index) => (
-                              <Cell key={entry.name} fill={PIE_COLORS[index]} />
-                            ))}
-                            <Label
-                              content={() => (
-                                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
-                                  <tspan x="50%" y="46%" className="fill-slate-950 text-[24px] font-black">
-                                    {Math.round(metrics.globalProgress)}%
-                                  </tspan>
-                                  <tspan x="50%" y="60%" className="fill-slate-600 text-[12px] font-medium">
-                                    Completed
-                                  </tspan>
-                                </text>
-                              )}
+                      <div className="grid h-full place-items-center">
+                        <svg viewBox="0 0 240 220" className="h-full w-full max-w-[260px]" role="img" aria-label="Task distribution chart">
+                          <circle cx="120" cy="104" r={DONUT_RADIUS} fill="none" stroke="#E5E7EB" strokeWidth="28" />
+                          {donutSegments.map((segment) => (
+                            <circle
+                              key={`${segment.color}-${segment.dashOffset}`}
+                              cx="120"
+                              cy="104"
+                              r={DONUT_RADIUS}
+                              fill="none"
+                              stroke={segment.color}
+                              strokeWidth="28"
+                              strokeLinecap="butt"
+                              strokeDasharray={segment.dashArray}
+                              strokeDashoffset={segment.dashOffset}
+                              transform="rotate(-90 120 104)"
                             />
-                          </Pie>
-                        </PieChart>
-                      </ResponsiveContainer>
+                          ))}
+                          <text x="120" y="100" textAnchor="middle" className="fill-slate-950 text-[24px] font-black">
+                            {Math.round(metrics.globalProgress)}%
+                          </text>
+                          <text x="120" y="124" textAnchor="middle" className="fill-slate-500 text-[12px] font-medium">
+                            Completed
+                          </text>
+                        </svg>
+                      </div>
                     ) : metrics ? (
                       <div className="grid h-full place-items-center rounded-[18px] border border-dashed border-slate-200 bg-slate-50 px-6 text-center text-sm text-slate-500">
                         Not enough task data is available to render the distribution chart.
@@ -228,20 +252,25 @@ export default function HealthCheckDrawer({
                   <h3 className="mb-4 text-base font-semibold text-slate-700">Burn-down trend</h3>
                   <div className="h-[220px] rounded-[18px] border border-dashed border-slate-300 p-3">
                     {metrics && hasBurndownData ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                          key={`workspace-health-burndown-${metrics.workspaceId}-${chartRenderKey}`}
-                          data={metrics.burndown}
-                          margin={{ top: 12, right: 10, left: -20, bottom: 0 }}
-                        >
-                          <CartesianGrid strokeDasharray="4 4" stroke="#CBD5E1" />
-                          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#64748B", fontSize: 11 }} />
-                          <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748B", fontSize: 11 }} />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="idealRemaining" stroke="#6B7280" strokeWidth={1.5} dot={false} />
-                          <Line type="monotone" dataKey="actualRemaining" stroke="#A7342A" strokeWidth={3} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <svg viewBox="0 0 480 220" className="h-full w-full" role="img" aria-label="Burn-down trend chart">
+                        <rect x="28" y="18" width="424" height="174" rx="18" fill="#FFFFFF" stroke="#CBD5E1" strokeDasharray="4 4" />
+                        {[0, 1, 2, 3].map((lineIndex) => {
+                          const y = 28 + lineIndex * 48;
+                          return <line key={`grid-y-${lineIndex}`} x1="28" y1={y} x2="452" y2={y} stroke="#E2E8F0" strokeDasharray="4 4" />;
+                        })}
+                        {(metrics?.burndown ?? []).map((point, index) => {
+                          const x = 28 + (index * 424) / Math.max((metrics?.burndown.length ?? 1) - 1, 1);
+                          return (
+                            <g key={point.label}>
+                              <text x={x} y="212" textAnchor="middle" className="fill-slate-500 text-[10px]">
+                                {point.label}
+                              </text>
+                            </g>
+                          );
+                        })}
+                        <path d={idealPath} fill="none" stroke="#6B7280" strokeWidth="2" />
+                        <path d={actualPath} fill="none" stroke="#A7342A" strokeWidth="4" strokeLinecap="round" />
+                      </svg>
                     ) : metrics ? (
                       <div className="grid h-full place-items-center rounded-[16px] bg-slate-50 px-6 text-center text-sm text-slate-500">
                         No active sprint or story point baseline is available for the burn-down chart.

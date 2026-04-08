@@ -22,6 +22,10 @@ function roleLabel(role: WorkspaceRole) {
   return "Member";
 }
 
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export default function WorkspaceHealthCard({
   workspace,
   metrics,
@@ -68,8 +72,8 @@ export default function WorkspaceHealthCard({
         </div>
 
         <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-2 text-right">
-          <div className="text-[11px] font-medium text-slate-500">Members</div>
-          <div className="mt-1 text-sm font-semibold text-slate-700">
+          <div className="whitespace-nowrap text-[11px] font-medium text-slate-500">Members</div>
+          <div className="mt-1 whitespace-nowrap text-sm font-semibold tabular-nums text-slate-700">
             {workspace.memberCount}
           </div>
         </div>
@@ -81,29 +85,29 @@ export default function WorkspaceHealthCard({
             <div className="text-[11px] font-medium text-slate-500">
               Portfolio progress
             </div>
-            <div className="mt-1 text-3xl font-black tracking-tight text-slate-950">
+            <div className="mt-1 whitespace-nowrap text-3xl font-black tracking-tight tabular-nums text-slate-950">
               {Math.round(progress)}%
             </div>
           </div>
           <div className="rounded-[14px] bg-white px-3 py-2 text-right shadow-sm">
-            <div className="text-[11px] font-medium text-slate-500">
+            <div className="whitespace-nowrap text-[11px] font-medium text-slate-500">
               Total tasks
             </div>
-            <div className="mt-1 text-lg font-bold text-slate-900">{metrics?.totalTaskCount ?? 0}</div>
+            <div className="mt-1 whitespace-nowrap text-lg font-bold tabular-nums text-slate-900">{metrics?.totalTaskCount ?? 0}</div>
           </div>
         </div>
         <Progress value={progress} className="mt-4 h-3 rounded-full bg-slate-200 [&>div]:bg-gradient-to-r [&>div]:from-blue-600 [&>div]:to-cyan-500" />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700">
-          {overdueCount} overdue tasks
+        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700">
+          {pluralize(overdueCount, "overdue task")}
         </span>
-        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
-          {riskyProjectCount} projects at risk
+        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
+          {pluralize(riskyProjectCount, "project")} at risk
         </span>
-        <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600">
-          {workspace.projectCount} projects
+        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600">
+          {pluralize(workspace.projectCount, "project")}
         </span>
       </div>
 
@@ -122,7 +126,7 @@ export default function WorkspaceHealthCard({
         <button
           type="button"
           onClick={onOpenHealth}
-          className="inline-flex items-center gap-2 rounded-[14px] bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+          className="inline-flex items-center gap-2 whitespace-nowrap rounded-[14px] bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
         >
           Open health view
           <ArrowRight className="h-4 w-4" />
