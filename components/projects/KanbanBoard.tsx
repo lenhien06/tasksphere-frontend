@@ -533,18 +533,6 @@ export default function KanbanBoard({
     );
   }
 
-  // DISPLAY LOGIC: Only show Kanban board if there's an ACTIVE sprint
-  if (!activeSprint) {
-    return (
-      <div className="h-[60vh] grid place-items-center rounded-xl border border-gray-200 bg-white text-gray-500 shadow-sm">
-        <div className="text-center">
-          <p className="text-lg font-medium mb-2">{t("kanban.noActiveSprint", { defaultValue: "No Active Sprint" })}</p>
-          <p className="text-sm text-gray-400">{t("kanban.startSprintToView", { defaultValue: "Start a sprint to view tasks on the Kanban board" })}</p>
-        </div>
-      </div>
-    );
-  }
-
   const roleForPanel: "PM" | "MEMBER" | "VIEWER" = projectData?.data
     ? toTaskPanelRole(projectData.data.myRole, projectData.data.isOwner)
     : effectiveKanbanRole === "PROJECT_MANAGER" || effectiveKanbanRole === "SYSTEM_ADMIN"
