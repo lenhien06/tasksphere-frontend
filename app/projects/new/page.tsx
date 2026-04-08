@@ -161,8 +161,12 @@ export default function NewProjectPage() {
   const createMutation = useMutation({
     mutationFn: ProjectService.create,
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["projects"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["projects-portfolio-metrics"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["dashboard", "me"] });
+      if (targetWorkspace?.id) {
+        queryClient.invalidateQueries({ queryKey: ["workspace-projects", targetWorkspace.id], exact: false });
+      }
       toast.success(`Project "${response.data.name}" created successfully!`);
       router.push(`/projects/${response.data.id}`);
     },

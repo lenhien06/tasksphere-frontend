@@ -41,6 +41,8 @@ export function useWorkspaceWebSocket(workspaceId?: string | null, onEvent?: (ev
                 queryClient.invalidateQueries({ queryKey: ["ws-invites", workspaceId] });
                 queryClient.invalidateQueries({ queryKey: ["workspace-projects", workspaceId] });
                 queryClient.invalidateQueries({ queryKey: ["workspace"] });
+                queryClient.invalidateQueries({ queryKey: ["projects"], exact: false });
+                queryClient.invalidateQueries({ queryKey: ["projects-portfolio-metrics"], exact: false });
                 onEvent?.(event);
               } catch (error) {
                 console.error("Error parsing workspace websocket message", error);

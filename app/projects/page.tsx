@@ -572,7 +572,8 @@ export default function ProjectsPage() {
                                 const event = JSON.parse(msg.body);
                                 if (event.type === "project_archived") {
                                     if (statusFilter === "Archived") {
-                                        queryClient.invalidateQueries({ queryKey: ["projects"] });
+                                        queryClient.invalidateQueries({ queryKey: ["projects"], exact: false });
+                                        queryClient.invalidateQueries({ queryKey: ["projects-portfolio-metrics"], exact: false });
                                     } else {
                                         queryClient.setQueriesData({ queryKey: ["projects"] }, (old: any) => {
                                             if (!old?.data?.content) return old;
@@ -584,9 +585,11 @@ export default function ProjectsPage() {
                                                 },
                                             };
                                         });
+                                        queryClient.invalidateQueries({ queryKey: ["projects-portfolio-metrics"], exact: false });
                                     }
-                                } else if (event.type === "project_created" || event.type === "project_updated") {
-                                    queryClient.invalidateQueries({ queryKey: ["projects"] });
+                                } else if (event.type === "project_created" || event.type === "project_updated" || event.type === "project_restored") {
+                                    queryClient.invalidateQueries({ queryKey: ["projects"], exact: false });
+                                    queryClient.invalidateQueries({ queryKey: ["projects-portfolio-metrics"], exact: false });
                                 }
                             } catch {}
                         });
