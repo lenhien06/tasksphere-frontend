@@ -316,7 +316,7 @@ export default function ProjectsPage() {
     
     // UI state
     const searchParams = useSearchParams();
-    const { selectedContext, selectedWorkspace, selectPersonal } = useWorkspace();
+    const { selectedContext, selectedWorkspace, personalWorkspace, selectPersonal } = useWorkspace();
     const [activeProject, setActiveProject] = useState<any>(null);
     const [modalType, setModalType] = useState<"edit" | "archive" | "delete" | "restore" | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -329,6 +329,7 @@ export default function ProjectsPage() {
         workspaceMode && selectedContext.kind === "workspace"
             ? selectedContext.workspace
             : null;
+    const aiWorkspace = effectiveWorkspace ?? personalWorkspace;
 
     useEffect(() => {
         if (!workspaceMode && selectedContext.kind === "workspace") {
@@ -728,9 +729,13 @@ export default function ProjectsPage() {
                                 <List size={12} /> <span>Table</span>
                             </button>
                         </div>
-                        {effectiveWorkspace && selectedWorkspace && (
+                        {aiWorkspace && (
                             <button
-                                onClick={() => router.push(`/ws/${selectedWorkspace.slug}/projects/new-with-ai`)}
+                                onClick={() => router.push(
+                                    effectiveWorkspace
+                                        ? `/ws/${effectiveWorkspace.slug}/projects/new-with-ai`
+                                        : `/projects/new-with-ai`
+                                )}
                                 className="flex h-10 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-semibold text-violet-700 transition-all hover:bg-violet-100"
                             >
                                 <Sparkles className="h-4 w-4" />
