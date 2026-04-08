@@ -13,7 +13,7 @@ const decodeJwt = (token: string): { exp?: number } => {
 }
 
 export async function POST(request: Request) {
-  const req = (await request.json()) as RegisterFormValues
+  const req = (await request.json()) as RegisterFormValues & { turnstileToken?: string | null }
   try {
     const res = await serverAxios.post('/auth/signup', {
       fullName: req.fullName,
@@ -23,6 +23,7 @@ export async function POST(request: Request) {
       otp: req.otp,
       acceptTerms: req.acceptTerms,
       inviteToken: req.inviteToken,
+      turnstileToken: req.turnstileToken,
     })
 
     const apiResponse = res.data

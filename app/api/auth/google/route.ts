@@ -1,5 +1,4 @@
 import { serverAxios } from '@/lib/serverAxios'
-import { LoginFormValues } from '@/app/types/user.schema'
 import { AxiosError } from 'axios'
 import { NextResponse } from 'next/server'
 
@@ -13,9 +12,10 @@ const decodeJwt = (token: string): { exp?: number } => {
 }
 
 export async function POST(request: Request) {
-  const req = (await request.json()) as LoginFormValues & { turnstileToken?: string | null }
+  const req = (await request.json()) as { idToken: string; turnstileToken?: string | null }
+
   try {
-    const res = await serverAxios.post('/auth/signin', req)
+    const res = await serverAxios.post('/auth/google', req)
     const authData = res.data?.data
 
     const accessToken = decodeJwt(authData.accessToken)
@@ -61,6 +61,7 @@ export async function POST(request: Request) {
         { status: e.response?.status || 500 }
       )
     }
+
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { useTheme } from 'next-themes'
 import { Toaster } from '@/components/ui/sonner'
 import { ToastContainer } from 'react-toastify'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 
 import Header from '@/components/layout/Header'
 import Sidebar from '@/components/layout/Sidebar'
@@ -193,6 +194,7 @@ function AISkillModalGlobal() {
 
 export default function LayoutClient({ children }: Readonly<{ children: React.ReactNode }>) {
   const queryClientRef = useRef<QueryClient>()
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
   if (!queryClientRef.current) {
     queryClientRef.current = new QueryClient({
@@ -206,28 +208,53 @@ export default function LayoutClient({ children }: Readonly<{ children: React.Re
 
   return (
     <I18nProvider>
-    <QueryClientProvider client={queryClientRef.current}>
-      <ThemeProvider attribute='class' defaultTheme='light' enableSystem={false} disableTransitionOnChange>
-        <ToastContainer
-          position='top-right'
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme='colored'
-        />
+      <QueryClientProvider client={queryClientRef.current}>
+        <ThemeProvider attribute='class' defaultTheme='light' enableSystem={false} disableTransitionOnChange>
+          {googleClientId ? (
+            <GoogleOAuthProvider clientId={googleClientId}>
+              <ToastContainer
+                position='top-right'
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop
+                closeOnClick
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme='colored'
+              />
 
-        <WorkspaceProvider>
-          <LayoutContent>{children}</LayoutContent>
-        </WorkspaceProvider>
-        <NotificationRealtimeBootstrap />
+              <WorkspaceProvider>
+                <LayoutContent>{children}</LayoutContent>
+              </WorkspaceProvider>
+              <NotificationRealtimeBootstrap />
 
-        <Toaster position='top-right' />
-      </ThemeProvider>
-    </QueryClientProvider>
+              <Toaster position='top-right' />
+            </GoogleOAuthProvider>
+          ) : (
+            <>
+              <ToastContainer
+                position='top-right'
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop
+                closeOnClick
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme='colored'
+              />
+
+              <WorkspaceProvider>
+                <LayoutContent>{children}</LayoutContent>
+              </WorkspaceProvider>
+              <NotificationRealtimeBootstrap />
+
+              <Toaster position='top-right' />
+            </>
+          )}
+        </ThemeProvider>
+      </QueryClientProvider>
     </I18nProvider>
   )
 }

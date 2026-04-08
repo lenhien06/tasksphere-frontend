@@ -3,15 +3,17 @@ import { AxiosError } from 'axios'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const email = searchParams.get('email')
+  const { email, turnstileToken } = (await request.json()) as {
+    email?: string
+    turnstileToken?: string | null
+  }
 
   if (!email) {
     return NextResponse.json({ message: 'Email is required' }, { status: 400 })
   }
 
   try {
-    const res = await serverAxios.post(`/auth/send-otp?email=${encodeURIComponent(email)}`)
+    const res = await serverAxios.post(`/auth/send-otp`, { email, turnstileToken })
     return NextResponse.json(res.data, { status: 200 })
   } catch (e) {
     if (e instanceof AxiosError) {

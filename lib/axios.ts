@@ -158,6 +158,7 @@ apiJava.interceptors.response.use(
             error.response?.status === 401 &&
             !originalRequest._retry &&
             !url.includes("/auth/signin") &&
+            !url.includes("/auth/google") &&
             !url.includes("/auth/signup") &&
             !url.includes("/auth/refresh")
         ) {
@@ -184,6 +185,7 @@ apiNext.interceptors.response.use(
             error.response?.status === 401 &&
             !originalRequest._retry &&
             !url.includes("/auth/signin") &&
+            !url.includes("/auth/google") &&
             !url.includes("/auth/signup") &&
             !url.includes("/auth/refresh")
         ) {
