@@ -4,7 +4,7 @@ import React, { useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import type { SprintDetail } from "@/app/types/task.schema"
 
-/** Chỉ sprint PLANNED — không gán trực tiếp vào ACTIVE từ backlog (BR-20). */
+/** Cho phép gán vào sprint chưa COMPLETED; nếu target là ACTIVE thì backend/FE sẽ cảnh báo xác nhận. */
 export function AssignSprintDropdown({
     sprintOptions,
     onAssign,

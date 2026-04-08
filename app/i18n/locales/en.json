@@ -628,7 +628,7 @@
     "batchAssigned": "Assigned {{count}} tasks to sprint",
     "batchAssignError": "Error batch assigning tasks",
     "batchPartialFail": "{{count}} tasks could not be assigned",
-    "noPlannedSprintsForAssign": "No sprint to assign to (create a PLANNED sprint first)",
+    "noPlannedSprintsForAssign": "No available sprint to assign to",
     "assignToSprintShort": "Assign to sprint",
     "editTask": "Edit",
     "copyLink": "Copy link",

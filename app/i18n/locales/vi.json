@@ -628,7 +628,7 @@
     "batchAssigned": "Đã gán {{count}} công việc vào sprint",
     "batchAssignError": "Lỗi khi gán hàng loạt công việc",
     "batchPartialFail": "{{count}} công việc không gán được",
-    "noPlannedSprintsForAssign": "Chưa có sprint để gán (cần sprint Đã lên kế hoạch)",
+    "noPlannedSprintsForAssign": "Không có sprint khả dụng để gán",
     "assignToSprintShort": "Gán vào Sprint",
     "editTask": "Chỉnh sửa",
     "copyLink": "Sao chép link",
