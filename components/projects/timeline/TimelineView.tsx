@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import TimelineGanttChart from "./TimelineGanttChart";
 import TimelineTaskTable from "./TimelineTaskTable";
 import TimelineToolbar, { TimelineFilterState } from "./TimelineToolbar";
-import { buildTaskTree, flattenTree, getTimelineInterval, TimelineRow, ZoomLevel } from "./utils";
+import { buildTaskTree, flattenTree, getTimelineInterval, parseTimelineDate, TimelineRow, ZoomLevel } from "./utils";
 
 interface TimelineViewProps {
     projectId: string;
@@ -118,7 +118,9 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
     const visibleTaskIds = useMemo(() => new Set(flattenedRows.map((row) => row.id)), [flattenedRows]);
     const visibleDependencies = useMemo(
         () => (timelineData?.dependencies ?? []).filter(
-            (dependency) => visibleTaskIds.has(dependency.blockerTaskId) && visibleTaskIds.has(dependency.blockedTaskId)
+            (dependency) =>
+                visibleTaskIds.has(dependency.sourceTaskId ?? dependency.blockerTaskId)
+                && visibleTaskIds.has(dependency.targetTaskId ?? dependency.blockedTaskId)
         ),
         [timelineData?.dependencies, visibleTaskIds]
     );
@@ -184,50 +186,140 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
         right.scrollTo({ left: Math.max(0, targetScrollLeft), behavior: "smooth" });
     };
 
+    const collectCascadeTaskIds = (taskId: string) => {
+        const ids = new Set<string>([taskId]);
+        const queue = [taskId];
+
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            (timelineData?.dependencies ?? [])
+                .filter((dependency) => (dependency.sourceTaskId ?? dependency.blockerTaskId) === current)
+                .forEach((dependency) => {
+                    const dependentId = dependency.targetTaskId ?? dependency.blockedTaskId;
+                    if (ids.has(dependentId)) return;
+                    ids.add(dependentId);
+                    queue.push(dependentId);
+                });
+        }
+
+        return ids;
+    };
+
+    const validateTaskWindow = (
+        row: TimelineRow,
+        nextStart: Date,
+        nextEnd: Date,
+        shiftedIds: Set<string>
+    ) => {
+        if (nextEnd < nextStart) {
+            return "Không thể đặt ngày kết thúc sớm hơn ngày bắt đầu.";
+        }
+
+        const sprintStart = parseTimelineDate(row.sprint?.startDate ?? null);
+        const sprintEnd = parseTimelineDate(row.sprint?.endDate ?? null);
+        if ((sprintStart && nextStart < sprintStart) || (sprintEnd && nextEnd > sprintEnd)) {
+            return "Không thể xếp lịch vượt ra ngoài phạm vi thời gian của Sprint.";
+        }
+
+        for (const dependency of row.blockedBy) {
+            if (shiftedIds.has(dependency.taskId)) continue;
+            const blocker = rowMap.get(dependency.taskId);
+            if (blocker && nextStart < blocker.endDateObj) {
+                return "Không thể bắt đầu task này trước khi task phụ thuộc hoàn tất.";
+            }
+        }
+
+        return null;
+    };
+
+    const validateDependentWindow = (taskId: string, nextEnd: Date, shiftedIds: Set<string>) => {
+        const dependents = (timelineData?.dependencies ?? [])
+            .filter((dependency) => (dependency.sourceTaskId ?? dependency.blockerTaskId) === taskId)
+            .map((dependency) => dependency.targetTaskId ?? dependency.blockedTaskId)
+            .filter((id) => !shiftedIds.has(id));
+
+        for (const dependentId of dependents) {
+            const dependent = rowMap.get(dependentId);
+            if (dependent && nextEnd > dependent.startDateObj) {
+                return "Cập nhật này sẽ làm dời lịch các công việc phụ thuộc. Hãy xác nhận dời dây chuyền.";
+            }
+        }
+
+        return null;
+    };
+
     const shiftTaskMutation = useMutation({
         mutationFn: async ({ taskId, deltaDays, autoShiftDependents }: { taskId: string; deltaDays: number; autoShiftDependents: boolean }) => {
             const rootRow = rowMap.get(taskId);
             if (!rootRow) throw new Error("Task not found on timeline");
 
-            const updates: Array<{ taskId: string; startDate: string }> = [];
-            const collectUpdate = (rowId: string) => {
-                const row = rowMap.get(rowId);
-                if (!row) return;
+            const shiftedIds = autoShiftDependents ? collectCascadeTaskIds(taskId) : new Set<string>([taskId]);
+            for (const shiftedId of Array.from(shiftedIds)) {
+                const row = rowMap.get(shiftedId);
+                if (!row) continue;
+
                 const nextStart = addDays(row.startDateObj, deltaDays);
-                const sprintStart = row.sprint?.startDate ? new Date(row.sprint.startDate[0], row.sprint.startDate[1] - 1, row.sprint.startDate[2]) : null;
-                const sprintEnd = row.sprint?.endDate ? new Date(row.sprint.endDate[0], row.sprint.endDate[1] - 1, row.sprint.endDate[2]) : null;
-                const projectedEnd = addDays(nextStart, Math.max(row.durationDays - 1, 0));
+                const nextEnd = addDays(row.endDateObj, deltaDays);
+                const windowError = validateTaskWindow(row, nextStart, nextEnd, shiftedIds);
+                if (windowError) throw new Error(windowError);
 
-                if ((sprintStart && nextStart < startOfDay(sprintStart)) || (sprintEnd && projectedEnd > startOfDay(sprintEnd))) {
-                    throw new Error("Lỗi: Lịch thi công không được nằm ngoài phạm vi thời gian của Sprint");
-                }
-
-                updates.push({
-                    taskId: rowId,
-                    startDate: format(nextStart, "yyyy-MM-dd"),
-                });
-            };
-
-            collectUpdate(taskId);
-
-            if (autoShiftDependents && timelineData) {
-                const visited = new Set<string>([taskId]);
-                const queue = [taskId];
-                while (queue.length > 0) {
-                    const current = queue.shift()!;
-                    timelineData.dependencies
-                        .filter((dependency) => dependency.blockerTaskId === current)
-                        .forEach((dependency) => {
-                            if (visited.has(dependency.blockedTaskId)) return;
-                            visited.add(dependency.blockedTaskId);
-                            queue.push(dependency.blockedTaskId);
-                            collectUpdate(dependency.blockedTaskId);
-                        });
+                if (!autoShiftDependents) {
+                    const dependentError = validateDependentWindow(shiftedId, nextEnd, shiftedIds);
+                    if (dependentError) throw new Error(dependentError);
                 }
             }
 
+            await TaskService.shiftTimelineTask(projectId, taskId, deltaDays, autoShiftDependents);
+        },
+        onSuccess: () => {
+            toast.success("Timeline updated");
+            queryClient.invalidateQueries({ queryKey: ["project-timeline", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["calendar", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["task"] });
+        },
+        onError: (error: any) => {
+            toast.error(error?.response?.data?.message ?? error?.message ?? "Failed to update timeline");
+        },
+    });
+
+    const resizeTaskMutation = useMutation({
+        mutationFn: async ({ taskId, deltaDays, autoShiftDependents }: { taskId: string; deltaDays: number; autoShiftDependents: boolean }) => {
+            const rootRow = rowMap.get(taskId);
+            if (!rootRow) throw new Error("Task not found on timeline");
+
+            const shiftedIds = autoShiftDependents && deltaDays > 0
+                ? collectCascadeTaskIds(taskId)
+                : new Set<string>([taskId]);
+            const updates: Array<{ taskId: string; startDate: string; endDate: string }> = [];
+
+            for (const shiftedId of Array.from(shiftedIds)) {
+                const row = rowMap.get(shiftedId);
+                if (!row) continue;
+
+                const nextStart = shiftedId === taskId
+                    ? row.startDateObj
+                    : addDays(row.startDateObj, deltaDays);
+                const nextEnd = addDays(row.endDateObj, deltaDays);
+                const windowError = validateTaskWindow(row, nextStart, nextEnd, shiftedIds);
+                if (windowError) throw new Error(windowError);
+
+                if (!(autoShiftDependents && deltaDays > 0) && shiftedId === taskId) {
+                    const dependentError = validateDependentWindow(shiftedId, nextEnd, shiftedIds);
+                    if (dependentError) throw new Error(dependentError);
+                }
+
+                updates.push({
+                    taskId: shiftedId,
+                    startDate: format(nextStart, "yyyy-MM-dd"),
+                    endDate: format(nextEnd, "yyyy-MM-dd"),
+                });
+            }
+
             for (const update of updates) {
-                await TaskService.updateTask(projectId, update.taskId, { startDate: update.startDate });
+                await TaskService.updateTask(projectId, update.taskId, {
+                    startDate: update.startDate,
+                    endDate: update.endDate,
+                });
             }
         },
         onSuccess: () => {
@@ -327,6 +419,9 @@ export default function TimelineView({ projectId, onTaskClick }: TimelineViewPro
                             rowHeight={ROW_HEIGHT}
                             onMoveTask={(taskId, deltaDays, autoShiftDependents) =>
                                 shiftTaskMutation.mutate({ taskId, deltaDays, autoShiftDependents })
+                            }
+                            onResizeTask={(taskId, deltaDays, autoShiftDependents) =>
+                                resizeTaskMutation.mutate({ taskId, deltaDays, autoShiftDependents })
                             }
                             onUpdateDeadline={(taskId, dueDate) =>
                                 updateDeadlineMutation.mutate({ taskId, dueDate })

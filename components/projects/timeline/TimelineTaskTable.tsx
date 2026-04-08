@@ -127,7 +127,7 @@ export default function TimelineTaskTable({
                                         Schedule: {row.startDateObj.toLocaleDateString("vi-VN")} - {row.endDateObj.toLocaleDateString("vi-VN")}
                                     </div>
                                     <div className="mt-0.5 text-[11px] text-slate-400">
-                                        Deadline: {row.deadlineDateObj ? row.deadlineDateObj.toLocaleDateString("vi-VN") : "Not set"}
+                                        Deadline: {row.deadlineDateObj ? row.deadlineDateObj.toLocaleDateString("vi-VN") : "Chưa thiết lập"}
                                     </div>
                                 </div>
                             </div>

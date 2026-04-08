@@ -5,15 +5,13 @@ import {
     addDays,
     differenceInCalendarDays,
     eachDayOfInterval,
-    endOfWeek,
     format,
-    isSameMonth,
     isToday,
     isWeekend,
     startOfDay,
     startOfWeek,
 } from "date-fns";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, GripVertical } from "lucide-react";
 
 import { TimelineDependency } from "@/app/types/task.schema";
 import { Button } from "@/components/ui/button";
@@ -35,6 +33,7 @@ interface TimelineGanttChartProps {
     showDependencies: boolean;
     rowHeight: number;
     onMoveTask: (taskId: string, deltaDays: number, autoShiftDependents: boolean) => void;
+    onResizeTask: (taskId: string, deltaDays: number, autoShiftDependents: boolean) => void;
     onUpdateDeadline: (taskId: string, dueDate: string) => void;
 }
 
@@ -46,11 +45,13 @@ const DAY_WIDTH_BY_ZOOM: Record<ZoomLevel, number> = {
 
 const BAR_STYLE_BY_STATUS: Record<string, string> = {
     TODO: "from-slate-500 to-slate-400 text-white border-slate-500",
-    IN_PROGRESS: "from-rose-500 to-orange-500 text-white border-rose-500",
+    IN_PROGRESS: "from-amber-500 to-orange-500 text-white border-orange-500",
     IN_REVIEW: "from-blue-500 to-indigo-500 text-white border-blue-500",
     DONE: "from-emerald-500 to-green-500 text-white border-emerald-500",
     CANCELLED: "from-slate-300 to-slate-400 text-slate-700 border-slate-400",
 };
+
+type DragMode = "move" | "resize-end";
 
 function formatStatus(status: string) {
     return status.replaceAll("_", " ").toLowerCase().replace(/^\w/, (char) => char.toUpperCase());
@@ -68,6 +69,7 @@ export default function TimelineGanttChart({
     showDependencies,
     rowHeight,
     onMoveTask,
+    onResizeTask,
     onUpdateDeadline,
 }: TimelineGanttChartProps) {
     const suppressClickTaskIdRef = useRef<string | null>(null);
@@ -77,8 +79,14 @@ export default function TimelineGanttChart({
         deltaDays: number;
         hasMoved: boolean;
         blockingCount: number;
+        mode: DragMode;
     } | null>(null);
     const [deadlineEditor, setDeadlineEditor] = useState<{ taskId: string; title: string; dueDate: string } | null>(null);
+    const [confirmAction, setConfirmAction] = useState<{
+        taskId: string;
+        deltaDays: number;
+        mode: DragMode;
+    } | null>(null);
     const dayWidth = DAY_WIDTH_BY_ZOOM[zoom];
     const slots = useMemo(
         () => eachDayOfInterval({ start: startOfDay(startDate), end: startOfDay(endDate) }),
@@ -135,11 +143,20 @@ export default function TimelineGanttChart({
                 ...row,
                 x: startX,
                 y: index * rowHeight + (rowHeight - height) / 2,
+                rowTop: index * rowHeight,
                 width: durationWidth,
                 height,
             };
         });
     }, [rows, rowHeight, dayWidth, childBarHeight, parentBarHeight]);
+
+    const dispatchScheduleAction = (taskId: string, deltaDays: number, mode: DragMode, autoShiftDependents: boolean) => {
+        if (mode === "move") {
+            onMoveTask(taskId, deltaDays, autoShiftDependents);
+            return;
+        }
+        onResizeTask(taskId, deltaDays, autoShiftDependents);
+    };
 
     useEffect(() => {
         if (!dragState) return;
@@ -158,13 +175,16 @@ export default function TimelineGanttChart({
             setDragState((prev) => {
                 if (prev && prev.hasMoved && prev.deltaDays !== 0) {
                     suppressClickTaskIdRef.current = prev.taskId;
-                    let autoShiftDependents = false;
-                    if (prev.blockingCount > 0) {
-                        autoShiftDependents = window.confirm(
-                            "Bạn có muốn tự động dời lịch của các công việc phụ thuộc phía sau không?"
-                        );
+                    const requiresCascadeConfirm = prev.blockingCount > 0 && prev.deltaDays > 0;
+                    if (requiresCascadeConfirm) {
+                        setConfirmAction({
+                            taskId: prev.taskId,
+                            deltaDays: prev.deltaDays,
+                            mode: prev.mode,
+                        });
+                    } else {
+                        dispatchScheduleAction(prev.taskId, prev.deltaDays, prev.mode, false);
                     }
-                    onMoveTask(prev.taskId, prev.deltaDays, autoShiftDependents);
                 }
                 return null;
             });
@@ -177,7 +197,7 @@ export default function TimelineGanttChart({
             window.removeEventListener("pointermove", handlePointerMove);
             window.removeEventListener("pointerup", handlePointerUp);
         };
-    }, [dayWidth, dragState, onMoveTask]);
+    }, [dayWidth, dragState]);
 
     const dependencyLines = useMemo(() => {
         if (!showDependencies) return [];
@@ -185,8 +205,8 @@ export default function TimelineGanttChart({
         const mappedBars = new Map(taskBars.map((bar) => [bar.id, bar]));
         return dependencies
             .map((dependency) => {
-                const source = mappedBars.get(dependency.blockerTaskId);
-                const target = mappedBars.get(dependency.blockedTaskId);
+                const source = mappedBars.get(dependency.sourceTaskId ?? dependency.blockerTaskId);
+                const target = mappedBars.get(dependency.targetTaskId ?? dependency.blockedTaskId);
                 if (!source || !target) return null;
 
                 const sourceX = source.x + source.width;
@@ -213,7 +233,7 @@ export default function TimelineGanttChart({
                         {topGroups.map((group) => (
                             <div
                                 key={group.key}
-                                className="flex items-center border-r border-slate-200 px-3 text-sm font-bold text-slate-700 whitespace-nowrap"
+                                className="flex items-center whitespace-nowrap border-r border-slate-200 px-3 text-sm font-bold text-slate-700"
                                 style={{ width: group.span * dayWidth }}
                             >
                                 {group.label}
@@ -226,7 +246,7 @@ export default function TimelineGanttChart({
                             <div
                                 key={slot.toISOString()}
                                 className={cn(
-                                    "flex shrink-0 flex-col items-center justify-center border-r border-slate-200 px-1 text-[11px] font-semibold whitespace-nowrap",
+                                    "flex shrink-0 flex-col items-center justify-center whitespace-nowrap border-r border-slate-200 px-1 text-[11px] font-semibold",
                                     isWeekend(slot) ? "bg-slate-50 text-slate-500" : "bg-white text-slate-700",
                                     isToday(slot) && "bg-blue-50 text-blue-700"
                                 )}
@@ -255,7 +275,7 @@ export default function TimelineGanttChart({
                         <div
                             key={`${slot.toISOString()}-col`}
                             className={cn(
-                                "absolute top-0 bottom-0 border-r border-slate-200/80",
+                                "absolute bottom-0 top-0 border-r border-slate-200/80",
                                 isWeekend(slot) && "bg-slate-50/40"
                             )}
                             style={{ left: index * dayWidth, width: dayWidth }}
@@ -264,7 +284,7 @@ export default function TimelineGanttChart({
 
                     {todayX >= 0 && todayX <= chartWidth && (
                         <div
-                            className="absolute top-0 bottom-0 z-10 w-[2px] bg-blue-500/80"
+                            className="absolute bottom-0 top-0 z-10 w-[2px] bg-blue-500/80"
                             style={{ left: todayX + dayWidth / 2 }}
                         >
                             <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
@@ -315,7 +335,13 @@ export default function TimelineGanttChart({
                                 ? "from-red-600 to-rose-500 text-white border-red-600"
                                 : (BAR_STYLE_BY_STATUS[bar.status] ?? BAR_STYLE_BY_STATUS.TODO);
                             const markerX = bar.deadlineDateObj ? getX(bar.deadlineDateObj) + dayWidth / 2 : null;
-                            const dragOffset = dragState?.taskId === bar.id ? dragState.deltaDays * dayWidth : 0;
+                            const leftOffset = dragState?.taskId === bar.id && dragState.mode === "move"
+                                ? dragState.deltaDays * dayWidth
+                                : 0;
+                            const widthOffset = dragState?.taskId === bar.id && dragState.mode === "resize-end"
+                                ? dragState.deltaDays * dayWidth
+                                : 0;
+                            const renderedWidth = Math.max(bar.width + widthOffset, Math.max(48, dayWidth - 8));
 
                             return (
                                 <Tooltip key={bar.id}>
@@ -324,9 +350,9 @@ export default function TimelineGanttChart({
                                             {markerX !== null && markerX >= 0 && markerX <= chartWidth && (
                                                 <div
                                                     className="absolute z-[2] flex flex-col items-center"
-                                                    style={{ left: markerX, top: bar.y - 4, height: bar.height + 8 }}
+                                                    style={{ left: markerX, top: bar.rowTop, height: rowHeight }}
                                                 >
-                                                    <div className="rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
+                                                    <div className="mt-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
                                                         !
                                                     </div>
                                                     <div className="mt-1 h-full w-[2px] bg-red-400/85" />
@@ -336,18 +362,18 @@ export default function TimelineGanttChart({
                                             <button
                                                 type="button"
                                                 className={cn(
-                                                    "absolute flex items-center gap-2 overflow-hidden rounded-xl border bg-gradient-to-r px-3 text-left shadow-sm transition-all",
+                                                    "absolute relative flex items-center gap-2 overflow-hidden rounded-xl border bg-gradient-to-r px-3 text-left shadow-sm transition-all",
                                                     statusStyle,
                                                     isParent && "ring-2 ring-slate-200/70",
                                                     isHovered && "scale-[1.01] shadow-lg ring-2 ring-blue-300/60",
                                                     bar.priority === "CRITICAL" && !isLate && "shadow-[0_10px_30px_-10px_rgba(244,63,94,0.55)]",
                                                     !bar.hasDates && "border-dashed opacity-70",
-                                                    isLate && "shadow-[0_12px_30px_-14px_rgba(220,38,38,0.8)]"
+                                                    isLate && "animate-pulse shadow-[0_12px_30px_-14px_rgba(220,38,38,0.8)]"
                                                 )}
                                                 style={{
-                                                    left: bar.x + dragOffset,
+                                                    left: bar.x + leftOffset,
                                                     top: bar.y,
-                                                    width: bar.width,
+                                                    width: renderedWidth,
                                                     height: bar.height,
                                                 }}
                                                 onClick={() => {
@@ -376,6 +402,7 @@ export default function TimelineGanttChart({
                                                         deltaDays: 0,
                                                         hasMoved: false,
                                                         blockingCount: bar.blocking.length,
+                                                        mode: "move",
                                                     });
                                                 }}
                                             >
@@ -393,6 +420,25 @@ export default function TimelineGanttChart({
                                                 {bar.blockedBy.length > 0 && (
                                                     <AlertTriangle size={14} className="ml-auto shrink-0 text-white/90" />
                                                 )}
+
+                                                <span
+                                                    className="absolute right-0 top-0 flex h-full w-3 cursor-ew-resize items-center justify-center bg-white/10 hover:bg-white/20"
+                                                    onPointerDown={(event) => {
+                                                        if (event.button !== 0) return;
+                                                        event.preventDefault();
+                                                        event.stopPropagation();
+                                                        setDragState({
+                                                            taskId: bar.id,
+                                                            startClientX: event.clientX,
+                                                            deltaDays: 0,
+                                                            hasMoved: false,
+                                                            blockingCount: bar.blocking.length,
+                                                            mode: "resize-end",
+                                                        });
+                                                    }}
+                                                >
+                                                    <GripVertical size={10} className="text-white/80" />
+                                                </span>
                                             </button>
                                         </div>
                                     </TooltipTrigger>
@@ -419,11 +465,11 @@ export default function TimelineGanttChart({
                                             </div>
                                             <div className="text-xs text-slate-500">
                                                 <div className="mb-1 font-semibold uppercase tracking-wide text-slate-400">Deadline</div>
-                                                <div>{bar.deadlineDateObj ? format(bar.deadlineDateObj, "dd/MM/yyyy") : "Not set"}</div>
+                                                <div>{bar.deadlineDateObj ? format(bar.deadlineDateObj, "dd/MM/yyyy") : "Chưa thiết lập"}</div>
                                             </div>
                                             {isLate && (
                                                 <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
-                                                    Scheduled execution is later than the committed deadline.
+                                                    Lịch thi công hiện tại đã vượt quá deadline cam kết.
                                                 </div>
                                             )}
                                             <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-xs">
@@ -440,6 +486,34 @@ export default function TimelineGanttChart({
                     </TooltipProvider>
                 </div>
             </div>
+
+            <Dialog open={Boolean(confirmAction)} onOpenChange={(open) => !open && setConfirmAction(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Xác nhận dời dây chuyền</DialogTitle>
+                        <DialogDescription>
+                            Cập nhật này sẽ làm dời lịch các công việc phụ thuộc. Xác nhận?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setConfirmAction(null)}>Hủy</Button>
+                        <Button
+                            onClick={() => {
+                                if (!confirmAction) return;
+                                dispatchScheduleAction(
+                                    confirmAction.taskId,
+                                    confirmAction.deltaDays,
+                                    confirmAction.mode,
+                                    true
+                                );
+                                setConfirmAction(null);
+                            }}
+                        >
+                            Xác nhận
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={Boolean(deadlineEditor)} onOpenChange={(open) => !open && setDeadlineEditor(null)}>
                 <DialogContent className="sm:max-w-md">

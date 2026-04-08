@@ -40,6 +40,8 @@ export interface TaskResponse {
     sprintId: string | null         // spec 1.2
     sprintName: string | null       // spec 1.2
     storyPoints: number | null
+    startDate?: string | null
+    endDate?: string | null
     dueDate: string | null          // ISO 8601
     overdue: boolean                // BE: overdue (not isOverdue)
     subtaskCount: number
@@ -132,6 +134,8 @@ export interface CreateTaskRequest {
     dueDate?: string                    // ISO 8601
     storyPoints?: number                // 0–100
     estimatedHours?: number
+    startDate?: string | null
+    endDate?: string | null
     skillTagsRequired?: string[]
     confirmActiveSprintChange?: boolean
     sprintId?: string                   // null = backlog
@@ -146,6 +150,7 @@ export interface UpdateTaskRequest {
     priority?: TaskPriority | TaskPriority[]
     assigneeId?: string | null          // null = unassign
     startDate?: string | null
+    endDate?: string | null
     dueDate?: string | null
     storyPoints?: number | null         // 1–100; null = keep
     estimatedHours?: number | null
@@ -538,7 +543,7 @@ export interface CalendarResponse {
 
 // ── Timeline / Gantt ──────────────────────────────────────────
 
-export type TimelineDate = [number, number, number] | null; // [year, month, day]
+export type TimelineDate = [number, number, number] | string | null;
 
 export interface TimelineTask {
     id: string;
@@ -548,6 +553,7 @@ export interface TimelineTask {
     priority: TaskPriority;
     assignee: UserSummary | null;
     startDate: TimelineDate;
+    endDate: TimelineDate;
     dueDate: TimelineDate;
     storyPoints: number | null;
     estimatedHours: number | null;
@@ -577,6 +583,8 @@ export interface TimelineTask {
 
 export interface TimelineDependency {
     linkId: string;
+    sourceTaskId: string;
+    targetTaskId: string;
     blockerTaskId: string;
     blockerTaskCode: string;
     blockerTitle: string;

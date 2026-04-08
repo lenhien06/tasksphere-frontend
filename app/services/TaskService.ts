@@ -258,6 +258,31 @@ export const TaskService = {
         return res.data.data;
     },
 
+    shiftTimelineTask: async (
+        projectId: string,
+        taskId: string,
+        shiftDays: number,
+        autoShiftDependents: boolean,
+    ): Promise<{
+        taskId: string;
+        shiftDays: number;
+        autoShiftDependents: boolean;
+        updatedTaskIds: string[];
+        affectedTasks: number;
+    }> => {
+        const res = await apiJava.patch<ApiResponse<{
+            taskId: string;
+            shiftDays: number;
+            autoShiftDependents: boolean;
+            updatedTaskIds: string[];
+            affectedTasks: number;
+        }>>(
+            `${BASE}/${projectId}/tasks/${taskId}/timeline/shift`,
+            { shiftDays, autoShiftDependents }
+        );
+        return res.data.data;
+    },
+
     // ── SPRINT ────────────────────────────────────────────────
 
     getSprints: async (projectId: string): Promise<SprintDetail[]> => {

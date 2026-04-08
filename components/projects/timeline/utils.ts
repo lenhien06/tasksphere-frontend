@@ -1,5 +1,14 @@
 import { TimelineDate, TimelineTask } from "@/app/types/task.schema";
-import { addDays, endOfMonth, eachDayOfInterval, eachMonthOfInterval, eachWeekOfInterval, startOfDay, startOfMonth } from "date-fns";
+import {
+    addDays,
+    differenceInCalendarDays,
+    endOfMonth,
+    eachDayOfInterval,
+    eachMonthOfInterval,
+    eachWeekOfInterval,
+    startOfDay,
+    startOfMonth,
+} from "date-fns";
 
 const MIN_REASONABLE_YEAR = 2000;
 const MAX_REASONABLE_YEAR = 2100;
@@ -23,8 +32,13 @@ function buildSafeDate(year: number, month: number, day: number): Date | null {
 
 export function parseTimelineDate(date: TimelineDate): Date | null {
     if (!date) return null;
-    const [first, second, third] = date;
 
+    if (typeof date === "string") {
+        const parsed = startOfDay(new Date(date));
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    const [first, second, third] = date;
     if ([first, second, third].some((value) => typeof value !== "number" || Number.isNaN(value))) {
         return null;
     }
@@ -40,7 +54,7 @@ export function parseTimelineDate(date: TimelineDate): Date | null {
     return null;
 }
 
-function computeDurationDays(task: TimelineTask): number {
+function computeFallbackDurationDays(task: TimelineTask): number {
     if (typeof task.estimatedHours === "number" && Number.isFinite(task.estimatedHours) && task.estimatedHours > 0) {
         return Math.max(1, Math.ceil(task.estimatedHours / 8));
     }
@@ -58,66 +72,34 @@ interface ResolvedWindow {
     durationDays: number;
 }
 
-function resolveTaskWindow(
-    task: TimelineTask,
-    taskMap: Map<string, TimelineTask>,
-    cache: Map<string, ResolvedWindow>,
-    resolving: Set<string>
-): ResolvedWindow {
-    const cached = cache.get(task.id);
-    if (cached) return cached;
-
-    if (resolving.has(task.id)) {
-        const fallback = startOfDay(new Date());
-        return {
-            scheduledStart: fallback,
-            scheduledEnd: fallback,
-            deadline: parseTimelineDate(task.dueDate),
-            hasDates: false,
-            durationDays: 1,
-        };
-    }
-
-    resolving.add(task.id);
-
+function resolveTaskWindow(task: TimelineTask): ResolvedWindow {
     const explicitStart = parseTimelineDate(task.startDate);
+    const explicitEnd = parseTimelineDate(task.endDate);
     const deadline = parseTimelineDate(task.dueDate);
     const sprintStart = parseTimelineDate(task.sprint?.startDate ?? null);
-    const durationDays = computeDurationDays(task);
 
-    let scheduledStart = explicitStart ?? sprintStart ?? deadline ?? startOfDay(new Date());
+    let scheduledStart = explicitStart ?? sprintStart ?? explicitEnd ?? deadline ?? startOfDay(new Date());
+    let scheduledEnd = explicitEnd ?? deadline ?? scheduledStart;
 
-    if (task.blockedBy.length > 0) {
-        const blockerEndDates = task.blockedBy
-            .map((dependency) => taskMap.get(dependency.taskId))
-            .filter((item): item is TimelineTask => Boolean(item))
-            .map((blocker) => resolveTaskWindow(blocker, taskMap, cache, resolving).scheduledEnd)
-            .filter(Boolean);
-
-        blockerEndDates.forEach((blockerEnd) => {
-            const earliestStart = addDays(blockerEnd, 1);
-            if (earliestStart > scheduledStart) {
-                scheduledStart = earliestStart;
-            }
-        });
+    if (scheduledEnd < scheduledStart) {
+        scheduledEnd = scheduledStart;
     }
 
-    if (sprintStart && sprintStart > scheduledStart) {
-        scheduledStart = sprintStart;
+    const durationDays = explicitStart || explicitEnd || deadline
+        ? Math.max(differenceInCalendarDays(scheduledEnd, scheduledStart) + 1, 1)
+        : computeFallbackDurationDays(task);
+
+    if (!explicitEnd && durationDays > 1) {
+        scheduledEnd = addDays(scheduledStart, durationDays - 1);
     }
 
-    const scheduledEnd = addDays(scheduledStart, Math.max(durationDays - 1, 0));
-    const resolved: ResolvedWindow = {
+    return {
         scheduledStart,
         scheduledEnd,
         deadline,
-        hasDates: Boolean(explicitStart || deadline || sprintStart),
+        hasDates: Boolean(explicitStart || explicitEnd || deadline || sprintStart),
         durationDays,
     };
-
-    cache.set(task.id, resolved);
-    resolving.delete(task.id);
-    return resolved;
 }
 
 export interface TimelineRow extends TimelineTask {
@@ -136,14 +118,9 @@ export interface TimelineRow extends TimelineTask {
 export function buildTaskTree(tasks: TimelineTask[]): TimelineRow[] {
     const taskMap = new Map<string, TimelineRow>();
     const roots: TimelineRow[] = [];
-    const sourceTaskMap = new Map(tasks.map((task) => [task.id, task]));
-    const resolvedCache = new Map<string, ResolvedWindow>();
-    const resolving = new Set<string>();
 
-    // Initialize rows
-    tasks.forEach(task => {
-        const { scheduledStart, scheduledEnd, deadline, hasDates, durationDays } = resolveTaskWindow(task, sourceTaskMap, resolvedCache, resolving);
-        const isPastDeadline = Boolean(deadline && scheduledEnd > deadline);
+    tasks.forEach((task) => {
+        const { scheduledStart, scheduledEnd, deadline, hasDates, durationDays } = resolveTaskWindow(task);
         taskMap.set(task.id, {
             ...task,
             level: 0,
@@ -155,23 +132,20 @@ export function buildTaskTree(tasks: TimelineTask[]): TimelineRow[] {
             deadlineDateObj: deadline,
             hasDates,
             durationDays,
-            isPastDeadline,
+            isPastDeadline: Boolean(deadline && scheduledEnd > deadline),
         });
     });
 
-    // Build hierarchy
-    taskMap.forEach(row => {
+    taskMap.forEach((row) => {
         if (row.parentTaskId && taskMap.has(row.parentTaskId)) {
-            const parent = taskMap.get(row.parentTaskId)!;
-            parent.children.push(row);
+            taskMap.get(row.parentTaskId)!.children.push(row);
         } else {
             roots.push(row);
         }
     });
 
-    // Set levels recursively
     const setLevels = (nodes: TimelineRow[], level: number) => {
-        nodes.forEach(node => {
+        nodes.forEach((node) => {
             node.level = level;
             if (node.children.length > 0) {
                 setLevels(node.children, level + 1);
@@ -186,7 +160,7 @@ export function buildTaskTree(tasks: TimelineTask[]): TimelineRow[] {
 export function flattenTree(nodes: TimelineRow[]): TimelineRow[] {
     const result: TimelineRow[] = [];
     const recurse = (list: TimelineRow[]) => {
-        list.forEach(node => {
+        list.forEach((node) => {
             result.push(node);
             if (node.expanded && node.children.length > 0) {
                 recurse(node.children);
@@ -197,7 +171,7 @@ export function flattenTree(nodes: TimelineRow[]): TimelineRow[] {
     return result;
 }
 
-export type ZoomLevel = 'day' | 'week' | 'month';
+export type ZoomLevel = "day" | "week" | "month";
 
 export function getTimelineInterval(tasks: TimelineTask[], zoom: ZoomLevel) {
     if (tasks.length === 0) {
@@ -208,15 +182,10 @@ export function getTimelineInterval(tasks: TimelineTask[], zoom: ZoomLevel) {
 
     let minDate = new Date(8640000000000000);
     let maxDate = new Date(-8640000000000000);
-
     let hasValidDates = false;
 
-    const sourceTaskMap = new Map(tasks.map((task) => [task.id, task]));
-    const resolvedCache = new Map<string, ResolvedWindow>();
-    const resolving = new Set<string>();
-
-    tasks.forEach(t => {
-        const { scheduledStart, scheduledEnd, deadline, hasDates } = resolveTaskWindow(t, sourceTaskMap, resolvedCache, resolving);
+    tasks.forEach((task) => {
+        const { scheduledStart, scheduledEnd, deadline, hasDates } = resolveTaskWindow(task);
         if (!hasDates) return;
         hasValidDates = true;
         if (scheduledStart < minDate) minDate = scheduledStart;
@@ -231,7 +200,6 @@ export function getTimelineInterval(tasks: TimelineTask[], zoom: ZoomLevel) {
         return { start, end };
     }
 
-    // Buffer
     const start = startOfMonth(addDays(minDate, -7));
     const end = endOfMonth(addDays(maxDate, 30));
 
@@ -240,11 +208,11 @@ export function getTimelineInterval(tasks: TimelineTask[], zoom: ZoomLevel) {
 
 export function getColumns(start: Date, end: Date, zoom: ZoomLevel) {
     switch (zoom) {
-        case 'day':
+        case "day":
             return eachDayOfInterval({ start, end });
-        case 'week':
+        case "week":
             return eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
-        case 'month':
+        case "month":
             return eachMonthOfInterval({ start, end });
         default:
             return eachDayOfInterval({ start, end });
