@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useState, useEffect } from "react"
 import {
@@ -44,7 +44,7 @@ interface TaskMetaGridProps {
     onBlockedBySubtask?: (pendingSubtasks: any[]) => void
 }
 
-// ── Reusable Field Label with Icon ─────────────────────────
+// â”€â”€ Reusable Field Label with Icon â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function FieldLabel({ icon: Icon, label }: { icon: any; label: string }) {
     return (
@@ -55,7 +55,7 @@ function FieldLabel({ icon: Icon, label }: { icon: any; label: string }) {
     )
 }
 
-// ── Status Field ──────────────────────────────────────────
+// â”€â”€ Status Field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const STATUS_ORDER: TaskStatus[] = ["TODO", "IN_PROGRESS", "READY_FOR_TEST", "TESTING", "IN_REVIEW", "DONE", "CANCELLED"]
 
@@ -102,7 +102,7 @@ function StatusField({ task, projectId, canEdit, currentUserRole, etag, onBlocke
                 if (pending && onBlockedBySubtask) {
                     onBlockedBySubtask(pending)
                 } else {
-                    toast.error(err?.response?.data?.message ?? "Không thể chuyển trạng thái")
+                    toast.error(err?.response?.data?.message ?? "Unable to update status")
                 }
             } else {
                 toast.error(err?.response?.data?.message ?? "Error updating status")
@@ -150,10 +150,9 @@ function StatusField({ task, projectId, canEdit, currentUserRole, etag, onBlocke
                                     !canPerformTesterActions)
                             return (
                                 <DropdownMenuItem
-                                    key={s}
                                     onClick={() => {
                                         if (isBlockedForCurrentUser) {
-                                            toast.error("Chi PM hoặc thành viên có skill QA/Testing mới được thực hiện bước kiểm thử này.")
+                                            toast.error("Only PMs or members with QA/Testing skills can perform this testing step.")
                                             return
                                         }
                                         if (
@@ -169,7 +168,7 @@ function StatusField({ task, projectId, canEdit, currentUserRole, etag, onBlocke
                                                     taskStatus: sub.status,
                                                 }))
                                             onBlockedBySubtask?.(pending)
-                                            toast.error("Cần hoàn thành tất cả công việc con trước khi đóng task cha.")
+                                            toast.error("Complete all sub-tasks before closing the parent task.")
                                             return
                                         }
                                         updateStatus.mutate({ status: s })
@@ -197,7 +196,7 @@ function StatusField({ task, projectId, canEdit, currentUserRole, etag, onBlocke
     )
 }
 
-// ── Priority Field ─────────────────────────────────────────
+// â”€â”€ Priority Field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PRIORITY_ORDER: TaskPriority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
 
@@ -249,7 +248,7 @@ function PriorityField({
     )
 }
 
-// ── Helper Fields ──────────────────────────────────────────
+// â”€â”€ Helper Fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function AssigneeField({ assignee, projectId, task, onSave, readOnly }: { assignee: UserSummary | null; projectId: string; task: TaskDetailResponse; onSave: (id: string | null) => void; readOnly: boolean }) {
     const { data: members = [] } = useQuery({ queryKey: ["project-members", projectId], queryFn: () => ProjectMemberService.getMembers(projectId), staleTime: 60000 })
@@ -334,11 +333,11 @@ function InlineNumberField({ value, onSave, readOnly }: { value: number | null; 
     useEffect(() => setRaw(value != null ? String(value) : ""), [value])
     const handleBlur = () => { setEditing(false); const n = raw === "" ? null : Number(raw); if (!isNaN(n as any) && n !== value) onSave(n) }
 
-    if (readOnly) return <span className="text-[14px] font-bold text-slate-900">{value ?? "—"}</span>
+    if (readOnly) return <span className="text-[14px] font-bold text-slate-900">{value ?? "â€”"}</span>
     return editing ? (
         <Input type="number" value={raw} onChange={e => setRaw(e.target.value)} onBlur={handleBlur} onKeyDown={e => { if (e.key === "Enter") handleBlur(); if (e.key === "Escape") setEditing(false) }} className="h-6 w-16 text-xs font-bold px-1.5 py-0.5 rounded border-slate-200" autoFocus />
     ) : (
-        <span className="cursor-pointer hover:bg-slate-50 px-1 rounded transition-colors text-[14px] font-bold text-slate-900" onClick={() => setEditing(true)}>{value ?? "—"}</span>
+        <span className="cursor-pointer hover:bg-slate-50 px-1 rounded transition-colors text-[14px] font-bold text-slate-900" onClick={() => setEditing(true)}>{value ?? "â€”"}</span>
     )
 }
 
@@ -357,7 +356,7 @@ function DateField({ value, isOverdue, onSave, readOnly }: { value: string | nul
     )
 }
 
-// ── Worklog Section ────────────────────────────────────────
+// â”€â”€ Worklog Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function WorklogWidget({ task, projectId, canEdit }: { task: TaskDetailResponse; projectId: string; canEdit: boolean }) {
     const [open, setOpen] = useState(false)
@@ -414,7 +413,7 @@ function WorklogWidget({ task, projectId, canEdit }: { task: TaskDetailResponse;
     )
 }
 
-// ── Main Component ─────────────────────────────────────────
+// â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function TaskMetaGrid({ task, projectId, canEdit, currentUserRole, etag, onBlockedBySubtask }: TaskMetaGridProps) {
     const qc = useQueryClient()
@@ -439,13 +438,13 @@ export default function TaskMetaGrid({ task, projectId, canEdit, currentUserRole
         if (task.sprint?.startDate && task.sprint?.endDate) {
             const insideSprint = dueDate >= task.sprint.startDate && dueDate <= task.sprint.endDate
             if (!insideSprint) {
-                toast.error("Lỗi: Hạn chót không được vượt quá phạm vi thời gian của Sprint")
+                toast.error("Due date must stay within the sprint date range.")
                 return
             }
         }
         if (task.sprint?.status === "ACTIVE" && task.dueDate !== dueDate) {
             const confirmed = window.confirm(
-                "Cảnh báo: Bạn đang thay đổi kế hoạch của Sprint đang chạy. Việc này sẽ làm biến động biểu đồ Burn-down. Bạn có chắc chắn không?"
+                "Warning: you are changing the plan of an active sprint. This will affect the burndown chart. Do you want to continue?"
             )
             if (!confirmed) {
                 return

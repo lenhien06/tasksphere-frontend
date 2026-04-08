@@ -335,7 +335,7 @@ export default function TaskDetailPageContent({
                                 onClick={() => setPromoteToTaskOpen(true)}
                             >
                                 <ArrowUpRight size={14} className="mr-1.5" />
-                                Nâng cấp thành Task
+                                Promote to Task
                             </Button>
                         )}
                         {showActionMenu && (
@@ -361,11 +361,11 @@ export default function TaskDetailPageContent({
                                     {canDelete && <DropdownMenuItem
                                         className="text-rose-600 font-semibold focus:text-rose-600 focus:bg-rose-50 rounded-lg cursor-pointer"
                                         onClick={() => {
-                                            if (confirm("Tất cả sub-task sẽ bị xóa theo. Bạn có chắc chắn muốn xóa task này?")) deleteTask.mutate()
+                                            if (confirm("All nested sub-tasks will be deleted as well. Do you want to delete this task?")) deleteTask.mutate()
                                         }}
                                         disabled={deleteTask.isPending}
                                     >
-                                        <Trash2 size={16} className="mr-2" /> Xóa task
+                                        <Trash2 size={16} className="mr-2" /> Delete task
                                     </DropdownMenuItem>}
                                 </DropdownMenuContent>
                             </DropdownMenu>

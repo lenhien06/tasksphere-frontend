@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -356,7 +356,7 @@ export default function KanbanBoard({
         name,
         filterCriteria: toSavedTaskFilterCriteria(filters) as any,
       } as any);
-      toast.success(t("filter.saved", { defaultValue: "Đã lưu bộ lọc" }));
+      toast.success(t("filter.saved", { defaultValue: "Filter saved" }));
       queryClient.invalidateQueries({ queryKey: ["saved-filters", projectId] });
     } catch (error) {
       handleKanbanError(error);
@@ -366,7 +366,7 @@ export default function KanbanBoard({
   const deleteSavedFilter = async (filterId: string) => {
     try {
       await TaskService.deleteSavedFilter(filterId);
-      toast.success(t("filter.deleted", { defaultValue: "Đã xoá bộ lọc" }));
+      toast.success(t("filter.deleted", { defaultValue: "Filter deleted" }));
       queryClient.invalidateQueries({ queryKey: ["saved-filters", projectId] });
     } catch (error) {
       handleKanbanError(error);
@@ -385,7 +385,7 @@ export default function KanbanBoard({
     if (!targetColumn || !task) return;
 
     if (targetColumn.status === "DONE" && !isTesterActionAllowed) {
-      toast.error("Chi PM hoặc thành viên có skill QA/Testing mới được chuyển task sang Done.");
+      toast.error("Only PMs or members with QA/Testing skills can move a task to Done.");
       return;
     }
 
@@ -394,7 +394,7 @@ export default function KanbanBoard({
       (targetColumn.status === "IN_PROGRESS" || targetColumn.status === "TODO") &&
       !isTesterActionAllowed
     ) {
-      toast.error("Chi PM hoặc thành viên có skill QA/Testing mới được trả task từ cột review về xử lý.");
+      toast.error("Only PMs or members with QA/Testing skills can move a task back from review.");
       return;
     }
 
@@ -407,7 +407,7 @@ export default function KanbanBoard({
       // If coming from IN_PROGRESS (or other status), require IN_REVIEW first
       if (sourceColumn?.status === "IN_PROGRESS" || sourceColumn?.status === "TODO" || sourceColumn?.status === "READY_FOR_TEST") {
         const confirmReview = window.confirm(
-          "Phải chuyển sang 'In Review' trước khi có thể đánh dấu Done. Bạn có muốn chuyển sang In Review không?"
+          "A task must move to In Review before it can be marked Done. Do you want to move it to In Review now?"
         );
         if (!confirmReview) return;
         
@@ -428,7 +428,7 @@ export default function KanbanBoard({
       (task.subTaskCount ?? 0) > (task.subTaskDoneCount ?? 0)
     ) {
       const remaining = (task.subTaskCount ?? 0) - (task.subTaskDoneCount ?? 0);
-      toast.error(`Cần hoàn thành tất cả công việc con trước khi đóng task cha. Còn ${remaining} sub-task chưa xong.`);
+      toast.error(`Complete all sub-tasks before closing the parent task. ${remaining} sub-task${remaining === 1 ? "" : "s"} still unfinished.`);
       return;
     }
 
@@ -444,10 +444,10 @@ export default function KanbanBoard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
       queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
-      toast.success("Đã xóa task");
+      toast.success("Task deleted");
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message ?? "Không thể xóa task");
+      toast.error(err?.response?.data?.message ?? "Unable to delete task");
     },
   });
   const moveTaskMutation = useMutation({
@@ -465,7 +465,7 @@ export default function KanbanBoard({
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["activity", projectId, data.payload.taskId] });
       if (data.isColumnChange) {
-        toast.success(`Đã chuyển sang ${data.targetColumnName}`);
+        toast.success(`Moved to ${data.targetColumnName}`);
       }
     },
     onMutate: async (payload) => {
@@ -483,7 +483,7 @@ export default function KanbanBoard({
         toast.error(
           error.response?.data?.meta?.message ??
             error.response?.data?.message ??
-            "Không thể chuyển trạng thái"
+            "Unable to change status"
         );
         return;
       }
@@ -511,7 +511,7 @@ export default function KanbanBoard({
   if (columnsError) {
                     return (
       <div className="h-[60vh] grid place-items-center rounded-xl border border-gray-200 bg-white text-gray-500 shadow-sm">
-        {t("kanban.loadError", { defaultValue: "Không thể tải Kanban board" })}
+        {t("kanban.loadError", { defaultValue: "Unable to load the Kanban board" })}
       </div>
     );
   }
@@ -624,7 +624,7 @@ export default function KanbanBoard({
         <AiAssignReview
           projectId={projectId}
           onSuccess={(result) => {
-            toast.success(`Da phan cong ${result.totalAssigned} task (${result.aiConfirmed} AI · ${result.pmOverridden} override)`);
+            toast.success(`Assigned ${result.totalAssigned} task(s) (${result.aiConfirmed} AI, ${result.pmOverridden} overridden)`);
             queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
             queryClient.invalidateQueries({ queryKey: ["backlog-board-tasks", projectId] });
           }}

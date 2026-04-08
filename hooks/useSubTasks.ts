@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -26,10 +26,10 @@ export function useAddSubTask(projectId: string, parentTaskId: string) {
             )
             qc.invalidateQueries({ queryKey: ["task", projectId, parentTaskId] })
             invalidateTaskCollections(qc, projectId)
-            toast.success(`Sub-task ${newSub.taskCode} đã được tạo`)
+            toast.success(`Sub-task ${newSub.taskCode} was created.`)
         },
         onError: (err: any) => {
-            toast.error(err?.response?.data?.message ?? "Không thể tạo sub-task")
+            toast.error(err?.response?.data?.message ?? "Unable to create sub-task")
         },
     })
 }
@@ -49,7 +49,7 @@ export function useUpdateSubTaskStatus(projectId: string, parentTaskId: string) 
         },
         onError: (_err, _vars, ctx) => {
             if (ctx?.prev) qc.setQueryData(["subtasks", parentTaskId], ctx.prev)
-            toast.error("Không thể cập nhật trạng thái")
+            toast.error("Unable to update status")
         },
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ["subtasks", parentTaskId] })
@@ -68,10 +68,10 @@ export function usePromoteSubTask(projectId: string, parentTaskId: string) {
             qc.invalidateQueries({ queryKey: ["subtasks", parentTaskId] })
             qc.invalidateQueries({ queryKey: ["task", projectId, parentTaskId] })
             invalidateTaskCollections(qc, projectId)
-            toast.success("Đã chuyển thành task độc lập")
+            toast.success("Sub-task was promoted to an independent task.")
         },
         onError: (err: any) => {
-            toast.error(err?.response?.data?.message ?? "Không thể chuyển sub-task")
+            toast.error(err?.response?.data?.message ?? "Unable to promote sub-task")
         },
     })
 }
@@ -85,10 +85,10 @@ export function useDeleteSubTask(projectId: string, parentTaskId: string) {
                 old?.filter(s => s.id !== subtaskId)
             )
             qc.invalidateQueries({ queryKey: ["task", projectId, parentTaskId] })
-            toast.success("Đã xóa sub-task")
+            toast.success("Sub-task was deleted.")
         },
         onError: (err: any) => {
-            toast.error(err?.response?.data?.message ?? "Không thể xóa sub-task")
+            toast.error(err?.response?.data?.message ?? "Unable to delete sub-task")
         },
     })
 }

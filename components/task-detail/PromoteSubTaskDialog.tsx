@@ -4,9 +4,9 @@ import React, { useEffect, useMemo, useState } from "react"
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogDescription,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,10 +44,8 @@ export type PromoteSubTaskDialogProps = {
     open: boolean
     onOpenChange: (open: boolean) => void
     projectId: string
-    /** Task whose subtasks list should refresh (task cha trên trang chi tiết) */
     subtasksListParentId: string
     source: PromoteSubTaskSource | null
-    /** Fallback assignee khi sub-task không có assignee (task cha gốc hoặc node cha trong cây) */
     assigneeFallback: UserSummary | null
 }
 
@@ -64,7 +62,7 @@ function DescEditor({
         immediatelyRender: false,
         extensions: [
             StarterKit,
-            Placeholder.configure({ placeholder: "Bổ sung mô tả cho task độc lập..." }),
+            Placeholder.configure({ placeholder: "Add a description for the standalone task..." }),
         ],
         content: initialContent,
         editable: !disabled,
@@ -111,40 +109,40 @@ export default function PromoteSubTaskDialog({
 
     const memberList = useMemo(
         () =>
-            (members as any[]).map((m) => ({
-                id: String(m.user?.id || m.id),
-                fullName: m.user?.fullName || m.fullName || "Unknown",
-                avatarUrl: m.user?.avatarUrl || m.avatarUrl || null,
+            (members as any[]).map((member) => ({
+                id: String(member.user?.id || member.id),
+                fullName: member.user?.fullName || member.fullName || "Unknown",
+                avatarUrl: member.user?.avatarUrl || member.avatarUrl || null,
             })),
         [members]
     )
 
-    const selectedMember = memberList.find((m) => m.id === assigneeId)
+    const selectedMember = memberList.find((member) => member.id === assigneeId)
 
     useEffect(() => {
         if (!open || !source) return
         setTitle(source.title)
-        const defAssignee = source.assignee?.id ?? assigneeFallback?.id ?? null
-        setAssigneeId(defAssignee ? String(defAssignee) : null)
+        const defaultAssignee = source.assignee?.id ?? assigneeFallback?.id ?? null
+        setAssigneeId(defaultAssignee ? String(defaultAssignee) : null)
         setDueYmd(source.dueDate ? source.dueDate.slice(0, 10) : "")
         setDescHtml(source.description ?? "")
-    }, [open, source])
+    }, [open, source, assigneeFallback?.id])
 
     const promote = useMutation({
         mutationFn: () => {
             if (!source) throw new Error("No task")
-            const t = title.trim()
-            if (!t) throw new Error("Tiêu đề không được để trống")
+            const trimmedTitle = title.trim()
+            if (!trimmedTitle) throw new Error("Title cannot be empty")
             return TaskDetailService.promoteSubtask(source.id, {
-                title: t,
-                assigneeId: assigneeId ? assigneeId : undefined,
+                title: trimmedTitle,
+                assigneeId: assigneeId || undefined,
                 dueDate: dueYmd || undefined,
                 description: descHtml || undefined,
             })
         },
         onSuccess: (data: any) => {
             const newId = data?.id as string
-            toast.success("Đã chuyển thành task độc lập")
+            toast.success("Sub-task was promoted to a standalone task.")
             qc.invalidateQueries({ queryKey: ["subtasks", subtasksListParentId] })
             qc.invalidateQueries({ queryKey: ["task", projectId, subtasksListParentId] })
             qc.invalidateQueries({ queryKey: ["tasks", projectId], exact: false })
@@ -155,7 +153,7 @@ export default function PromoteSubTaskDialog({
             }
         },
         onError: (err: any) => {
-            toast.error(err?.response?.data?.message ?? err?.message ?? "Không thể nâng cấp sub-task")
+            toast.error(err?.response?.data?.message ?? err?.message ?? "Unable to promote sub-task")
         },
     })
 
@@ -165,7 +163,7 @@ export default function PromoteSubTaskDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Nâng cấp thành Task</DialogTitle>
+                    <DialogTitle>Promote to Task</DialogTitle>
                     <DialogDescription asChild>
                         <div className="space-y-1 text-sm text-muted-foreground">
                             <p>
@@ -173,30 +171,30 @@ export default function PromoteSubTaskDialog({
                                 <span className="font-medium text-foreground">
                                     &ldquo;{source?.title}&rdquo;
                                 </span>{" "}
-                                ({source?.taskCode}) sẽ trở thành task độc lập trên board.
+                                ({source?.taskCode}) will become a standalone task on the board.
                             </p>
                             {(source?.subtaskCount ?? 0) > 0 && (
-                                <p className="text-amber-600 text-xs font-medium">
-                                    Các sub-task con vẫn thuộc task sau khi nâng cấp.
+                                <p className="text-xs font-medium text-amber-600">
+                                    Any child sub-tasks will remain attached after promotion.
                                 </p>
                             )}
                         </div>
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 mt-2">
+                <div className="mt-2 space-y-4">
                     <div className="space-y-1.5">
-                        <Label htmlFor="promote-title">Tiêu đề</Label>
+                        <Label htmlFor="promote-title">Title</Label>
                         <Input
                             id="promote-title"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Tiêu đề task"
+                            placeholder="Task title"
                         />
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label>Người được giao</Label>
+                        <Label>Assignee</Label>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
@@ -215,25 +213,25 @@ export default function PromoteSubTaskDialog({
                                                 {selectedMember.fullName}
                                             </>
                                         ) : (
-                                            <span className="text-muted-foreground">Chưa gán</span>
+                                            <span className="text-muted-foreground">Unassigned</span>
                                         )}
                                     </span>
-                                    <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-64 overflow-y-auto">
                                 <DropdownMenuItem onClick={() => setAssigneeId(null)}>
-                                    Chưa gán
+                                    Unassigned
                                 </DropdownMenuItem>
-                                {memberList.map((m) => (
-                                    <DropdownMenuItem key={m.id} onClick={() => setAssigneeId(m.id)}>
+                                {memberList.map((member) => (
+                                    <DropdownMenuItem key={member.id} onClick={() => setAssigneeId(member.id)}>
                                         <UserAvatar
-                                            src={m.avatarUrl ?? undefined}
-                                            name={m.fullName}
+                                            src={member.avatarUrl ?? undefined}
+                                            name={member.fullName}
                                             size={20}
                                             className="mr-2"
                                         />
-                                        {m.fullName}
+                                        {member.fullName}
                                     </DropdownMenuItem>
                                 ))}
                             </DropdownMenuContent>
@@ -241,7 +239,7 @@ export default function PromoteSubTaskDialog({
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label htmlFor="promote-due">Hạn chót</Label>
+                        <Label htmlFor="promote-due">Due date</Label>
                         <Input
                             id="promote-due"
                             type="date"
@@ -251,7 +249,7 @@ export default function PromoteSubTaskDialog({
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label>Mô tả</Label>
+                        <Label>Description</Label>
                         {open && source && (
                             <DescEditor
                                 key={source.id}
@@ -263,9 +261,9 @@ export default function PromoteSubTaskDialog({
                     </div>
                 </div>
 
-                <div className="flex justify-end gap-2 mt-4">
+                <div className="mt-4 flex justify-end gap-2">
                     <Button variant="ghost" size="sm" type="button" onClick={() => onOpenChange(false)}>
-                        Huỷ
+                        Cancel
                     </Button>
                     <Button
                         size="sm"
@@ -273,7 +271,7 @@ export default function PromoteSubTaskDialog({
                         disabled={!canSubmit || promote.isPending}
                         onClick={() => promote.mutate()}
                     >
-                        {promote.isPending ? "Đang xử lý..." : "Xác nhận nâng cấp"}
+                        {promote.isPending ? "Processing..." : "Confirm promotion"}
                     </Button>
                 </div>
             </DialogContent>

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useState, useEffect } from "react"
 import { Plus, ChevronRight, MoreHorizontal, ExternalLink, ArrowUpRight, Trash2 } from "lucide-react"
@@ -40,7 +40,7 @@ interface SubTaskSectionProps {
     isPM?: boolean
 }
 
-// ── Per-node toggle mutation (uses the correct parent cache key) ──
+// â”€â”€ Per-node toggle mutation (uses the correct parent cache key) â”€â”€
 
 function useToggleSubtask(projectId: string, parentId: string) {
     const qc = useQueryClient()
@@ -57,7 +57,7 @@ function useToggleSubtask(projectId: string, parentId: string) {
         },
         onError: (_err, _vars, ctx) => {
             if (ctx?.prev) qc.setQueryData(["subtasks", parentId], ctx.prev)
-            toast.error("Không thể cập nhật trạng thái")
+            toast.error("Unable to update status")
         },
         onSettled: () => {
             // Invalidate both this node's children list and the parent list to keep counts fresh
@@ -68,7 +68,7 @@ function useToggleSubtask(projectId: string, parentId: string) {
     })
 }
 
-// ── Recursive subtask node ────────────────────────────────────
+// â”€â”€ Recursive subtask node â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SubTaskNodeProps {
     sub: SubTaskResponse
@@ -135,7 +135,7 @@ function SubTaskNode({
     return (
         <div style={{ paddingLeft: depth * 20 }}>
             <div className="flex items-center gap-2 py-1.5 group hover:bg-accent/30 rounded px-2 transition-colors">
-                {/* Expand toggle — only if has children, no ▶ icon */}
+                {/* Expand toggle â€” only if has children, no â–¶ icon */}
                 <button
                     className={cn(
                         "w-4 h-4 flex items-center justify-center shrink-0 text-muted-foreground transition-transform",
@@ -143,12 +143,12 @@ function SubTaskNode({
                         expanded && "rotate-90"
                     )}
                     onClick={() => setExpanded(v => !v)}
-                    aria-label={expanded ? "Thu gọn" : "Mở rộng"}
+                    aria-label={expanded ? "Collapse" : "Expand"}
                 >
                     <ChevronRight size={12} />
                 </button>
 
-                {/* Checkbox — uses local state for instant feedback */}
+                {/* Checkbox â€” uses local state for instant feedback */}
                 <Checkbox
                     checked={localDone}
                     onCheckedChange={(v) => handleToggle(!!v)}
@@ -168,7 +168,7 @@ function SubTaskNode({
                     {sub.title}
                 </button>
 
-                {/* Child count badge — no ▶ */}
+                {/* Child count badge â€” no â–¶ */}
                 {hasChildren && (
                     <span className="text-[10px] text-muted-foreground shrink-0 font-medium">
                         {sub.completedSubtaskCount}/{sub.subtaskCount}
@@ -200,18 +200,18 @@ function SubTaskNode({
                     <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem onClick={() => router.push(`/projects/${projectId}/tasks/${sub.id}`)}>
                             <ExternalLink size={13} className="mr-2" />
-                            Mở chi tiết
+                            Open details
                         </DropdownMenuItem>
                         {canEdit && (
                             <DropdownMenuItem onClick={() => onAddChild({ parentTaskId: sub.id, parentTitle: sub.title, assigneeFallback: sub.assignee ?? assigneeFallback })}>
                                 <Plus size={13} className="mr-2" />
-                                Thêm sub-task con
+                                Add child sub-task
                             </DropdownMenuItem>
                         )}
                         {canEdit && (
                             <DropdownMenuItem onClick={() => onPromote(sub, assigneeFallback)}>
                                 <ArrowUpRight size={13} className="mr-2" />
-                                Chuyển thành Task
+                                Promote to task
                             </DropdownMenuItem>
                         )}
                         {isPM && (
@@ -222,7 +222,7 @@ function SubTaskNode({
                                     onClick={() => onDelete(sub)}
                                 >
                                     <Trash2 size={13} className="mr-2" />
-                                    Xóa
+                                    Delete
                                 </DropdownMenuItem>
                             </>
                         )}
@@ -246,7 +246,7 @@ function SubTaskNode({
                         <SubTaskNode
                             key={child.id}
                             sub={child}
-                            parentId={sub.id}      // ← correct parent cache key
+                            parentId={sub.id}      // â† correct parent cache key
                             projectId={projectId}
                             depth={depth + 1}
                             canEdit={canEdit}
@@ -264,7 +264,7 @@ function SubTaskNode({
     )
 }
 
-// ── Inline add form ───────────────────────────────────────────
+// â”€â”€ Inline add form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function InlineAddForm({
     parentId,
@@ -296,7 +296,7 @@ function InlineAddForm({
             <Input
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="Tên sub-task..."
+                placeholder="Sub-task title..."
                 className="h-7 text-sm flex-1"
                 autoFocus
                 onKeyDown={e => {
@@ -305,16 +305,16 @@ function InlineAddForm({
                 }}
             />
             <Button size="sm" className="h-7 px-3 text-xs" onClick={submit} disabled={!title.trim() || addSubTask.isPending}>
-                {addSubTask.isPending ? "..." : "Thêm"}
+                {addSubTask.isPending ? "..." : "Add"}
             </Button>
             <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setTitle(""); onDone() }}>
-                Huỷ
+                Cancel
             </Button>
         </div>
     )
 }
 
-// ── Main component ────────────────────────────────────────────
+// â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function SubTaskSection({ task, projectId, canEdit, isPM = false }: SubTaskSectionProps) {
     const { data: subTasks = [], isLoading } = useSubTasks(task.id)
@@ -354,9 +354,9 @@ export default function SubTaskSection({ task, projectId, canEdit, isPM = false 
                             parentTitle: task.title,
                             assigneeFallback: task.assignee ?? null,
                         })}
-                        aria-label="Thêm sub-task"
+                        aria-label="Add sub-task"
                     >
-                        <Plus size={13} className="mr-0.5" /> Thêm
+                        <Plus size={13} className="mr-0.5" /> Add
                     </Button>
                 )}
             </div>
@@ -434,13 +434,13 @@ export default function SubTaskSection({ task, projectId, canEdit, isPM = false 
             <Dialog open={!!deletingTarget} onOpenChange={() => setDeletingTarget(null)}>
                 <DialogContent className="max-w-sm">
                     <DialogHeader>
-                        <DialogTitle>Xóa sub-task?</DialogTitle>
+                        <DialogTitle>Delete sub-task?</DialogTitle>
                         <DialogDescription>
-                            Tất cả sub-task con (nếu có) cũng sẽ bị xóa theo. Hành động này không thể hoàn tác.
+                            All nested sub-tasks will be deleted as well. This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex justify-end gap-2 mt-2">
-                        <Button variant="ghost" size="sm" onClick={() => setDeletingTarget(null)}>Huỷ</Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeletingTarget(null)}>Cancel</Button>
                         <Button
                             size="sm"
                             variant="destructive"
@@ -453,7 +453,7 @@ export default function SubTaskSection({ task, projectId, canEdit, isPM = false 
                             }}
                             disabled={deleteSubTask.isPending}
                         >
-                            Xóa
+                            Delete
                         </Button>
                     </div>
                 </DialogContent>
