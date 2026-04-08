@@ -68,16 +68,19 @@ function StatusField({ task, projectId, canEdit, currentUserRole, etag, onBlocke
         staleTime: 60_000,
         enabled: !!projectId && !!currentUserId,
     })
+    const safeMembers = Array.isArray(members) ? members : []
+    const subtaskDone = task.subtaskDone ?? (task as any).subtaskDoneCount ?? 0
     const currentUserSkills = React.useMemo(() => {
-        const member = (members as any[]).find((item) => String(item.user?.id ?? item.id ?? "") === currentUserId)
+        const member = safeMembers.find((item: any) => String(item.user?.id ?? item.id ?? "") === currentUserId)
+        const anyMember = member as any
         return (
-            member?.skillTags ??
-            member?.skills ??
-            member?.user?.skillTags ??
-            member?.user?.skills ??
+            anyMember?.skillTags ??
+            anyMember?.skills ??
+            anyMember?.user?.skillTags ??
+            anyMember?.user?.skills ??
             []
         ) as string[]
-    }, [members, currentUserId])
+    }, [safeMembers, currentUserId])
     const canPerformTesterActions =
         currentUserRole === "PM" || hasTestingSkill(currentUserSkills)
 
@@ -155,9 +158,9 @@ function StatusField({ task, projectId, canEdit, currentUserRole, etag, onBlocke
                                         }
                                         if (
                                             s === "DONE" &&
-                                            (task.subtaskCount ?? 0) > (task.subtaskDone ?? 0)
+                                            (task.subtaskCount ?? 0) > subtaskDone
                                         ) {
-                                            const remaining = (task.subtaskCount ?? 0) - (task.subtaskDone ?? 0)
+                                            const remaining = (task.subtaskCount ?? 0) - subtaskDone
                                             const confirmed = window.confirm(
                                                 `Còn ${remaining} sub-task chưa xong. Vẫn chuyển sang Done?`
                                             )
@@ -244,7 +247,7 @@ function PriorityField({
 
 function AssigneeField({ assignee, projectId, task, onSave, readOnly }: { assignee: UserSummary | null; projectId: string; task: TaskDetailResponse; onSave: (id: string | null) => void; readOnly: boolean }) {
     const { data: members = [] } = useQuery({ queryKey: ["project-members", projectId], queryFn: () => ProjectMemberService.getMembers(projectId), staleTime: 60000 })
-    const fallbackMembers = (members as any[]).map(m => ({ id: m.user?.id || m.id, fullName: m.user?.fullName || m.fullName || "Unknown", avatarUrl: m.user?.avatarUrl || m.avatarUrl || null, skillTags: m.skillTags || [] }))
+    const fallbackMembers = (Array.isArray(members) ? members : []).map((m: any) => ({ id: m.user?.id || m.id, fullName: m.user?.fullName || m.fullName || "Unknown", avatarUrl: m.user?.avatarUrl || m.avatarUrl || null, skillTags: m.skillTags || [] }))
     const suggestionMap = new Map((task.assigneeSuggestions ?? []).map((item) => [item.userId, item]))
     const memberList = (task.assigneeSuggestions?.length
         ? task.assigneeSuggestions.map((item) => ({
@@ -409,6 +412,7 @@ function WorklogWidget({ task, projectId, canEdit }: { task: TaskDetailResponse;
 
 export default function TaskMetaGrid({ task, projectId, canEdit, currentUserRole, etag, onBlockedBySubtask }: TaskMetaGridProps) {
     const qc = useQueryClient()
+    const reporter = task.reporter ?? { id: "", fullName: "Unknown", avatarUrl: null }
     const updateTask = useMutation({
         mutationFn: (data: any) => TaskService.updateTask(projectId, task.id, { title: task.title, ...data }),
         onSuccess: (_, data) => {
@@ -467,10 +471,10 @@ export default function TaskMetaGrid({ task, projectId, canEdit, currentUserRole
                     </div>
                 </div>
                 <div className="flex items-start gap-3">
-                    <UserAvatar src={task.reporter.avatarUrl ?? undefined} name={task.reporter.fullName} size={36} />
+                    <UserAvatar src={reporter.avatarUrl ?? undefined} name={reporter.fullName} size={36} />
                     <div className="flex-1 min-w-0">
                         <FieldLabel icon={Users} label="Reporter" />
-                        <span className="text-[14px] font-semibold text-slate-900">{task.reporter.fullName}</span>
+                        <span className="text-[14px] font-semibold text-slate-900">{reporter.fullName}</span>
                     </div>
                 </div>
                 <div><FieldLabel icon={Calendar} label="Due Date" /><DateField value={task.dueDate} isOverdue={task.overdue} onSave={handleDueDateSave} readOnly={!canEdit} /></div>

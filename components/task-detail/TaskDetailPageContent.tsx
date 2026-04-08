@@ -227,6 +227,8 @@ export default function TaskDetailPageContent({
     }
 
     const { task } = data
+    const safeTaskType = typeof task.type === "string" ? task.type.toUpperCase() : "TASK"
+    const subtaskDone = task.subtaskDone ?? (task as any).subtaskDoneCount ?? 0
     const normalizedRole = String(currentUserRole || "").toUpperCase()
     const isAdminOrPM =
         normalizedRole === "PM" ||
@@ -263,7 +265,7 @@ export default function TaskDetailPageContent({
         SUB_TASK: { icon: Subtitles,   color: "text-sky-600",     bg: "bg-sky-50" },
         FEATURE:  { icon: Zap,         color: "text-amber-600",   bg: "bg-amber-50" },
     }
-    const tCfg = typeConfig[task.type.toUpperCase()] || typeConfig.TASK
+    const tCfg = typeConfig[safeTaskType] || typeConfig.TASK
     const TypeIcon = tCfg.icon
 
     return (
@@ -401,7 +403,7 @@ export default function TaskDetailPageContent({
                             <span className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                                 Sub-tasks
                                 <span className="text-slate-400 font-semibold normal-case tracking-normal text-[11px]">
-                                    {task.subtaskDone}/{task.subtaskCount}
+                                    {subtaskDone}/{task.subtaskCount}
                                 </span>
                             </span>
                         </AccordionTrigger>
@@ -424,7 +426,7 @@ export default function TaskDetailPageContent({
                             <span className="text-sm font-semibold text-slate-900">Recurrence</span>
                         </AccordionTrigger>
                         <AccordionContent className="pt-2">
-                            <RecurringSection taskId={task.id} projectId={projectId} isRecurring={task.recurring ?? false} canEdit={canEdit} />
+                            <RecurringSection taskId={task.id} projectId={projectId} isRecurring={task.recurring ?? (task as any).isRecurring ?? false} canEdit={canEdit} />
                         </AccordionContent>
                     </AccordionItem>
 

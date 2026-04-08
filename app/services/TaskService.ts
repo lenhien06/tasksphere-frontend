@@ -47,6 +47,44 @@ import {
 
 const BASE = "/v1/projects";
 
+const normalizeTaskDetailResponse = (raw: any): TaskDetailResponse => {
+    const statusColumn = raw?.statusColumn ?? null;
+    const reporter = raw?.reporter ?? { id: "", fullName: "Unknown", avatarUrl: null };
+    const subtasks = Array.isArray(raw?.subtasks)
+        ? raw.subtasks.map((item: any) => ({
+            ...item,
+            status: item?.status ?? item?.taskStatus ?? "TODO",
+            taskStatus: item?.taskStatus ?? item?.status ?? "TODO",
+        }))
+        : [];
+    const customFieldValues = Array.isArray(raw?.customFieldValues)
+        ? raw.customFieldValues.map((item: any) => ({
+            ...item,
+            fieldDefinitionId: item?.fieldDefinitionId ?? item?.fieldId ?? "",
+        }))
+        : [];
+
+    return {
+        ...raw,
+        type: raw?.type ?? "TASK",
+        priority: raw?.priority ?? "MEDIUM",
+        taskStatus: raw?.taskStatus ?? "TODO",
+        columnId: raw?.columnId ?? statusColumn?.id ?? "",
+        columnName: raw?.columnName ?? statusColumn?.name ?? "",
+        commentsCount: raw?.commentsCount ?? raw?.commentCount ?? 0,
+        attachmentsCount: raw?.attachmentsCount ?? raw?.attachmentCount ?? 0,
+        subtaskDone: raw?.subtaskDone ?? raw?.subtaskDoneCount ?? 0,
+        recurring: raw?.recurring ?? raw?.isRecurring ?? false,
+        reporter,
+        assignee: raw?.assignee ?? null,
+        subtasks,
+        customFieldValues,
+        checklist: Array.isArray(raw?.checklist) ? raw.checklist : [],
+        attachments: Array.isArray(raw?.attachments) ? raw.attachments : [],
+        versionInfo: raw?.versionInfo ?? raw?.projectVersion ?? null,
+    } as TaskDetailResponse;
+};
+
 export const TaskService = {
     // POST /projects/{pId}/tasks
     createTask: async (projectId: string, data: CreateTaskRequest): Promise<TaskDetailResponse> => {
@@ -70,7 +108,7 @@ export const TaskService = {
             `${BASE}/${projectId}/tasks/${taskId}`
         );
         const etag = (res.headers as Record<string, string>)["etag"] ?? "";
-        return { task: res.data.data, etag };
+        return { task: normalizeTaskDetailResponse(res.data.data), etag };
     },
 
     // PUT /projects/{pId}/tasks/{tId}
