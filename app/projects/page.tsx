@@ -52,7 +52,7 @@ import { ProjectService } from "@/app/services/ProjectService";
 import { ProjectMemberService } from "@/app/services/project-member.service";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { canActAsProjectManager, normalizeProjectMyRole } from "@/lib/projectRole";
+import { canActAsProjectManager } from "@/lib/projectRole";
 import { getRealtimeAccessToken, getStompConnectHeaders } from "@/lib/realtime/stompAuth";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import ProjectHealthCheckDrawer from "@/components/projects/ProjectHealthCheckDrawer";
@@ -538,11 +538,9 @@ export default function ProjectsPage() {
     };
     const canArchiveProject = (p: Project) => {
         const ownerFallback = !!currentUserId && !!p.ownerId && String(p.ownerId) === currentUserId;
-        const n = normalizeProjectMyRole(p.myRole);
         return (
             p.isOwner === true ||
             ownerFallback ||
-            n === "system_admin" ||
             isAdmin
         );
     };

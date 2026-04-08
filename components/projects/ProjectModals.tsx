@@ -638,7 +638,7 @@ export const DeleteProjectModal = ({
         </label>
         <input
           type="text"
-          placeholder={`${project?.name} / ${project?.key}`}
+          placeholder={project?.name || project?.key || "Enter project name or key"}
           className={cn(
             "w-full h-11 px-4 rounded-xl border text-[14px] font-medium outline-none transition-all",
             error 
