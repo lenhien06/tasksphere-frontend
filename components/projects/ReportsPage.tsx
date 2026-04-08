@@ -29,6 +29,8 @@ interface ReportsPageProps {
   onCloseExportModal?: () => void;
 }
 
+type ExportFormat = "PDF" | "EXCEL";
+
 function mapTabToReport(activeTab?: number): ReportType | null {
   if (activeTab === 1) return "burndown";
   if (activeTab === 2) return "velocity";
@@ -173,15 +175,15 @@ function ChartShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-4 border-b border-slate-200 px-8 py-7 lg:flex-row lg:items-start lg:justify-between">
+    <div className="mx-auto max-w-6xl rounded-[24px] border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="text-[2rem] font-black tracking-tight text-slate-950">{title}</h2>
-          <p className="mt-2 text-lg text-slate-600">{description}</p>
+          <h2 className="text-[1.8rem] font-black tracking-tight text-slate-950">{title}</h2>
+          <p className="mt-2 text-base text-slate-600">{description}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">{controls}</div>
       </div>
-      <div className="px-8 py-8">
+      <div className="px-6 py-6">
         <div className="mb-4 flex justify-end">
           <div className="inline-flex items-center rounded-full border border-indigo-100 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700">
             AI insights
@@ -210,10 +212,10 @@ function ReportEmpty({
 
 function InsightPanel({ insights }: { insights: string[] }) {
   return (
-    <div className="rounded-[24px] border border-indigo-100 bg-indigo-50/70 px-7 py-6">
+    <div className="mx-auto max-w-5xl rounded-[24px] border border-indigo-100 bg-indigo-50/70 px-6 py-5">
       <div className="flex items-center gap-3">
         <Lightbulb className="h-5 w-5 text-indigo-600" />
-        <h3 className="text-2xl font-bold text-slate-950">AI insights</h3>
+        <h3 className="text-xl font-bold text-slate-950">AI insights</h3>
       </div>
       <div className="mt-4 space-y-3">
         {insights.map((insight) => (
@@ -270,7 +272,7 @@ function ExportButton({
       className="inline-flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-base font-semibold text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      Export PDF
+      Export file
     </button>
   );
 }
@@ -289,9 +291,9 @@ function BackButton({ onClick }: { onClick: () => void }) {
 }
 
 function BurndownChart({ data }: { data: BurndownData }) {
-  const width = 1080;
-  const height = 420;
-  const padding = 52;
+  const width = 860;
+  const height = 300;
+  const padding = 42;
   const points = data.idealLine.map((idealPoint, index) => ({
     label: formatShortDate(idealPoint.date),
     ideal: Number(idealPoint.remainingPoints ?? 0),
@@ -307,9 +309,9 @@ function BurndownChart({ data }: { data: BurndownData }) {
   const actualPath = buildLinePath(points.map((point) => point.actual ?? point.ideal), width, height, padding);
 
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="mx-auto max-w-5xl rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex items-center justify-between">
-        <h3 className="text-2xl font-bold text-slate-950">Remaining work across the sprint</h3>
+        <h3 className="text-xl font-bold text-slate-950">Remaining work across the sprint</h3>
         <div className="flex items-center gap-5 text-sm text-slate-500">
           <span className="inline-flex items-center gap-2">
             <span className="h-0.5 w-10 bg-slate-400" />
@@ -322,7 +324,7 @@ function BurndownChart({ data }: { data: BurndownData }) {
         </div>
       </div>
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${width} ${height}`} className="min-h-[420px] min-w-full">
+        <svg viewBox={`0 0 ${width} ${height}`} className="min-h-[300px] w-full">
           {[0, 1, 2, 3, 4].map((grid) => {
             const y = padding + (grid * plotHeight) / 4;
             const value = Math.round(maxValue - (grid * maxValue) / 4);
@@ -358,9 +360,9 @@ function BurndownChart({ data }: { data: BurndownData }) {
 }
 
 function BurnupChart({ data }: { data: BurnupReportData }) {
-  const width = 1080;
-  const height = 420;
-  const padding = 52;
+  const width = 860;
+  const height = 300;
+  const padding = 42;
   const maxValue = Math.max(...data.data.flatMap((point) => [point.scopePoints, point.completedPoints]), 1);
   const plotHeight = height - padding * 2;
   const plotWidth = width - padding * 2;
@@ -368,9 +370,9 @@ function BurnupChart({ data }: { data: BurnupReportData }) {
   const completedValues = data.data.map((point) => point.completedPoints);
 
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="mx-auto max-w-5xl rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex items-center justify-between">
-        <h3 className="text-2xl font-bold text-slate-950">Completed work vs total scope</h3>
+        <h3 className="text-xl font-bold text-slate-950">Completed work vs total scope</h3>
         <div className="flex items-center gap-5 text-sm text-slate-500">
           <span className="inline-flex items-center gap-2">
             <span className="h-0.5 w-10 bg-rose-500" />
@@ -383,7 +385,7 @@ function BurnupChart({ data }: { data: BurnupReportData }) {
         </div>
       </div>
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${width} ${height}`} className="min-h-[420px] min-w-full">
+        <svg viewBox={`0 0 ${width} ${height}`} className="min-h-[300px] w-full">
           {[0, 1, 2, 3, 4].map((grid) => {
             const y = padding + (grid * plotHeight) / 4;
             const value = Math.round(maxValue - (grid * maxValue) / 4);
@@ -422,9 +424,9 @@ function BurnupChart({ data }: { data: BurnupReportData }) {
 }
 
 function VelocityChart({ data }: { data: VelocityForecastData }) {
-  const width = 1080;
-  const height = 420;
-  const padding = 52;
+  const width = 860;
+  const height = 300;
+  const padding = 42;
   const maxValue = Math.max(...data.committedSeries, ...data.completedSeries, 1);
   const plotWidth = width - padding * 2;
   const plotHeight = height - padding * 2;
@@ -432,9 +434,9 @@ function VelocityChart({ data }: { data: VelocityForecastData }) {
   const barWidth = Math.min(32, groupWidth * 0.26);
 
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="mx-auto max-w-5xl rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex items-center justify-between">
-        <h3 className="text-2xl font-bold text-slate-950">Committed vs completed across recent sprints</h3>
+        <h3 className="text-xl font-bold text-slate-950">Committed vs completed across recent sprints</h3>
         <div className="flex items-center gap-5 text-sm text-slate-500">
           <span className="inline-flex items-center gap-2">
             <span className="h-3 w-8 rounded-full bg-slate-300" />
@@ -447,7 +449,7 @@ function VelocityChart({ data }: { data: VelocityForecastData }) {
         </div>
       </div>
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${width} ${height}`} className="min-h-[420px] min-w-full">
+        <svg viewBox={`0 0 ${width} ${height}`} className="min-h-[300px] w-full">
           {[0, 1, 2, 3, 4].map((grid) => {
             const y = padding + (grid * plotHeight) / 4;
             const value = Math.round(maxValue - (grid * maxValue) / 4);
@@ -597,6 +599,7 @@ export default function ReportsPage({
   const { isViewer } = usePermission(projectId);
   const [selectedReport, setSelectedReport] = useState<ReportType | null>(() => mapTabToReport(activeTab));
   const [selectedSprintId, setSelectedSprintId] = useState(sprintId ?? "");
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("PDF");
   const [exporting, setExporting] = useState(false);
 
   const { data: sprints = [] } = useQuery({
@@ -667,14 +670,14 @@ export default function ReportsPage({
       const scope = selectedReport === "velocity" ? "ALL" : "SPRINT";
       const response = await TaskService.createExportJob(
         projectId,
-        "PDF",
+        exportFormat,
         scope,
         scope === "SPRINT" ? selectedSprintId : undefined
       );
       const url = URL.createObjectURL(response.data);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `tasksphere-${selectedReport ?? "report"}-${Date.now()}.pdf`;
+      link.download = `tasksphere-${selectedReport ?? "report"}-${Date.now()}.${exportFormat === "EXCEL" ? "xlsx" : "pdf"}`;
       link.click();
       URL.revokeObjectURL(url);
       toast.success("The report export has been generated.");
@@ -712,6 +715,16 @@ export default function ReportsPage({
           Last 5 closed sprints
         </div>
       )}
+      {!isViewer ? (
+        <select
+          value={exportFormat}
+          onChange={(event) => setExportFormat(event.target.value as ExportFormat)}
+          className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition-colors focus:border-indigo-400"
+        >
+          <option value="PDF">PDF</option>
+          <option value="EXCEL">Excel</option>
+        </select>
+      ) : null}
       {!isViewer ? (
         <ExportButton disabled={selectedReport !== "velocity" && !selectedSprintId} loading={exporting} onClick={handleExport} />
       ) : null}
