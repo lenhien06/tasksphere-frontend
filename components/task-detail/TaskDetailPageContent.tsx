@@ -133,6 +133,16 @@ export default function TaskDetailPageContent({
         enabled: !!projectId && !!currentUserId,
         staleTime: 60_000,
     })
+    const currentUserSkills = React.useMemo(() => {
+        const member = (members as any[]).find((item) => String(item.user?.id ?? item.id ?? "") === currentUserId)
+        return (
+            member?.skillTags ??
+            member?.skills ??
+            member?.user?.skillTags ??
+            member?.user?.skills ??
+            []
+        ) as string[]
+    }, [members, currentUserId])
 
     useTaskWebSocket(projectId, taskId)
 
@@ -239,16 +249,6 @@ export default function TaskDetailPageContent({
     const isAssignee = !!task.assignee?.id && !!currentUserId && String(task.assignee.id) === currentUserId
     const canEdit = isAdminOrPM || isMember
     const canDelete = isAdminOrPM
-    const currentUserSkills = React.useMemo(() => {
-        const member = (members as any[]).find((item) => String(item.user?.id ?? item.id ?? "") === currentUserId)
-        return (
-            member?.skillTags ??
-            member?.skills ??
-            member?.user?.skillTags ??
-            member?.user?.skills ??
-            []
-        ) as string[]
-    }, [members, currentUserId])
     const canCreateBug = isAdminOrPM || hasTestingSkill(currentUserSkills)
     const showActionMenu = canDelete || ((task.taskStatus === "TESTING" || task.taskStatus === "IN_REVIEW") && onCreateBug && canCreateBug)
 
