@@ -24,7 +24,7 @@ export interface ProjectOverview {
 }
 
 export interface StatusDistributionItem {
-  status: 'todo' | 'in_progress' | 'in_review' | 'done' | 'cancelled';
+  status: 'todo' | 'in_progress' | 'in_review' | 'testing' | 'done' | 'cancelled';
   count: number;
   percentage: number;
 }

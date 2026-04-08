@@ -32,12 +32,14 @@ type UiRole = "PROJECT_MANAGER" | "MEMBER" | "VIEWER";
 
 function normalizeStatus(
   status: string
-): "todo" | "in_progress" | "in_review" | "done" | "cancelled" {
+): "todo" | "in_progress" | "in_review" | "testing" | "done" | "cancelled" {
   const s = status.toLowerCase();
   if (s === "todo" || s === "to_do") return "todo";
   if (s === "in_progress" || s === "inprogress") return "in_progress";
   if (s === "in_review" || s === "review") return "in_review";
+  if (s === "testing") return "testing";
   if (s === "done" || s === "completed") return "done";
+  if (s === "cancelled") return "cancelled";
   return "cancelled";
 }
 

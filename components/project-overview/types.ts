@@ -23,7 +23,7 @@ export interface ProjectOverviewPageProps {
     doneStoryPoints: number;
     totalStoryPoints: number;
     statusDistribution: {
-      status: "todo" | "in_progress" | "in_review" | "done" | "cancelled";
+      status: "todo" | "in_progress" | "in_review" | "testing" | "done" | "cancelled";
       count: number;
       percentage: number;
     }[];
@@ -61,7 +61,7 @@ export interface ProjectOverviewPageProps {
     title: string;
     type: "task" | "bug" | "story" | "epic" | "sub_task";
     priority: "critical" | "high" | "medium" | "low";
-    status: "todo" | "in_progress" | "in_review" | "done" | "cancelled";
+    status: "todo" | "in_progress" | "in_review" | "testing" | "done" | "cancelled";
     dueDate: string | null;
     storyPoints: number | null;
     isOverdue: boolean;
