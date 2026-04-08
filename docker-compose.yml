@@ -1,5 +1,8 @@
+name: tasksphere-frontend
+
 services:
   tasksphere-webapp:
+    container_name: tasksphere-frontend-webapp
     build:
       context: .
       dockerfile: Dockerfile
