@@ -37,7 +37,7 @@ export default function TaskPrimaryActions({
         <button
           type="button"
           onClick={onAiGenerate}
-          className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-slate-800"
+          className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-blue-700"
         >
           <ClipboardList size={15} />
           Plan tasks
@@ -48,7 +48,7 @@ export default function TaskPrimaryActions({
         <button
           type="button"
           onClick={onAiAssign}
-          className="flex items-center gap-1.5 rounded-xl bg-slate-700 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-slate-800"
+          className="flex items-center gap-1.5 rounded-xl bg-blue-100 px-4 py-2 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-200"
         >
           <Users size={15} />
           Recommend assignments

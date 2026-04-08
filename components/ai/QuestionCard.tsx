@@ -84,7 +84,7 @@ function SingleChoiceQuestion({
               <button
                 type="button"
                 onClick={() => customValue.trim() && onAnswer(customValue.trim())}
-                className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+                className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
               >
                 Confirm
               </button>
@@ -184,7 +184,7 @@ function MemberSelectQuestion({
             <div
               className={cn(
                 "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
-                isSelected ? "border-slate-900 bg-slate-900" : "border-slate-300 bg-white"
+                isSelected ? "border-blue-600 bg-blue-600" : "border-slate-300 bg-white"
               )}
             >
               {isSelected && <Check size={11} className="text-white" />}
@@ -203,7 +203,7 @@ function MemberSelectQuestion({
           disabled={selected.size === 0}
           className={cn(
             "rounded-xl px-4 py-2 text-sm font-semibold text-white transition",
-            selected.size > 0 ? "bg-slate-900 hover:bg-slate-800" : "cursor-not-allowed bg-slate-300"
+            selected.size > 0 ? "bg-blue-600 hover:bg-blue-700" : "cursor-not-allowed bg-slate-300"
           )}
         >
           Continue

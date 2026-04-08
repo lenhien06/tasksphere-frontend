@@ -62,7 +62,7 @@ function ProgressBar({ step }: { step: CreationStep }) {
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
         <div
-          className="h-1.5 rounded-full bg-slate-900 transition-all duration-500"
+          className="h-1.5 rounded-full bg-blue-600 transition-all duration-500"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -209,7 +209,7 @@ export default function WorkspaceAiProjectCreationFlow({
       </button>
 
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-900 shadow-sm">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-blue-600 shadow-sm">
           <Briefcase size={20} className="text-white" />
         </div>
         <div>
@@ -250,7 +250,7 @@ export default function WorkspaceAiProjectCreationFlow({
               className={cn(
                 "flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white",
                 description.trim() && wsId
-                  ? "bg-slate-900 hover:bg-slate-800"
+                  ? "bg-blue-600 hover:bg-blue-700"
                   : "cursor-not-allowed bg-slate-300"
               )}
             >
@@ -339,7 +339,7 @@ export default function WorkspaceAiProjectCreationFlow({
 
       {step === "success" && successData && (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 py-16 text-center shadow-sm">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 shadow-lg">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 shadow-lg">
             <Check size={32} className="text-white" />
           </div>
           <h2 className="text-lg font-bold text-slate-900">Project created successfully</h2>
@@ -351,7 +351,7 @@ export default function WorkspaceAiProjectCreationFlow({
             <button
               type="button"
               onClick={() => router.push(successData.projectUrl)}
-              className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+              className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
             >
               <Building2 size={15} />
               Open project

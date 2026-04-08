@@ -78,7 +78,7 @@ function AddSkillPopup({ onConfirm, onCancel }: {
       />
       <button
         onClick={submit}
-        className="h-7 w-7 flex items-center justify-center rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-sm active:scale-95"
+        className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
       >
         <Check size={13} strokeWidth={3} />
       </button>
@@ -326,7 +326,7 @@ export function AISkillAllocationModal({
               onConfirm(entries);
               onClose();
             }}
-            className="flex items-center gap-2 h-9 px-5 rounded-xl bg-slate-900 text-white text-[13px] font-bold hover:bg-slate-800 transition-all shadow-sm active:scale-95"
+            className="flex items-center gap-2 h-9 px-5 rounded-xl bg-blue-600 text-white text-[13px] font-bold hover:bg-blue-700 transition-all shadow-sm active:scale-95"
           >
             <Users size={14} />
             Continue

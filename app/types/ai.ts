@@ -59,6 +59,7 @@ export interface TaskAssignmentSuggestion {
   storyPoints:       number | null;
   skillTagsRequired: string[];
   topSuggestions:    MemberSuggestion[];
+  noSuggestionReason?: string | null;
 }
 
 export interface SuggestAssignmentsResponse {

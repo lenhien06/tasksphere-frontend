@@ -80,7 +80,7 @@ function ToggleSwitch({ enabled, onToggle }: { enabled: boolean; onToggle: () =>
             onClick={onToggle}
             className={cn(
                 "relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2",
-                enabled ? "bg-purple-600" : "bg-slate-200"
+                enabled ? "bg-blue-600" : "bg-slate-200"
             )}
             role="switch"
             aria-checked={enabled}
@@ -210,7 +210,7 @@ export function AIProjectCreationModal({
                 {/* ── Header ── */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                     <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 shadow-sm">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 shadow-sm">
                             <Briefcase size={14} className="text-white" />
                         </div>
                         <h2 className="text-[17px] font-bold text-slate-900 tracking-tight">
@@ -358,7 +358,7 @@ export function AIProjectCreationModal({
                             className={cn(
                                 "flex items-center gap-2 h-9 px-5 rounded-xl text-[13px] font-bold transition-all",
                                 allRequirementsMet && !isGenerating
-                                    ? "bg-slate-900 text-white shadow-sm active:scale-95 hover:bg-slate-800"
+                                    ? "bg-blue-600 text-white shadow-sm active:scale-95 hover:bg-blue-700"
                                     : "bg-slate-100 text-slate-400 cursor-not-allowed opacity-70"
                             )}
                         >

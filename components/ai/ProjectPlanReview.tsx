@@ -60,7 +60,7 @@ function InfoTab({ plan }: { plan: GenerateProjectPlanResponse }) {
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white shadow-sm">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-sm font-black text-white shadow-sm">
             {p.projectKey}
           </div>
           <div>
@@ -118,7 +118,7 @@ function SprintsTab({ sprints }: { sprints: SprintPlanDto[] }) {
           {/* Sprint progress bar placeholder */}
           <div className="ml-10 mt-3 h-1.5 rounded-full bg-slate-100">
             <div
-              className="h-1.5 rounded-full bg-slate-900"
+              className="h-1.5 rounded-full bg-blue-600"
               style={{ width: `${Math.min(100, ((sprint.tasks?.length ?? 0) / 6) * 100)}%` }}
             />
           </div>
@@ -210,10 +210,14 @@ function TasksTab({
                   </div>
 
                   {/* Assignee name */}
-                  {assignee && (
+                  {assignee ? (
                     <div className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400">
                       <User size={9} />
                       {assignee.fullName}
+                    </div>
+                  ) : (
+                    <div className="mt-1.5 text-[10px] text-amber-600">
+                      No suitable assignee identified from the current member skill data yet.
                     </div>
                   )}
                 </div>
@@ -312,7 +316,7 @@ export default function ProjectPlanReview({
           type="button"
           onClick={() => onConfirm(plan)}
           disabled={isConfirming}
-          className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
+          className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60"
         >
           {isConfirming ? <Loader2 size={15} className="animate-spin" /> : null}
           {isConfirming ? "Creating project..." : "Create project"}

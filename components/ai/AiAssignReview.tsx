@@ -299,8 +299,8 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
               <button
                 onClick={handleStartAnalysis}
                 disabled={loadingTasks}
-                className="rounded-lg bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white
-                           transition-colors hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white
+                           transition-colors hover:bg-blue-700 disabled:opacity-50"
               >
                 {loadingTasks ? 'Loading work items...' : 'Start review'}
               </button>
@@ -346,8 +346,8 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
                         onClick={() => setPriorityFilter(p)}
                         className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                           priorityFilter === p
-                            ? 'bg-slate-900 text-white border-slate-900'
-                            : 'bg-white text-gray-600 border-gray-300 hover:border-slate-400'
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
                         }`}
                       >
                         {p === 'all' ? 'All' : p.charAt(0).toUpperCase() + p.slice(1)}
@@ -441,6 +441,12 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
                       <DroppableTaskSlot taskId={taskSugg.taskId} assignment={assignment}>
                         <div />
                       </DroppableTaskSlot>
+                      {taskSugg.topSuggestions.length === 0 ? (
+                        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                          {taskSugg.noSuggestionReason ??
+                            'No suitable assignee could be recommended for this work item yet.'}
+                        </div>
+                      ) : null}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                         {taskSugg.topSuggestions.map((member, idx) => (
                           <MemberScoreCard
@@ -500,8 +506,8 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
               <button
                 disabled={selectedTaskIds.size === 0}
                 onClick={() => runAnalysis(Array.from(selectedTaskIds))}
-                className="rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white
-                           hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed
+                className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white
+                           hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
                            transition-colors"
               >
                 Analyze {selectedTaskIds.size} selected items
@@ -525,8 +531,8 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
                 <button
                   onClick={handleConfirm}
                   disabled={assignedCount === 0 || confirmMutation.isPending}
-                  className="px-5 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold
-                             hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed
+                  className="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold
+                             hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
                              transition-colors"
                 >
                   {confirmMutation.isPending ? 'Confirming...' : `Confirm ${assignedCount} assignments`}

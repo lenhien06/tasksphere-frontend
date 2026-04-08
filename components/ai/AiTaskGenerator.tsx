@@ -197,8 +197,8 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
             <button
               onClick={handleAnalyze}
               disabled={!requirements.trim() || isAnalyzing}
-              className="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white
-                         hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50
+              className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white
+                         hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50
                          transition-colors"
             >
               {isAnalyzing ? (
@@ -293,8 +293,8 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
                 <div className="flex gap-3 mt-2">
                   <button
                     onClick={() => setShowAssignModal(true)}
-                    className="rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white
-                               transition-colors hover:bg-slate-800"
+                    className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white
+                               transition-colors hover:bg-blue-700"
                   >
                     Review assignments
                   </button>
@@ -346,8 +346,8 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
                 <button
                   onClick={handleConfirm}
                   disabled={selectedCount === 0 || isConfirming}
-                  className="rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white
-                             hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed
+                  className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white
+                             hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
                              transition-colors"
                 >
                   {isConfirming

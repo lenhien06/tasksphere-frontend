@@ -176,7 +176,7 @@ function ChartShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-6xl rounded-[24px] border border-slate-200 bg-white shadow-sm">
+    <div className="w-full rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-[1.8rem] font-black tracking-tight text-slate-950">{title}</h2>
@@ -184,14 +184,7 @@ function ChartShell({
         </div>
         <div className="flex flex-wrap items-center gap-3">{controls}</div>
       </div>
-      <div className="px-6 py-6">
-        <div className="mb-4 flex justify-end">
-          <div className="inline-flex items-center rounded-full border border-indigo-100 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700">
-            AI insights
-          </div>
-        </div>
-        {children}
-      </div>
+      <div className="px-6 py-6">{children}</div>
     </div>
   );
 }
@@ -204,7 +197,7 @@ function ReportEmpty({
   description: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 px-8 py-16 text-center">
+    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-8 py-16 text-center">
       <p className="text-lg font-semibold text-slate-900">{title}</p>
       <p className="mt-2 text-base text-slate-600">{description}</p>
     </div>
@@ -221,8 +214,8 @@ function InsightPanel({
   const badgeLabel = insight?.aiGenerated ? "Live AI analysis" : "System note";
 
   return (
-    <div className="mx-auto max-w-5xl rounded-[24px] border border-indigo-100 bg-indigo-50/70 px-6 py-5">
-      <div className="flex items-center gap-3">
+    <div className="mt-8 rounded-xl border border-indigo-100 bg-indigo-50/70 px-6 py-5">
+      <div className="flex flex-wrap items-center gap-3">
         <Lightbulb className="h-5 w-5 text-indigo-600" />
         <h3 className="text-xl font-bold text-slate-950">{insight?.title ?? "AI analysis"}</h3>
         <span className="rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">
@@ -324,7 +317,7 @@ function BurndownChart({ data }: { data: BurndownData }) {
   const actualPath = buildLinePath(points.map((point) => point.actual ?? point.ideal), width, height, padding);
 
   return (
-    <div className="mx-auto max-w-5xl rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="w-full rounded-lg border border-slate-200 bg-white p-5">
       <div className="mb-5 flex items-center justify-between">
         <h3 className="text-xl font-bold text-slate-950">Remaining work across the sprint</h3>
         <div className="flex items-center gap-5 text-sm text-slate-500">
@@ -385,7 +378,7 @@ function BurnupChart({ data }: { data: BurnupReportData }) {
   const completedValues = data.data.map((point) => point.completedPoints);
 
   return (
-    <div className="mx-auto max-w-5xl rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="w-full rounded-lg border border-slate-200 bg-white p-5">
       <div className="mb-5 flex items-center justify-between">
         <h3 className="text-xl font-bold text-slate-950">Completed work vs total scope</h3>
         <div className="flex items-center gap-5 text-sm text-slate-500">
@@ -449,7 +442,7 @@ function VelocityChart({ data }: { data: VelocityForecastData }) {
   const barWidth = Math.min(32, groupWidth * 0.26);
 
   return (
-    <div className="mx-auto max-w-5xl rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="w-full rounded-lg border border-slate-200 bg-white p-5">
       <div className="mb-5 flex items-center justify-between">
         <h3 className="text-xl font-bold text-slate-950">Committed vs completed across recent sprints</h3>
         <div className="flex items-center gap-5 text-sm text-slate-500">
@@ -665,7 +658,7 @@ export default function ReportsPage({
           {!selectedSprintId ? (
             <ReportEmpty title="Choose a sprint to load the burndown report." description="Once a sprint is selected, the chart will show the ideal remaining line and the actual remaining work for each day." />
           ) : burndownQuery.isLoading ? (
-            <div className="flex min-h-[420px] items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50">
+            <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
             </div>
           ) : burndownQuery.data ? (
@@ -691,7 +684,7 @@ export default function ReportsPage({
           {!selectedSprintId ? (
             <ReportEmpty title="Choose a sprint to load the burnup report." description="This report compares delivered work with the total sprint scope so you can spot scope creep early." />
           ) : burnupQuery.isLoading ? (
-            <div className="flex min-h-[420px] items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50">
+            <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
             </div>
           ) : burnupQuery.data ? (
@@ -715,7 +708,7 @@ export default function ReportsPage({
           controls={commonControls}
         >
           {velocityQuery.isLoading ? (
-            <div className="flex min-h-[420px] items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50">
+            <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
             </div>
           ) : velocityQuery.data && velocityQuery.data.sprints.length > 0 ? (
