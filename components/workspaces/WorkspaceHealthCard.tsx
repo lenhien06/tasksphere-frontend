@@ -71,9 +71,9 @@ export default function WorkspaceHealthCard({
           </div>
         </div>
 
-        <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-2 text-right">
+        <div className="flex min-w-[108px] items-center justify-between gap-3 rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-2">
           <div className="whitespace-nowrap text-[11px] font-medium text-slate-500">Members</div>
-          <div className="mt-1 whitespace-nowrap text-sm font-semibold tabular-nums text-slate-700">
+          <div className="whitespace-nowrap text-sm font-semibold tabular-nums text-slate-700">
             {workspace.memberCount}
           </div>
         </div>
@@ -89,11 +89,11 @@ export default function WorkspaceHealthCard({
               {Math.round(progress)}%
             </div>
           </div>
-          <div className="rounded-[14px] bg-white px-3 py-2 text-right shadow-sm">
+          <div className="flex min-w-[112px] items-center justify-between gap-3 rounded-[14px] bg-white px-3 py-2 shadow-sm">
             <div className="whitespace-nowrap text-[11px] font-medium text-slate-500">
               Total tasks
             </div>
-            <div className="mt-1 whitespace-nowrap text-lg font-bold tabular-nums text-slate-900">{metrics?.totalTaskCount ?? 0}</div>
+            <div className="whitespace-nowrap text-lg font-bold tabular-nums text-slate-900">{metrics?.totalTaskCount ?? 0}</div>
           </div>
         </div>
         <Progress value={progress} className="mt-4 h-3 rounded-full bg-slate-200 [&>div]:bg-gradient-to-r [&>div]:from-blue-600 [&>div]:to-cyan-500" />
