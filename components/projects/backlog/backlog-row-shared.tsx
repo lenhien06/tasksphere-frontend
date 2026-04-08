@@ -31,9 +31,8 @@ const PRIORITY_CONFIG: Record<TaskPriority, { dot: string }> = {
 const STATUS_BADGE: Record<TaskStatus, { bg: string; text: string }> = {
     TODO: { bg: "bg-slate-100", text: "text-slate-600" },
     IN_PROGRESS: { bg: "bg-blue-50", text: "text-blue-700" },
-    READY_FOR_TEST: { bg: "bg-amber-50", text: "text-amber-700" },
     TESTING: { bg: "bg-violet-50", text: "text-violet-700" },
-    IN_REVIEW: { bg: "bg-violet-50", text: "text-violet-700" },
+    IN_REVIEW: { bg: "bg-amber-50", text: "text-amber-700" },
     DONE: { bg: "bg-emerald-50", text: "text-emerald-700" },
     CANCELLED: { bg: "bg-red-50", text: "text-red-600" },
 }

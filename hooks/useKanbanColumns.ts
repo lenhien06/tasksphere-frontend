@@ -6,8 +6,8 @@ import { ColumnResponse } from "@/app/types/task.schema";
 export const DEFAULT_COLUMNS: ColumnResponse[] = [
     { id: "col-default-todo",   name: "To Do",           colorHex: "#8C8C8C", position: 0, isDefault: true, taskCount: 0 },
     { id: "col-default-doing",  name: "In Progress",     colorHex: "#1677FF", position: 1, isDefault: true, taskCount: 0 },
-    { id: "col-default-ready",  name: "Ready for Test",  colorHex: "#FF9C00", position: 2, isDefault: true, taskCount: 0 },
-    { id: "col-default-review", name: "Testing",         colorHex: "#722ED1", position: 3, isDefault: true, taskCount: 0 },
+    { id: "col-default-review", name: "In Review",       colorHex: "#FAAD14", position: 2, isDefault: true, taskCount: 0 },
+    { id: "col-default-testing", name: "Testing",        colorHex: "#722ED1", position: 3, isDefault: true, taskCount: 0 },
     { id: "col-default-done",   name: "Done",            colorHex: "#52C41A", position: 4, isDefault: true, taskCount: 0 },
 ];
 

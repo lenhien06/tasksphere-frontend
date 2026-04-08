@@ -58,9 +58,8 @@ const PRIORITY_CONFIG: Record<TaskPriority, { bg: string; text: string; border: 
 const STATUS_DOT: Record<TaskStatus, string> = {
   TODO:        'bg-gray-400',
   IN_PROGRESS: 'bg-blue-500',
-  READY_FOR_TEST: 'bg-amber-500',
   TESTING: 'bg-violet-500',
-  IN_REVIEW:   'bg-purple-500',
+  IN_REVIEW:   'bg-amber-500',
   DONE:        'bg-green-500',
   CANCELLED:   'bg-gray-300',
 }
@@ -319,7 +318,6 @@ export default function CalendarView({
   const STATUS_LABEL: Record<TaskStatus, string> = {
     TODO:        t('task.status_TODO'),
     IN_PROGRESS: t('task.status_IN_PROGRESS'),
-    READY_FOR_TEST: t('task.status_READY_FOR_TEST', { defaultValue: 'Ready for Test' }),
     TESTING: t('task.status_TESTING', { defaultValue: 'Testing' }),
     IN_REVIEW:   t('task.status_IN_REVIEW'),
     DONE:        t('task.status_DONE'),

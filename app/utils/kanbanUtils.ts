@@ -46,7 +46,6 @@ export const resolveColumnId = (
     const STATUS_TO_NAME: Record<string, string> = {
         TODO:        "To Do",
         IN_PROGRESS: "In Progress",
-        READY_FOR_TEST: "Ready for Test",
         TESTING:     "Testing",
         IN_REVIEW:   "In Review",
         DONE:        "Done",
@@ -88,18 +87,15 @@ export const buildColStatusMap = (
         ) {
             map[col.id] = "DONE";
         } else if (
-            name.includes("ready for test") ||
-            name.includes("ready_for_test")
-        ) {
-            map[col.id] = "READY_FOR_TEST";
-        } else if (
             name.includes("testing") ||
             name.includes("qa")
         ) {
             map[col.id] = "TESTING";
         } else if (
             name.includes("review") ||
-            name.includes("in review")
+            name.includes("in review") ||
+            name.includes("ready for test") ||
+            name.includes("ready_for_test")
         ) {
             map[col.id] = "IN_REVIEW";
         } else if (
@@ -118,7 +114,6 @@ export const buildColStatusMap = (
 export const STATUS_LABELS: Record<TaskStatus, string> = {
     TODO:        "To Do",
     IN_PROGRESS: "In Progress",
-    READY_FOR_TEST: "Ready for Test",
     TESTING:     "Testing",
     IN_REVIEW:   "In Review",
     DONE:        "Done",

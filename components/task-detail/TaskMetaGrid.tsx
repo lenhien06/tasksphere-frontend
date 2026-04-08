@@ -57,7 +57,7 @@ function FieldLabel({ icon: Icon, label }: { icon: any; label: string }) {
 
 // â”€â”€ Status Field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const STATUS_ORDER: TaskStatus[] = ["TODO", "IN_PROGRESS", "READY_FOR_TEST", "TESTING", "IN_REVIEW", "DONE", "CANCELLED"]
+const STATUS_ORDER: TaskStatus[] = ["TODO", "IN_PROGRESS", "TESTING", "IN_REVIEW", "DONE", "CANCELLED"]
 
 function StatusField({ task, projectId, canEdit, currentUserRole, etag, onBlockedBySubtask }: { task: TaskDetailResponse; projectId: string; canEdit: boolean; currentUserRole?: "PM" | "MEMBER" | "VIEWER"; etag?: string; onBlockedBySubtask?: (p: any[]) => void }) {
     const qc = useQueryClient()
@@ -114,7 +114,6 @@ function StatusField({ task, projectId, canEdit, currentUserRole, etag, onBlocke
     const statusClasses = {
         "TODO": "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200",
         "IN_PROGRESS": "bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100",
-        "READY_FOR_TEST": "bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100",
         "TESTING": "bg-violet-50 text-violet-700 border-violet-100 hover:bg-violet-100",
         "IN_REVIEW": "bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100",
         "DONE": "bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100",
@@ -145,7 +144,7 @@ function StatusField({ task, projectId, canEdit, currentUserRole, etag, onBlocke
                             const sCls = statusClasses[s] || statusClasses["TODO"]
                             const isBlockedForCurrentUser =
                                 (s === "DONE" && !canPerformTesterActions) ||
-                                ((task.taskStatus === "READY_FOR_TEST" || task.taskStatus === "TESTING" || task.taskStatus === "IN_REVIEW") &&
+                                ((task.taskStatus === "TESTING" || task.taskStatus === "IN_REVIEW") &&
                                     (s === "IN_PROGRESS" || s === "TODO") &&
                                     !canPerformTesterActions)
                             return (

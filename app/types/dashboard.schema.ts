@@ -1,7 +1,6 @@
 export type DashboardTaskStatus =
   | "TODO"
   | "IN_PROGRESS"
-  | "READY_FOR_TEST"
   | "TESTING"
   | "IN_REVIEW"
   | "DONE"

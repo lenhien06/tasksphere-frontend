@@ -88,9 +88,8 @@ const mapPriority = (priority: string): TaskCardData["priority"] => {
 const inferStatus = (name: string, id: string, mappedStatus?: string) => {
   if (mappedStatus) return mappedStatus as Column["status"];
   const raw = `${name} ${id}`.toLowerCase();
-  if (raw.includes("ready for test") || raw.includes("ready_for_test")) return "READY_FOR_TEST";
   if (raw.includes("testing") || raw.includes("qa")) return "TESTING";
-  if (raw.includes("review")) return "IN_REVIEW";
+  if (raw.includes("review") || raw.includes("in review") || raw.includes("ready for test") || raw.includes("ready_for_test")) return "IN_REVIEW";
   if (raw.includes("progress") || raw.includes("doing")) return "IN_PROGRESS";
   if (raw.includes("done")) return "DONE";
   return "TODO";
@@ -107,7 +106,7 @@ const mapColumns = (cols: typeof DEFAULT_COLUMNS): Column[] =>
       const category: Column["category"] =
         status === "DONE"
           ? "DONE"
-          : status === "READY_FOR_TEST" || status === "TESTING" || status === "IN_REVIEW"
+          : status === "IN_REVIEW" || status === "TESTING"
           ? "REVIEW"
           : status === "IN_PROGRESS"
           ? "IN_PROGRESS"
@@ -382,7 +381,7 @@ export default function KanbanBoard({
     if (!targetColumn || !task) return;
 
     if (
-      (sourceColumn?.status === "READY_FOR_TEST" || sourceColumn?.status === "TESTING" || sourceColumn?.status === "IN_REVIEW" || sourceColumn?.status === "DONE") &&
+      (sourceColumn?.status === "IN_REVIEW" || sourceColumn?.status === "TESTING" || sourceColumn?.status === "DONE") &&
       (targetColumn.status === "IN_PROGRESS" || targetColumn.status === "TODO") &&
       !isTesterActionAllowed
     ) {
@@ -390,20 +389,20 @@ export default function KanbanBoard({
       return;
     }
 
-    // Check: Cannot move to DONE without going through Testing workflow (IN_REVIEW)
-    // Only allow DONE transition from IN_REVIEW column
+    // Check: Cannot move to DONE without going through Testing workflow
+    // Only allow DONE transition from TESTING column
     if (targetColumn.status === "DONE" && sourceColumn?.status !== "TESTING" && sourceColumn?.status !== "IN_REVIEW") {
       const hasSubtasks = (task.subTaskCount ?? 0) > 0;
       const unfinishedSubtasks = (task.subTaskCount ?? 0) - (task.subTaskDoneCount ?? 0);
       
-      // If coming from IN_PROGRESS (or other status), require IN_REVIEW first
-      if (sourceColumn?.status === "IN_PROGRESS" || sourceColumn?.status === "TODO" || sourceColumn?.status === "READY_FOR_TEST") {
+      // If coming from IN_PROGRESS/TODO, require TESTING or IN_REVIEW first
+      if (sourceColumn?.status === "IN_PROGRESS" || sourceColumn?.status === "TODO") {
         const confirmReview = window.confirm(
-          "A task must move to In Review before it can be marked Done. Do you want to move it to In Review now?"
+          "A task must move to Testing before it can be marked Done. Do you want to move it to Testing now?"
         );
         if (!confirmReview) return;
         
-        // Move to IN_REVIEW instead
+        // Move to TESTING instead
         const reviewColumn = columns.find((c) => c.status === "TESTING") ?? columns.find((c) => c.status === "IN_REVIEW");
         if (reviewColumn) {
           payload.targetColumnId = reviewColumn.id;

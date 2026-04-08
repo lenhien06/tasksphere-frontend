@@ -71,7 +71,6 @@ interface TaskDetailPageContentProps {
 const STATUS_OPTIONS = [
     { value: "TODO", label: "To Do", color: "bg-gray-100 text-gray-700" },
     { value: "IN_PROGRESS", label: "In Progress", color: "bg-blue-100 text-blue-700" },
-    { value: "READY_FOR_TEST", label: "Ready for Test", color: "bg-amber-100 text-amber-700" },
     { value: "TESTING", label: "Testing", color: "bg-violet-100 text-violet-700" },
     { value: "IN_REVIEW", label: "In Review", color: "bg-purple-100 text-purple-700" },
     { value: "DONE", label: "Done", color: "bg-green-100 text-green-700" },
@@ -81,8 +80,7 @@ const STATUS_OPTIONS = [
 // BR-14: IN_PROGRESS → IN_REVIEW only (not directly to DONE)
 const VALID_TRANSITIONS: Record<string, string[]> = {
     TODO: ["IN_PROGRESS"],
-    IN_PROGRESS: ["READY_FOR_TEST", "TESTING", "IN_REVIEW"],
-    READY_FOR_TEST: ["TESTING", "IN_PROGRESS"],
+    IN_PROGRESS: ["TESTING", "IN_REVIEW"],
     TESTING: ["IN_PROGRESS", "DONE"],
     IN_REVIEW: ["IN_PROGRESS", "DONE"],
     DONE: [],
