@@ -8,7 +8,6 @@ import { UserAvatar } from '@/components/common/UserAvatar'
 import { toast } from 'sonner'
 import { useProjectSprints } from '@/hooks/useProjectSprints'
 import { useQueryClient } from '@tanstack/react-query'
-import { useTranslation } from 'react-i18next'
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -81,23 +80,36 @@ const STORY_POINT_PRESETS = [1, 2, 3, 5, 8, 13]
 const QUICK_CREATE_TYPES: TaskType[] = ["BUG", "FEATURE", "TASK", "STORY"]
 const MAX_REQUIRED_SKILLS = 8
 
+const TYPE_LABELS: Record<TaskType, string> = {
+    BUG: "Bug",
+    FEATURE: "Feature",
+    TASK: "Task",
+    STORY: "Story",
+    EPIC: "Epic",
+    SUB_TASK: "Sub-task",
+}
+
+const PRIORITY_LABELS: Record<TaskPriority, string> = {
+    CRITICAL: "Critical",
+    HIGH: "High",
+    MEDIUM: "Medium",
+    LOW: "Low",
+}
+
 function normalizeSkillTag(value: string) {
     return value.trim().replace(/\s+/g, " ")
 }
 
-function getSprintStatusLabel(status: Sprint["status"], t: (key: string, options?: Record<string, unknown>) => string) {
-    return t(`task.sprintStatusLabel_${status}`, {
-        defaultValue:
-            status === "ACTIVE"
-                ? "Dang chay - Active"
-                : status === "PLANNED"
-                    ? "Len ke hoach - Planned"
-                    : "Da ket thuc - Completed",
-    })
+function getSprintStatusLabel(status: Sprint["status"]) {
+    return status === "ACTIVE"
+        ? "Active"
+        : status === "PLANNED"
+            ? "Planned"
+            : "Completed"
 }
 
-function getSprintOptionLabel(sprint: Sprint, t: (key: string, options?: Record<string, unknown>) => string) {
-    return `${sprint.name} (${getSprintStatusLabel(sprint.status, t)})`
+function getSprintOptionLabel(sprint: Sprint) {
+    return `${sprint.name} (${getSprintStatusLabel(sprint.status)})`
 }
 
 function getSuggestedSkills(members: Member[]) {
@@ -122,8 +134,6 @@ interface SprintSelectorProps {
 }
 
 function SprintSelector({ sprints, isLoading, value, onChange }: SprintSelectorProps) {
-    const { t } = useTranslation()
-
     if (isLoading) {
         return (
             <div className="flex gap-2">
@@ -145,7 +155,7 @@ function SprintSelector({ sprints, isLoading, value, onChange }: SprintSelectorP
                     : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
             )}
         >
-            📦 {t('common.backlog')}
+            Backlog
         </button>
     )
 
@@ -153,7 +163,7 @@ function SprintSelector({ sprints, isLoading, value, onChange }: SprintSelectorP
         return (
             <div className="flex items-center gap-3">
                 {backlogBtn}
-                <span className="text-sm text-gray-400 italic">{t('backlog.noAvailableSprints')}</span>
+                <span className="text-sm text-gray-400 italic">No available sprints</span>
             </div>
         )
     }
@@ -192,10 +202,10 @@ function SprintSelector({ sprints, isLoading, value, onChange }: SprintSelectorP
             onChange={e => onChange(e.target.value || null)}
             className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none bg-white"
         >
-            <option value="">📦 Backlog</option>
+            <option value="">Backlog</option>
             {sprints.map(s => (
                 <option key={s.id} value={s.id}>
-                    {s.status === "ACTIVE" ? "🟢" : "⚪"} {s.name}
+                    {getSprintOptionLabel(s)}
                 </option>
             ))}
         </select>
@@ -219,8 +229,6 @@ function ActiveSprintWarningDialog({
     onCancel,
     onConfirm,
 }: ActiveSprintWarningDialogProps) {
-    const { t } = useTranslation()
-
     if (!open) return null
 
     return (
@@ -232,13 +240,10 @@ function ActiveSprintWarningDialog({
                     </div>
                     <div className="space-y-2">
                         <h3 className="text-lg font-bold text-slate-900">
-                            {t("task.activeSprintWarningTitle", { defaultValue: "Canh bao thay doi tien do Sprint!" })}
+                            Sprint progress warning
                         </h3>
                         <p className="text-sm leading-6 text-slate-600">
-                            {t("task.activeSprintWarningBody", {
-                                sprintName: sprintName ?? "",
-                                defaultValue: "Ban dang them task vao sprint dang hoat dong. Viec nay se lam tang tong Story Points va thay doi truc tiep bieu do Burn-down.",
-                            })}
+                            You are adding a task to an active sprint{ sprintName ? ` (${sprintName})` : "" }. This will increase total Story Points and directly affect the burndown chart.
                         </p>
                     </div>
                 </div>
@@ -249,7 +254,7 @@ function ActiveSprintWarningDialog({
                         disabled={isSubmitting}
                         className="h-10 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                     >
-                        {t("task.activeSprintWarningCancel", { defaultValue: "Huy bo" })}
+                        Cancel
                     </button>
                     <button
                         type="button"
@@ -258,7 +263,7 @@ function ActiveSprintWarningDialog({
                         className="flex h-10 items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 text-sm font-bold text-white hover:bg-amber-600 disabled:opacity-50"
                     >
                         {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
-                        {t("task.activeSprintWarningConfirm", { defaultValue: "Van them" })}
+                        Add anyway
                     </button>
                 </div>
             </div>
@@ -275,7 +280,6 @@ interface QuickCreateProps {
 }
 
 export function QuickCreateTask({ columnId, columnName, onConfirm, onCancel, onOpenFull }: QuickCreateProps) {
-    const { t } = useTranslation()
     const [title, setTitle] = useState("")
 
     const handleSubmit = () => {
@@ -308,14 +312,14 @@ export function QuickCreateTask({ columnId, columnName, onConfirm, onCancel, onO
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSubmit())}
-                placeholder={`${t('task.namePlaceholder')} - ${columnName}`}
+                placeholder={`Task name - ${columnName}`}
                 className="w-full text-sm text-gray-800 resize-none outline-none leading-relaxed"
             />
             <div className="flex justify-between items-center mt-2 pt-2 border-t">
-                <button type="button" onClick={() => onOpenFull(title)} className="text-[11px] text-blue-500 font-medium">{t('task.openFullForm')}</button>
+                <button type="button" onClick={() => onOpenFull(title)} className="text-[11px] text-blue-500 font-medium">Open full form</button>
                 <div className="flex gap-1">
-                    <button type="button" onClick={onCancel} className="text-[11px] text-gray-500 px-2">{t('common.cancel')}</button>
-                    <button type="button" onClick={handleSubmit} disabled={!title.trim()} className="bg-[#1677FF] text-white text-[11px] h-7 px-3 rounded-lg font-medium disabled:opacity-50">{t('task.create')}</button>
+                    <button type="button" onClick={onCancel} className="text-[11px] text-gray-500 px-2">Cancel</button>
+                    <button type="button" onClick={handleSubmit} disabled={!title.trim()} className="bg-[#1677FF] text-white text-[11px] h-7 px-3 rounded-lg font-medium disabled:opacity-50">Create</button>
                 </div>
             </div>
         </motion.div>
@@ -341,7 +345,6 @@ export function FullCreateTask({
     projectMembers, columns, projectKey,
     onConfirm, onClose,
 }: FullCreateProps) {
-    const { t } = useTranslation()
     // Fetch sprints for the correct project (FIX: no hardcoding, do not use global store)
     const { data: sprints = [], isLoading: sprintsLoading } = useProjectSprints(projectId)
     const queryClient = useQueryClient()
@@ -408,7 +411,7 @@ export function FullCreateTask({
         if (!normalized) return
         if (requiredSkills.some((skill) => skill.toLowerCase() === normalized.toLowerCase())) return
         if (requiredSkills.length >= MAX_REQUIRED_SKILLS) {
-            toast.error(t("task.requiredSkillsLimit", { defaultValue: "Toi da 8 ky nang moi task." }))
+            toast.error("You can add up to 8 required skills per task.")
             return
         }
         setRequiredSkills((current) => [...current, normalized])
@@ -478,19 +481,19 @@ export function FullCreateTask({
         setFieldErrors({})
 
         if (title.length > 255) {
-            toast.error(t("task.titleMaxLength"))
+            toast.error("Title must be 255 characters or fewer.")
             return
         }
         if (dueDate && dueDate < minDueDate) {
-            toast.error(t("task.dueDateAfterToday"))
+            toast.error("Due date must be today or later.")
             return
         }
         if (storyPoints !== null && (storyPoints < 1 || storyPoints > 100)) {
-            toast.error(t("task.storyPointsRange"))
+            toast.error("Story Points must be between 1 and 100.")
             return
         }
         if (sprintId && !sprints.find((sprint) => sprint.id === sprintId)) {
-            toast.error(t("task.invalidSprint"))
+            toast.error("The selected sprint is no longer available.")
             setSprintId(null)
             queryClient.invalidateQueries({ queryKey: ["sprints", projectId] })
             return
@@ -528,28 +531,28 @@ export function FullCreateTask({
         setFieldErrors({})
 
         if (title.length > 255) {
-            toast.error(t('task.titleMaxLength'))
+            toast.error("Title must be 255 characters or fewer.")
             return
         }
         if (dueDate && dueDate <= new Date().toISOString().split("T")[0]) {
-            toast.error(t('task.dueDateAfterToday'))
+            toast.error("Due date must be later than today.")
             return
         }
         // Updated range for Story Points (1-127)
         if (storyPoints !== null && (storyPoints < 1 || storyPoints > 100)) {
-            toast.error(t('task.storyPointsRange'))
+            toast.error("Story Points must be between 1 and 100.")
             return
         }
 
         const estHoursNum = estimatedHours.trim() ? parseFloat(estimatedHours) : null;
         if (estHoursNum !== null && (isNaN(estHoursNum) || estHoursNum < 0 || estHoursNum > 999.99)) {
-            toast.error(t('task.estimatedHoursRange'))
+            toast.error("Estimated hours must be between 0 and 999.99.")
             return
         }
 
         // Validate sprint belongs to the correct project
         if (sprintId && !sprints.find(s => s.id === sprintId)) {
-            toast.error(t('task.invalidSprint'))
+            toast.error("The selected sprint is no longer available.")
             setSprintId(null)
             queryClient.invalidateQueries({ queryKey: ["sprints", projectId] })
             return
@@ -608,7 +611,7 @@ export function FullCreateTask({
                 if (Object.keys(parsed).length > 0) {
                     setFieldErrors(parsed)
                 }
-                toast.error(raw || "Dữ liệu không hợp lệ")
+                toast.error(raw || "Invalid data")
             }
         }
     }
@@ -638,54 +641,87 @@ export function FullCreateTask({
 
                 {/* Header */}
                 <div className="px-6 pt-5 pb-4 flex justify-between items-center border-b border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900 tracking-tight">{t('task.createNew')}</h2>
+                    <h2 className="text-xl font-bold text-gray-900 tracking-tight">Create New Task</h2>
                     <span className="bg-[#E5E7EB] text-gray-500 font-mono text-sm px-2 py-0.5 rounded-md">{taskCode}</span>
                 </div>
 
                 <div className="px-6 py-4 space-y-3.5 overflow-y-auto max-h-[75vh] custom-scrollbar">
 
-                    {/* Title */}
-                    <div>
-                        <label className="text-sm font-semibold text-gray-800 flex gap-1 mb-1">
-                            {t('task.name')} <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            autoFocus
-                            maxLength={255}
-                            value={title}
-                            onChange={e => setTitle(e.target.value)}
-                            placeholder={t('task.namePlaceholder')}
-                            className="w-full h-10 border border-gray-200 rounded-lg px-3 text-[15px] focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
-                        />
-                        <div className={cn("text-right text-[10px] mt-0.5", titleCounterClass)}>
-                            {title.length}/255
+                    <div className="grid gap-4 md:grid-cols-[160px_minmax(0,1fr)_160px]">
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-gray-800">Type</label>
+                            <div className="relative">
+                                <select
+                                    value={type}
+                                    onChange={(e) => setType(e.target.value as TaskType)}
+                                    className="h-10 w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 pr-8 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+                                >
+                                    {QUICK_CREATE_TYPES.map((key) => (
+                                        <option key={key} value={key}>
+                                            {TYPE_LABELS[key]}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-3.5 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-gray-400 pointer-events-none" />
+                            </div>
                         </div>
-                        {fieldErrors.title && (
-                            <p className="text-[11px] text-red-500 mt-1">{fieldErrors.title}</p>
-                        )}
+
+                        <div>
+                            <label className="text-sm font-semibold text-gray-800 flex gap-1 mb-1">
+                                Title <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                autoFocus
+                                maxLength={255}
+                                value={title}
+                                onChange={e => setTitle(e.target.value)}
+                                placeholder="Task name"
+                                className="w-full h-10 border border-gray-200 rounded-lg px-3 text-[15px] focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                            />
+                            <div className={cn("text-right text-[10px] mt-0.5", titleCounterClass)}>
+                                {title.length}/255
+                            </div>
+                            {fieldErrors.title && (
+                                <p className="text-[11px] text-red-500 mt-1">{fieldErrors.title}</p>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-gray-800">Priority</label>
+                            <div className="relative">
+                                <select
+                                    value={priority}
+                                    onChange={(e) => setPriority(e.target.value as TaskPriority)}
+                                    className="h-10 w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 pr-8 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none"
+                                >
+                                    {(Object.keys(PRIORITY_LABELS) as TaskPriority[]).map((key) => (
+                                        <option key={key} value={key}>
+                                            {PRIORITY_LABELS[key]}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-3.5 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-gray-400 pointer-events-none" />
+                            </div>
+                        </div>
                     </div>
 
                     {/* Description */}
                     <div>
-                        <label className="text-sm font-semibold text-gray-800 mb-1 block">{t('task.description')}</label>
+                        <label className="text-sm font-semibold text-gray-800 mb-1 block">Description</label>
                         <textarea
                             rows={3}
                             maxLength={2000}
                             value={description}
                             onChange={e => setDescription(e.target.value)}
-                            placeholder={t('task.descriptionPlaceholder')}
+                            placeholder="Describe the task in detail..."
                             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[15px] resize-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
                         />
                     </div>
 
                     <div>
                         <div className="flex items-center justify-between mb-1">
-                            <label className="text-sm font-semibold text-gray-800 block">
-                                {t("task.requiredSkills", { defaultValue: "Required Skills" })}
-                            </label>
-                            <span className="text-[11px] text-gray-400">
-                                {t("task.optional", { defaultValue: "Optional" })}
-                            </span>
+                            <label className="text-sm font-semibold text-gray-800 block">Required Skills</label>
+                            <span className="text-[11px] text-gray-400">Optional</span>
                         </div>
                         <div className="rounded-xl border border-gray-200 px-3 py-3">
                             <div className="flex flex-wrap gap-2">
@@ -716,9 +752,7 @@ export function FullCreateTask({
                                     onBlur={() => {
                                         if (requiredSkillInput.trim()) addRequiredSkill(requiredSkillInput)
                                     }}
-                                    placeholder={t("task.requiredSkillsPlaceholder", {
-                                        defaultValue: "Nhap ky nang va nhan Enter",
-                                    })}
+                                    placeholder="Type a skill and press Enter"
                                     className="min-w-[180px] flex-1 border-none p-0 text-sm outline-none placeholder:text-gray-400"
                                 />
                             </div>
@@ -738,69 +772,21 @@ export function FullCreateTask({
                             </div>
                         )}
                         <p className="text-[11px] text-gray-400 mt-1.5">
-                            {t("task.requiredSkillsHint", {
-                                defaultValue: "Truong nay chi dung de goi y assignee khi tao task. Khong can hien lai o chi tiet task.",
-                            })}
+                            Used to suggest the best assignee while creating the task. It does not need to appear again in task details.
                         </p>
-                    </div>
-
-                    {/* Type + Priority */}
-                    <div className="flex gap-6">
-                        <div className="flex-1">
-                            <label className="text-sm font-semibold text-gray-800 mb-2 block">{t('task.type')}</label>
-                            <div className="flex gap-1.5 flex-wrap">
-                                {QUICK_CREATE_TYPES.map((key) => {
-                                    const val = TYPE_CONFIG[key]
-                                    return (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        onClick={() => setType(key)}
-                                        className={cn(
-                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border-2 border-transparent",
-                                            val.bg, val.text,
-                                            type === key ? "ring-2 ring-offset-1 ring-blue-200" : "opacity-70 hover:opacity-100"
-                                        )}
-                                    >
-                                        <span>{val.icon}</span>{t(`task.type_${key}`)}
-                                    </button>
-                                    )
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="flex-1">
-                            <label className="text-sm font-semibold text-gray-800 mb-2 block">{t('task.priority')}</label>
-                            <div className="flex gap-1.5 flex-wrap">
-                                {(Object.entries(PRIORITY_CONFIG) as [TaskPriority, typeof PRIORITY_CONFIG[TaskPriority]][]).map(([key, val]) => (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        onClick={() => setPriority(key)}
-                                        className={cn(
-                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border-2 border-transparent",
-                                            val.bg, val.text,
-                                            priority === key ? "ring-2 ring-offset-1 ring-blue-200" : "opacity-70 hover:opacity-100"
-                                        )}
-                                    >
-                                        {t(`task.priority_${key}`)}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
                     </div>
 
                     {/* Assignee + Due Date */}
                     <div className="flex gap-6">
                         <div className="flex-1">
-                            <label className="text-sm font-semibold text-gray-800 mb-1.5 block">{t('task.assignee')}</label>
+                            <label className="text-sm font-semibold text-gray-800 mb-1.5 block">Assignee</label>
                             <div className="relative">
                                 <select
                                     value={assigneeId || ""}
                                     onChange={e => setAssigneeId(e.target.value || null)}
                                     className="w-full h-10 border border-gray-200 rounded-lg pl-10 pr-4 text-sm appearance-none bg-white cursor-pointer hover:border-gray-300 transition-all"
                                 >
-                                    <option value="">{t('task.unassigned')}</option>
+                                    <option value="">Unassigned</option>
                                     {projectMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                                 </select>
                                 <div className="absolute left-2.5 top-2.5 w-5 h-5 rounded-full overflow-hidden">
@@ -814,27 +800,24 @@ export function FullCreateTask({
                             {suggestedAssignee && assigneeId !== suggestedAssignee.member.id && (
                                 <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
                                     <div className="font-semibold">
-                                        {t("task.assigneeSuggestionTitle", { defaultValue: "Goi y giao viec" })}: {suggestedAssignee.member.name}
+                                        Suggested assignee: {suggestedAssignee.member.name}
                                     </div>
                                     <div className="mt-1">
-                                        {t("task.assigneeSuggestionBody", {
-                                            count: suggestedAssignee.matchedSkills.length,
-                                            defaultValue: `Khop ${suggestedAssignee.matchedSkills.length} ky nang voi task nay.`,
-                                        })}
+                                        Matches {suggestedAssignee.matchedSkills.length} skill{suggestedAssignee.matchedSkills.length === 1 ? "" : "s"} for this task.
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => setAssigneeId(suggestedAssignee.member.id)}
                                         className="mt-2 font-semibold underline"
                                     >
-                                        {t("task.useSuggestedAssignee", { defaultValue: "Chon nguoi nay" })}
+                                        Use this assignee
                                     </button>
                                 </div>
                             )}
                         </div>
 
                         <div className="flex-1">
-                            <label className="text-sm font-semibold text-gray-800 mb-1.5 block">{t('task.dueDate')}</label>
+                            <label className="text-sm font-semibold text-gray-800 mb-1.5 block">Due Date</label>
                             <div className="relative">
                                 <input
                                     type="date"
@@ -855,26 +838,26 @@ export function FullCreateTask({
                     <div className="flex gap-6">
                         {type !== "EPIC" ? (
                         <div className="flex-1">
-                            <label className="text-sm font-semibold text-gray-800 mb-2 block">{t('task.sprint')}</label>
+                            <label className="text-sm font-semibold text-gray-800 mb-2 block">Sprint</label>
                             <SprintSelector sprints={sprints} isLoading={sprintsLoading} value={sprintId} onChange={setSprintId} />
                             {sprintId && sprints.find((sprint) => sprint.id === sprintId) && (
                                 <p className="text-[11px] text-gray-500 mt-1.5">
-                                    {getSprintOptionLabel(sprints.find((sprint) => sprint.id === sprintId)!, t)}
+                                    {getSprintOptionLabel(sprints.find((sprint) => sprint.id === sprintId)!)}
                                 </p>
                             )}
                         </div>
                         ) : (
                         <div className="flex-1">
-                            <label className="text-sm font-semibold text-gray-800 mb-2 block">{t('task.sprint')}</label>
+                            <label className="text-sm font-semibold text-gray-800 mb-2 block">Sprint</label>
                             <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                                EPIC không thể gán vào Sprint.
+                                Epics cannot be assigned to a sprint.
                             </p>
                         </div>
                         )}
 
                         {/* FIX 3 — Story Points with custom input */}
                         <div className="flex-1">
-                            <label className="text-sm font-semibold text-gray-800 mb-2 block">{t('task.storyPoints')}</label>
+                            <label className="text-sm font-semibold text-gray-800 mb-2 block">Story Points</label>
                             <div className="flex items-center gap-1.5 flex-wrap">
                                 {STORY_POINT_PRESETS.map(pt => (
                                     <button
@@ -907,7 +890,7 @@ export function FullCreateTask({
                                             setStoryPoints(!isNaN(num) && num >= 1 && num <= 100 ? num : null)
                                         }}
                                         onBlur={() => { if (!customSP) { setIsCustomSP(false) } }}
-                                        placeholder="1–100"
+                                        placeholder="1-100"
                                         className="w-20 h-9 border-2 border-blue-400 rounded-xl text-sm text-center outline-none font-medium"
 
                                     />
@@ -917,7 +900,7 @@ export function FullCreateTask({
                                         onClick={() => { setIsCustomSP(true); setStoryPoints(null) }}
                                         className="h-9 px-2.5 rounded-xl text-xs text-gray-400 border border-dashed border-gray-300 hover:border-blue-300 hover:text-blue-400 transition-all"
                                     >
-                                        {t('task.customPoints')}
+                                        Custom
                                     </button>
                                 )}
 
@@ -927,24 +910,13 @@ export function FullCreateTask({
                                         onClick={() => { setStoryPoints(null); setIsCustomSP(false); setCustomSP("") }}
                                         className="text-xs text-gray-400 hover:text-gray-600 underline"
                                     >
-                                        {t('task.clearPoints')}
+                                        Clear
                                     </button>
                                 )}
                             </div>
                             <p className="text-[11px] text-gray-400 mt-1.5">
-                                {t("task.storyPointsHint", { defaultValue: "Dung day Fibonacci: 1, 2, 3, 5, 8, 13." })}
+                                Use Fibonacci sizing: 1, 2, 3, 5, 8, 13.
                             </p>
-                            <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] leading-5 text-blue-800">
-                                <div className="font-semibold">
-                                    {t("task.scrumSizingTitle", { defaultValue: "Story Points khong phai gio lam" })}
-                                </div>
-                                <div>
-                                    {t("task.scrumSizingHint", {
-                                        defaultValue:
-                                            "Story Points do do kho va no luc. Due Date la han phai ban giao. He thong quan tam task nang bao nhieu diem va den ngay nao phai xong, khong ep team phai mat chinh xac bao nhieu gio.",
-                                    })}
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -959,7 +931,7 @@ export function FullCreateTask({
                             onChange={() => setCreateAnother(!createAnother)}
                             className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="text-[14px] text-gray-700 font-medium">{t('task.createAnother')}</span>
+                        <span className="text-[14px] text-gray-700 font-medium">Create another task</span>
                     </label>
 
                     <div className="flex gap-2">
@@ -967,7 +939,7 @@ export function FullCreateTask({
                             onClick={onClose}
                             className="h-10 px-6 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                         >
-                            {t('common.cancel')}
+                            Cancel
                         </button>
                         <button
                             onClick={handleCreateTask}
@@ -975,7 +947,7 @@ export function FullCreateTask({
                             className="h-10 px-8 rounded-lg bg-[#3B82F6] text-white text-sm font-bold shadow-md hover:bg-blue-600 disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2"
                         >
                             {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
-                            {t('task.create')}
+                            Create task
                         </button>
                     </div>
                 </div>
