@@ -356,6 +356,7 @@ export default function TaskDetailPageContent({
                         task={task}
                         projectId={projectId}
                         canEdit={canEdit}
+                        currentUserRole={currentUserRole}
                         etag={data.etag}
                         onBlockedBySubtask={(pending) =>
                             setBlockedDialog({ open: true, taskTitle: task.title, pendingSubtasks: pending })

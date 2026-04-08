@@ -18,6 +18,7 @@ import { useProjectWebSocket } from "@/hooks/useProjectWebSocket";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { handleKanbanError } from "@/lib/errorHandler";
 import { toKanbanUserRole, toTaskPanelRole } from "@/lib/projectRole";
+import { hasTestingSkill } from "@/lib/skillRules";
 
 import KanbanBoardUI, {
   type Column,
@@ -365,8 +366,26 @@ export default function KanbanBoard({
     const targetColumn = columns.find((c) => c.id === payload.targetColumnId);
     const sourceColumn = columns.find((c) => c.id === payload.sourceColumnId);
     const task = tasks.find((t) => t.id === payload.taskId);
+    const isTesterActionAllowed =
+      effectiveKanbanRole === "PROJECT_MANAGER" ||
+      effectiveKanbanRole === "SYSTEM_ADMIN" ||
+      hasTestingSkill(currentUserSkills);
     
     if (!targetColumn || !task) return;
+
+    if (targetColumn.status === "DONE" && !isTesterActionAllowed) {
+      toast.error("Chi PM hoặc thành viên có skill QA/Testing mới được chuyển task sang Done.");
+      return;
+    }
+
+    if (
+      sourceColumn?.status === "IN_REVIEW" &&
+      (targetColumn.status === "IN_PROGRESS" || targetColumn.status === "TODO") &&
+      !isTesterActionAllowed
+    ) {
+      toast.error("Chi PM hoặc thành viên có skill QA/Testing mới được trả task từ cột review về xử lý.");
+      return;
+    }
 
     // Check: Cannot move to DONE without going through Testing workflow (IN_REVIEW)
     // Only allow DONE transition from IN_REVIEW column
@@ -427,13 +446,6 @@ export default function KanbanBoard({
       const isColumnChange = payload.sourceColumnId !== payload.targetColumnId;
       const targetColumn = columns.find((c) => c.id === payload.targetColumnId);
       if (!targetColumn) throw new Error("Target column not found");
-
-      if (isColumnChange) {
-        await TaskService.updateStatus(projectId, payload.taskId, {
-          status: targetColumn.status as any,
-          statusColumnId: payload.targetColumnId,
-        });
-      }
 
       await TaskService.updatePosition(projectId, payload.taskId, {
         statusColumnId: payload.targetColumnId,

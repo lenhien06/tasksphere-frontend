@@ -209,13 +209,13 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
 
     // Handle Errors inside component to access state
     function handleSprintError(error: unknown) {
-        const err = error as { response?: { status?: number; data?: { meta?: { message?: string, code?: string } } } }
+        const err = error as { response?: { status?: number; data?: { message?: string; meta?: { message?: string, code?: string } } } }
         const status  = err?.response?.status
-        const message = err?.response?.data?.meta?.message
+        const message = err?.response?.data?.meta?.message ?? err?.response?.data?.message
         const code    = err?.response?.data?.meta?.code
 
         if (code === "SPR_002" || status === 409) toast.error(t('sprint.nameExists'))
-        else if (code === "SPR_004" || status === 422) toast.error(t('sprint.dateOverlap'))
+        else if (code === "SPR_004") toast.error(t('sprint.dateOverlap'))
         else if (code === "SPR_003") {
             setShowActiveSprintConflict(true)
         }
@@ -475,6 +475,15 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
             return sprint ? sprint.taskCount - sprint.doneCount : 0
         }, [sprintTasksData, sprint])
 
+        const unfinishedBreakdown = React.useMemo(() => {
+            const unfinished = sprintTasksData?.content?.filter((t: any) => t.taskStatus !== "DONE" && t.taskStatus !== "CANCELLED") ?? []
+            const bugCount = unfinished.filter((t: any) => t.type === "BUG").length
+            return {
+                bugCount,
+                taskCount: unfinished.length - bugCount,
+            }
+        }, [sprintTasksData])
+
         const mutation = useMutation({
             mutationFn: (data: CompleteSprintRequest) => TaskService.completeSprint(sprint!.id, data),
             onSuccess: (res) => {
@@ -561,8 +570,12 @@ export default function SprintManagement({ projectId, myRole }: { projectId: str
                             <p className="text-sm font-bold text-blue-900 mb-3">⚠️ Unfinished Items Details</p>
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-blue-800">Tasks & Bugs Remaining:</span>
-                                    <span className="font-bold text-blue-900">{unfinishedCount} item(s)</span>
+                                    <span className="text-blue-800">Tasks Remaining:</span>
+                                    <span className="font-bold text-blue-900">{unfinishedBreakdown.taskCount}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-blue-800">Bugs Remaining:</span>
+                                    <span className="font-bold text-blue-900">{unfinishedBreakdown.bugCount}</span>
                                 </div>
                                 <p className="text-xs text-blue-700">
                                     These items are not yet in the Done column. System scanned all columns to ensure accuracy.

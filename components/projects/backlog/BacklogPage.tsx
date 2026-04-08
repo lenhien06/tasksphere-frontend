@@ -262,7 +262,9 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                 console.log(`[ACTIVITY LOG] PM added task "${task?.title}" (ID: ${taskId}) to active sprint "${targetSprint.name}" (ID: ${sprintId})`)
             }
 
-            await TaskService.assignTaskToSprint(taskId, sprintId)
+            await TaskService.assignTaskToSprint(taskId, sprintId, {
+                confirmActiveSprintChange: targetSprint?.status === "ACTIVE",
+            })
             queryClient.invalidateQueries({ queryKey: ["backlog", projectId] })
             queryClient.invalidateQueries({ queryKey: ["sprints", projectId] })
             queryClient.invalidateQueries({ queryKey: ["sprint-tasks", projectId] })
@@ -302,7 +304,9 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                 console.log(`[ACTIVITY LOG] PM batch-added ${selectedIds.length} tasks to active sprint "${targetSprint.name}" (ID: ${sprintId}). Task IDs: ${selectedIds.join(", ")}`)
             }
 
-            const result = await TaskService.batchAssignToSprint(projectId, selectedIds, sprintId)
+            const result = await TaskService.batchAssignToSprint(projectId, selectedIds, sprintId, {
+                confirmActiveSprintChange: targetSprint?.status === "ACTIVE",
+            })
             toast.success(result.message || t("backlog.batchAssigned", { count: result.updatedCount }))
             if (result.failedIds?.length)
                 toast.warning(t("backlog.batchPartialFail", { count: result.failedIds.length }))

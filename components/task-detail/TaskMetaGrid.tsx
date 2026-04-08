@@ -32,11 +32,14 @@ import { useAddWorklog } from "@/hooks/useWorklogs"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { invalidateTaskCollections, patchTaskCollections } from "@/lib/task-query-sync"
+import { useAuthStore } from "@/stores/useAuthStore"
+import { hasTestingSkill } from "@/lib/skillRules"
 
 interface TaskMetaGridProps {
     task: TaskDetailResponse
     projectId: string
     canEdit: boolean
+    currentUserRole?: "PM" | "MEMBER" | "VIEWER"
     etag?: string
     onBlockedBySubtask?: (pendingSubtasks: any[]) => void
 }
@@ -56,8 +59,21 @@ function FieldLabel({ icon: Icon, label }: { icon: any; label: string }) {
 
 const STATUS_ORDER: TaskStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"]
 
-function StatusField({ task, projectId, canEdit, etag, onBlockedBySubtask }: { task: TaskDetailResponse; projectId: string; canEdit: boolean; etag?: string; onBlockedBySubtask?: (p: any[]) => void }) {
+function StatusField({ task, projectId, canEdit, currentUserRole, etag, onBlockedBySubtask }: { task: TaskDetailResponse; projectId: string; canEdit: boolean; currentUserRole?: "PM" | "MEMBER" | "VIEWER"; etag?: string; onBlockedBySubtask?: (p: any[]) => void }) {
     const qc = useQueryClient()
+    const currentUserId = useAuthStore((s) => String(s.user?.id ?? ""))
+    const { data: members = [] } = useQuery({
+        queryKey: ["project-members", projectId],
+        queryFn: () => ProjectMemberService.getMembers(projectId),
+        staleTime: 60_000,
+        enabled: !!projectId && !!currentUserId,
+    })
+    const currentUserSkills = React.useMemo(() => {
+        const member = (members as any[]).find((item) => String(item.user?.id ?? item.id ?? "") === currentUserId)
+        return (member?.skillTags ?? []) as string[]
+    }, [members, currentUserId])
+    const canPerformTesterActions =
+        currentUserRole === "PM" || hasTestingSkill(currentUserSkills)
 
     const updateStatus = useMutation({
         mutationFn: ({ status }: { status: TaskStatus }) =>
@@ -116,10 +132,19 @@ function StatusField({ task, projectId, canEdit, etag, onBlockedBySubtask }: { t
                         {STATUS_ORDER.map(s => {
                             const c = STATUS_CONFIG[s]
                             const sCls = statusClasses[s] || statusClasses["TODO"]
+                            const isBlockedForCurrentUser =
+                                (s === "DONE" && !canPerformTesterActions) ||
+                                (task.taskStatus === "IN_REVIEW" &&
+                                    (s === "IN_PROGRESS" || s === "TODO") &&
+                                    !canPerformTesterActions)
                             return (
                                 <DropdownMenuItem
                                     key={s}
                                     onClick={() => {
+                                        if (isBlockedForCurrentUser) {
+                                            toast.error("Chi PM hoặc thành viên có skill QA/Testing mới được thực hiện bước kiểm thử này.")
+                                            return
+                                        }
                                         if (
                                             s === "DONE" &&
                                             (task.subtaskCount ?? 0) > (task.subtaskDone ?? 0)
@@ -132,7 +157,11 @@ function StatusField({ task, projectId, canEdit, etag, onBlockedBySubtask }: { t
                                         }
                                         updateStatus.mutate({ status: s })
                                     }}
-                                    className={cn("flex items-center gap-2.5 px-2.5 py-1.5 rounded-md mb-0.5 last:mb-0 cursor-pointer text-[11px] font-semibold transition-colors", sCls)}
+                                    className={cn(
+                                        "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md mb-0.5 last:mb-0 text-[11px] font-semibold transition-colors",
+                                        isBlockedForCurrentUser ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+                                        sCls
+                                    )}
                                 >
                                     <span className={cn("w-1.5 h-1.5 rounded-full", c.dot)} />
                                     {c.label}
@@ -370,7 +399,7 @@ function WorklogWidget({ task, projectId, canEdit }: { task: TaskDetailResponse;
 
 // ── Main Component ─────────────────────────────────────────
 
-export default function TaskMetaGrid({ task, projectId, canEdit, etag, onBlockedBySubtask }: TaskMetaGridProps) {
+export default function TaskMetaGrid({ task, projectId, canEdit, currentUserRole, etag, onBlockedBySubtask }: TaskMetaGridProps) {
     const qc = useQueryClient()
     const updateTask = useMutation({
         mutationFn: (data: any) => TaskService.updateTask(projectId, task.id, { title: task.title, ...data }),
@@ -440,7 +469,7 @@ export default function TaskMetaGrid({ task, projectId, canEdit, etag, onBlocked
                 <div><FieldLabel icon={Hash} label="Story Points" /><InlineNumberField value={task.storyPoints} onSave={v => updateTask.mutate({ storyPoints: v })} readOnly={!canEdit} /></div>
             </div>
             <div className="space-y-5">
-                <div><FieldLabel icon={Target} label="Status" /><StatusField task={task} projectId={projectId} canEdit={canEdit} etag={etag} onBlockedBySubtask={onBlockedBySubtask} /></div>
+                <div><FieldLabel icon={Target} label="Status" /><StatusField task={task} projectId={projectId} canEdit={canEdit} currentUserRole={currentUserRole} etag={etag} onBlockedBySubtask={onBlockedBySubtask} /></div>
                 <div><FieldLabel icon={Flag} label="Priority" /><PriorityField priority={task.priority} onSave={p => updateTask.mutate({ priority: p })} readOnly={!canEdit} isSaving={updateTask.isPending} /></div>
                 <WorklogWidget task={task} projectId={projectId} canEdit={canEdit} />
             </div>

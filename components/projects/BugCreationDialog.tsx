@@ -10,6 +10,7 @@ import { Modal, FieldLabel, InputStyled, PrimaryButton, SecondaryButton } from "
 import { TaskService } from "@/app/services/TaskService"
 import type { TaskResponse } from "@/app/types/task.schema"
 import { cn } from "@/lib/utils"
+import { hasTestingSkill } from "@/lib/skillRules"
 
 export interface BugCreationDialogProps {
   open: boolean
@@ -38,14 +39,7 @@ export default function BugCreationDialog({
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
-  // Skill check: Only users with "QA", "Testing", or "Quality Assurance" skills can create bugs
-  const hasQASkill = userSkills.some(skill =>
-    ["QA", "Testing", "Quality Assurance", "Test Engineer", "tester"].some(s =>
-      skill.toLowerCase().includes(s.toLowerCase())
-    )
-  )
-
-  const canCreateBug = hasQASkill
+  const canCreateBug = hasTestingSkill(userSkills)
 
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")

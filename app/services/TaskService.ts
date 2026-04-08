@@ -273,9 +273,13 @@ export const TaskService = {
         return res.data.data;
     },
 
-    assignTaskToSprint: async (taskId: string, sprintId: string | null): Promise<TaskResponse> => {
+    assignTaskToSprint: async (
+        taskId: string,
+        sprintId: string | null,
+        options?: { confirmActiveSprintChange?: boolean }
+    ): Promise<TaskResponse> => {
         const res = await apiJava.patch<ApiResponse<TaskResponse>>(
-            `/v1/tasks/${taskId}/sprint`, { sprintId }
+            `/v1/tasks/${taskId}/sprint`, { sprintId, confirmActiveSprintChange: options?.confirmActiveSprintChange ?? false }
         );
         return res.data.data;
     },
@@ -284,10 +288,15 @@ export const TaskService = {
         projectId: string,
         taskIds: string[],
         sprintId: string | null,
+        options?: { confirmActiveSprintChange?: boolean }
     ): Promise<{ updatedCount: number; failedIds: string[]; message: string }> => {
         const res = await apiJava.patch<
             ApiResponse<{ updatedCount: number; failedIds?: string[]; message: string }>
-        >(`/v1/projects/${projectId}/tasks/batch-sprint`, { taskIds, sprintId });
+        >(`/v1/projects/${projectId}/tasks/batch-sprint`, {
+            taskIds,
+            sprintId,
+            confirmActiveSprintChange: options?.confirmActiveSprintChange ?? false,
+        });
         const d = res.data.data;
         return { ...d, failedIds: d.failedIds ?? [] };
     },
