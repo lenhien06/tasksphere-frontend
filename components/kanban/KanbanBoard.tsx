@@ -70,8 +70,9 @@ export interface KanbanBoardProps {
 const DEFAULT_COLUMNS_FALLBACK: Column[] = [
   { id: "todo", name: "TO DO", colorHex: "#8C8C8C", category: "START", status: "TODO", position: 0, taskCount: 0, isDefault: true },
   { id: "in-progress", name: "IN PROGRESS", colorHex: "#1677FF", category: "IN_PROGRESS", status: "IN_PROGRESS", position: 1, taskCount: 0, isDefault: true },
-  { id: "in-review", name: "IN REVIEW", colorHex: "#722ED1", category: "REVIEW", status: "IN_REVIEW", position: 2, taskCount: 0, isDefault: true },
-  { id: "done", name: "DONE", colorHex: "#52C41A", category: "DONE", status: "DONE", position: 3, taskCount: 0, isDefault: true },
+  { id: "ready-for-test", name: "READY FOR TEST", colorHex: "#FAAD14", category: "REVIEW", status: "READY_FOR_TEST", position: 2, taskCount: 0, isDefault: true },
+  { id: "testing", name: "TESTING", colorHex: "#722ED1", category: "REVIEW", status: "TESTING", position: 3, taskCount: 0, isDefault: true },
+  { id: "done", name: "DONE", colorHex: "#52C41A", category: "DONE", status: "DONE", position: 4, taskCount: 0, isDefault: true },
 ];
 
 const getColumnPosition = (column: Column) => column.position ?? 0;

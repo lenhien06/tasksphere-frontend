@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { AlertTriangle, Bug, Link2 } from "lucide-react"
 import type { AxiosError } from "axios"
@@ -19,6 +19,7 @@ export interface BugCreationDialogProps {
   projectId: string
   onBugCreated?: () => void
   userSkills?: string[]
+  allowWithoutTestingSkill?: boolean
 }
 
 const PRIORITY_COLORS = {
@@ -35,11 +36,18 @@ export default function BugCreationDialog({
   projectId,
   onBugCreated,
   userSkills = [],
+  allowWithoutTestingSkill = false,
 }: BugCreationDialogProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
-  const canCreateBug = hasTestingSkill(userSkills)
+  const canCreateBug = allowWithoutTestingSkill || hasTestingSkill(userSkills)
+  const { data: parentTaskDetail } = useQuery({
+    queryKey: ["task", projectId, parentTask?.id],
+    queryFn: () => TaskService.getTaskById(projectId, parentTask!.id),
+    enabled: open && !!projectId && !!parentTask?.id,
+    staleTime: 15_000,
+  })
 
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -65,9 +73,10 @@ export default function BugCreationDialog({
         description,
         type: "BUG",
         priority,
-        assigneeId: assigneeId || undefined,
-        parentTaskId: parentTask.id,
+        assigneeId: assigneeId || parentTaskDetail?.task.assignee?.id || undefined,
+        sprintId: parentTaskDetail?.task.sprint?.id,
       })
+      await TaskService.addDependency(bugTask.id, parentTask.id, "RELATES_TO")
 
       // 2. Revert parent task về "In Progress"
       await TaskService.updateStatus(projectId, parentTask.id, {
@@ -79,6 +88,8 @@ export default function BugCreationDialog({
     onSuccess: (bugTask) => {
       queryClient.invalidateQueries({ queryKey: ["tasks", projectId] })
       queryClient.invalidateQueries({ queryKey: ["task", projectId, parentTask?.id] })
+      queryClient.invalidateQueries({ queryKey: ["task", projectId, bugTask.id] })
+      queryClient.invalidateQueries({ queryKey: ["dependencies", parentTask?.id] })
       toast.success(
         t("bug.createdSuccess", {
           defaultValue: `🐛 Created bug ticket ${bugTask.taskCode}`,

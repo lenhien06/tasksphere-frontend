@@ -30,6 +30,8 @@ const PRESET_COLORS = [
 const MAPPED_STATUS_OPTIONS: { value: TaskStatus }[] = [
     { value: "TODO" },
     { value: "IN_PROGRESS" },
+    { value: "READY_FOR_TEST" },
+    { value: "TESTING" },
     { value: "IN_REVIEW" },
     { value: "DONE" },
 ]

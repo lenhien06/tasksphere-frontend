@@ -52,12 +52,14 @@ interface ProjectMemberLike {
   fullName?: string;
   email?: string;
   avatarUrl?: string | null;
+  skillTags?: string[];
   skills?: string[];
   user?: {
     id?: string;
     fullName?: string;
     email?: string;
     avatarUrl?: string | null;
+    skillTags?: string[];
     skills?: string[];
   };
 }
@@ -85,6 +87,8 @@ const mapPriority = (priority: string): TaskCardData["priority"] => {
 const inferStatus = (name: string, id: string, mappedStatus?: string) => {
   if (mappedStatus) return mappedStatus as Column["status"];
   const raw = `${name} ${id}`.toLowerCase();
+  if (raw.includes("ready for test") || raw.includes("ready_for_test")) return "READY_FOR_TEST";
+  if (raw.includes("testing") || raw.includes("qa")) return "TESTING";
   if (raw.includes("review")) return "IN_REVIEW";
   if (raw.includes("progress") || raw.includes("doing")) return "IN_PROGRESS";
   if (raw.includes("done")) return "DONE";
@@ -102,7 +106,7 @@ const mapColumns = (cols: typeof DEFAULT_COLUMNS): Column[] =>
       const category: Column["category"] =
         status === "DONE"
           ? "DONE"
-          : status === "IN_REVIEW"
+          : status === "READY_FOR_TEST" || status === "TESTING" || status === "IN_REVIEW"
           ? "REVIEW"
           : status === "IN_PROGRESS"
           ? "IN_PROGRESS"
@@ -277,7 +281,13 @@ export default function KanbanBoard({
       return String(memberId) === currentUserId;
     });
     
-    return currentMember?.user?.skills || currentMember?.skills || [];
+    return (
+      currentMember?.skillTags ||
+      currentMember?.skills ||
+      currentMember?.user?.skillTags ||
+      currentMember?.user?.skills ||
+      []
+    );
   }, [membersData, currentUserId]);
 
   const columns = useMemo(() => mapColumns(columnsData), [columnsData]);
@@ -379,7 +389,7 @@ export default function KanbanBoard({
     }
 
     if (
-      sourceColumn?.status === "IN_REVIEW" &&
+      (sourceColumn?.status === "READY_FOR_TEST" || sourceColumn?.status === "TESTING" || sourceColumn?.status === "IN_REVIEW") &&
       (targetColumn.status === "IN_PROGRESS" || targetColumn.status === "TODO") &&
       !isTesterActionAllowed
     ) {
@@ -389,19 +399,19 @@ export default function KanbanBoard({
 
     // Check: Cannot move to DONE without going through Testing workflow (IN_REVIEW)
     // Only allow DONE transition from IN_REVIEW column
-    if (targetColumn.status === "DONE" && sourceColumn?.status !== "IN_REVIEW") {
+    if (targetColumn.status === "DONE" && sourceColumn?.status !== "TESTING" && sourceColumn?.status !== "IN_REVIEW") {
       const hasSubtasks = (task.subTaskCount ?? 0) > 0;
       const unfinishedSubtasks = (task.subTaskCount ?? 0) - (task.subTaskDoneCount ?? 0);
       
       // If coming from IN_PROGRESS (or other status), require IN_REVIEW first
-      if (sourceColumn?.status === "IN_PROGRESS" || sourceColumn?.status === "TODO") {
+      if (sourceColumn?.status === "IN_PROGRESS" || sourceColumn?.status === "TODO" || sourceColumn?.status === "READY_FOR_TEST") {
         const confirmReview = window.confirm(
           "Phải chuyển sang 'In Review' trước khi có thể đánh dấu Done. Bạn có muốn chuyển sang In Review không?"
         );
         if (!confirmReview) return;
         
         // Move to IN_REVIEW instead
-        const reviewColumn = columns.find((c) => c.status === "IN_REVIEW");
+        const reviewColumn = columns.find((c) => c.status === "TESTING") ?? columns.find((c) => c.status === "IN_REVIEW");
         if (reviewColumn) {
           payload.targetColumnId = reviewColumn.id;
           moveTaskMutation.mutate(payload);
@@ -634,6 +644,9 @@ export default function KanbanBoard({
             setBugParentTask(null);
           }}
           userSkills={currentUserSkills}
+          allowWithoutTestingSkill={
+            effectiveKanbanRole === "PROJECT_MANAGER" || effectiveKanbanRole === "SYSTEM_ADMIN"
+          }
           parentTask={{
             id: bugParentTask.id,
             taskCode: bugParentTask.taskId,

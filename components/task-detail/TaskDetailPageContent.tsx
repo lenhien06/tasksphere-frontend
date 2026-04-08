@@ -19,10 +19,12 @@ import TaskDescription from "@/components/task-detail/TaskDescription"
 import { useTaskWebSocket } from "@/hooks/useTaskWebSocket"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { TaskService } from "@/app/services/TaskService"
+import { ProjectMemberService } from "@/app/services/project-member.service"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/stores/useAuthStore"
 import type { CustomFieldType } from "@/app/types/task.schema"
+import { hasTestingSkill } from "@/lib/skillRules"
 
 import { SubtaskBlockedDialog } from "@/components/kanban/SubtaskBlockedDialog"
 import { TaskDetailService } from "@/app/services/TaskDetailService"
@@ -69,6 +71,8 @@ interface TaskDetailPageContentProps {
 const STATUS_OPTIONS = [
     { value: "TODO", label: "To Do", color: "bg-gray-100 text-gray-700" },
     { value: "IN_PROGRESS", label: "In Progress", color: "bg-blue-100 text-blue-700" },
+    { value: "READY_FOR_TEST", label: "Ready for Test", color: "bg-amber-100 text-amber-700" },
+    { value: "TESTING", label: "Testing", color: "bg-violet-100 text-violet-700" },
     { value: "IN_REVIEW", label: "In Review", color: "bg-purple-100 text-purple-700" },
     { value: "DONE", label: "Done", color: "bg-green-100 text-green-700" },
     { value: "CANCELLED", label: "Cancelled", color: "bg-red-100 text-red-700" },
@@ -77,7 +81,9 @@ const STATUS_OPTIONS = [
 // BR-14: IN_PROGRESS → IN_REVIEW only (not directly to DONE)
 const VALID_TRANSITIONS: Record<string, string[]> = {
     TODO: ["IN_PROGRESS"],
-    IN_PROGRESS: ["IN_REVIEW"],
+    IN_PROGRESS: ["READY_FOR_TEST", "TESTING", "IN_REVIEW"],
+    READY_FOR_TEST: ["TESTING", "IN_PROGRESS"],
+    TESTING: ["IN_PROGRESS", "DONE"],
     IN_REVIEW: ["IN_PROGRESS", "DONE"],
     DONE: [],
     CANCELLED: [],
@@ -119,6 +125,12 @@ export default function TaskDetailPageContent({
         queryKey: ["custom-fields", projectId],
         queryFn: () => TaskService.getCustomFields(projectId),
         enabled: !!projectId,
+        staleTime: 60_000,
+    })
+    const { data: members = [] } = useQuery({
+        queryKey: ["project-members", projectId],
+        queryFn: () => ProjectMemberService.getMembers(projectId),
+        enabled: !!projectId && !!currentUserId,
         staleTime: 60_000,
     })
 
@@ -225,6 +237,18 @@ export default function TaskDetailPageContent({
     const isAssignee = !!task.assignee?.id && !!currentUserId && String(task.assignee.id) === currentUserId
     const canEdit = isAdminOrPM || isMember
     const canDelete = isAdminOrPM
+    const currentUserSkills = React.useMemo(() => {
+        const member = (members as any[]).find((item) => String(item.user?.id ?? item.id ?? "") === currentUserId)
+        return (
+            member?.skillTags ??
+            member?.skills ??
+            member?.user?.skillTags ??
+            member?.user?.skills ??
+            []
+        ) as string[]
+    }, [members, currentUserId])
+    const canCreateBug = isAdminOrPM || hasTestingSkill(currentUserSkills)
+    const showActionMenu = canDelete || ((task.taskStatus === "TESTING" || task.taskStatus === "IN_REVIEW") && onCreateBug && canCreateBug)
 
     const scrollToSubtasks = () => {
         const el = document.getElementById("subtasks-section")
@@ -312,7 +336,7 @@ export default function TaskDetailPageContent({
                                 Nâng cấp thành Task
                             </Button>
                         )}
-                        {canDelete && (
+                        {showActionMenu && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all">
@@ -320,7 +344,7 @@ export default function TaskDetailPageContent({
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-44 p-1.5 rounded-xl border-slate-200 shadow-xl">
-                                    {task.taskStatus === "IN_REVIEW" && onCreateBug && (
+                                    {(task.taskStatus === "TESTING" || task.taskStatus === "IN_REVIEW") && onCreateBug && canCreateBug && (
                                         <>
                                             <DropdownMenuItem
                                                 className="text-red-600 font-semibold focus:text-red-600 focus:bg-red-50 rounded-lg cursor-pointer"
@@ -332,7 +356,7 @@ export default function TaskDetailPageContent({
                                             </DropdownMenuItem>
                                         </>
                                     )}
-                                    <DropdownMenuItem
+                                    {canDelete && <DropdownMenuItem
                                         className="text-rose-600 font-semibold focus:text-rose-600 focus:bg-rose-50 rounded-lg cursor-pointer"
                                         onClick={() => {
                                             if (confirm("Tất cả sub-task sẽ bị xóa theo. Bạn có chắc chắn muốn xóa task này?")) deleteTask.mutate()
@@ -340,7 +364,7 @@ export default function TaskDetailPageContent({
                                         disabled={deleteTask.isPending}
                                     >
                                         <Trash2 size={16} className="mr-2" /> Xóa task
-                                    </DropdownMenuItem>
+                                    </DropdownMenuItem>}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         )}

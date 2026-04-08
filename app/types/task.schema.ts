@@ -1,5 +1,5 @@
 // ── Enums — uppercase to match BE ────────────────────────────
-export type TaskStatus   = "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE" | "CANCELLED"
+export type TaskStatus   = "TODO" | "IN_PROGRESS" | "READY_FOR_TEST" | "TESTING" | "IN_REVIEW" | "DONE" | "CANCELLED"
 export type TaskPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
 export type TaskType     = "TASK" | "BUG" | "FEATURE" | "STORY" | "EPIC" | "SUB_TASK"
 export type ProjectRole  = "PM" | "MEMBER" | "VIEWER"
@@ -193,10 +193,12 @@ export interface ColumnResponse {
 
 // ── Status transition validation ──────────────────────────────
 // BR-14: strict workflow — IN_PROGRESS → IN_REVIEW only (not directly to DONE)
-const ANY_STATUS: TaskStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"]
+const ANY_STATUS: TaskStatus[] = ["TODO", "IN_PROGRESS", "READY_FOR_TEST", "TESTING", "IN_REVIEW", "DONE", "CANCELLED"]
 export const VALID_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
     TODO: ANY_STATUS,
     IN_PROGRESS: ANY_STATUS,
+    READY_FOR_TEST: ANY_STATUS,
+    TESTING: ANY_STATUS,
     IN_REVIEW: ANY_STATUS,
     DONE: ANY_STATUS,
     CANCELLED: ANY_STATUS,
@@ -387,6 +389,8 @@ export interface ProjectOverview {
     tasksByStatus: {
         TODO:        number
         IN_PROGRESS: number
+        READY_FOR_TEST: number
+        TESTING: number
         IN_REVIEW:   number
         DONE:        number
         CANCELLED:   number
