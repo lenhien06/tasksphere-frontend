@@ -24,6 +24,7 @@ import {
     Circle,
     User,
     ArrowUpDown,
+    ArrowRight,
     SortAsc,
     SortDesc,
     CheckCircle2,
@@ -56,6 +57,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { canActAsProjectManager, normalizeProjectMyRole } from "@/lib/projectRole";
 import { getRealtimeAccessToken, getStompConnectHeaders } from "@/lib/realtime/stompAuth";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import ProjectHealthCheckDrawer from "@/components/projects/ProjectHealthCheckDrawer";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & MOCK DATA (Fallback/Types)
@@ -80,10 +82,13 @@ interface Project {
     progress: number;
     tasksCompleted: number;
     tasksTotal: number;
+    overdueTasks: number;
     memberCount: number;
     members: Member[];
     owner: string;
     ownerId?: string;
+    workspaceId?: string | null;
+    workspaceName?: string | null;
     isOwner: boolean;
     createdAt: string; 
     startDate: string;
@@ -138,6 +143,7 @@ function mapToUIProject(be: any): Project {
         progress: be.progress || 0,
         tasksCompleted: be.taskStats?.done || 0,
         tasksTotal: be.taskStats?.total || 0,
+        overdueTasks: be.taskStats?.overdue || 0,
         memberCount: be.memberCount || 0,
         members: be.members?.map((m: any) => ({
             id: m.user.id,
@@ -146,6 +152,8 @@ function mapToUIProject(be: any): Project {
         })) || [],
         owner: be.ownerName || "Unknown",
         ownerId: be.ownerId,
+        workspaceId: be.workspaceId ?? null,
+        workspaceName: be.workspaceName ?? null,
         isOwner: Boolean(be.isOwner),
         createdAt: new Date(be.createdAt).toLocaleDateString("en-US"),
         startDate: startDateRaw ? new Date(startDateRaw).toLocaleDateString("en-US") : "—",
@@ -258,6 +266,45 @@ function ProjectMembers({ projectId, count }: { projectId: string; count: number
     return <MemberStack members={memberList} showCount={false} count={count} />;
 }
 
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+    return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function GlobalKPIBanner({
+    workspaceCount,
+    projectCount,
+    riskCount,
+    overdueCount,
+}: {
+    workspaceCount: number;
+    projectCount: number;
+    riskCount: number;
+    overdueCount: number;
+}) {
+    return (
+        <section className="rounded-[22px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_34%),linear-gradient(135deg,_#ffffff,_#f4f7fc)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-[16px] border border-white/80 bg-white/90 px-5 py-4 shadow-sm">
+                    <div className="text-[12px] font-medium text-slate-500">Workspaces</div>
+                    <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-slate-950">{workspaceCount}</div>
+                </div>
+                <div className="rounded-[16px] border border-white/80 bg-white/90 px-5 py-4 shadow-sm">
+                    <div className="text-[12px] font-medium text-slate-500">Projects</div>
+                    <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-slate-950">{projectCount}</div>
+                </div>
+                <div className="rounded-[16px] border border-yellow-100 bg-yellow-50 px-5 py-4 shadow-sm">
+                    <div className="text-[12px] font-medium text-yellow-700">Projects at risk</div>
+                    <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-yellow-700">{riskCount}</div>
+                </div>
+                <div className="rounded-[16px] border border-red-100 bg-red-50 px-5 py-4 shadow-sm">
+                    <div className="text-[12px] font-medium text-red-700">Overdue tasks</div>
+                    <div className="mt-2 whitespace-nowrap text-3xl font-black tabular-nums text-red-700">{overdueCount}</div>
+                </div>
+            </div>
+        </section>
+    );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
@@ -274,6 +321,7 @@ export default function ProjectsPage() {
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [page, setPage] = useState(1);
+    const [healthProject, setHealthProject] = useState<Project | null>(null);
     
     // UI state
     const searchParams = useSearchParams();
@@ -347,6 +395,19 @@ export default function ProjectsPage() {
         },
     });
 
+    const { data: portfolioResponse } = useQuery({
+        queryKey: ["projects-portfolio-metrics", { contextKind: effectiveWorkspace ? "workspace" : "personal", workspaceId: effectiveWorkspace?.id ?? null }],
+        queryFn: () =>
+            ProjectService.search({
+                page: 0,
+                size: 200,
+                workspaceId: effectiveWorkspace?.id,
+                scope: effectiveWorkspace ? undefined : "personal",
+                sort: "createdAt,desc",
+            }),
+        staleTime: 5 * 60 * 1000,
+    });
+
     // Clear resetting flag after data loads
     useEffect(() => {
         if (isResettingFilters && apiResponse && !isFetching) {
@@ -355,8 +416,20 @@ export default function ProjectsPage() {
     }, [apiResponse, isFetching, isResettingFilters]);
 
     const projects = apiResponse?.data?.content?.map(mapToUIProject) || [];
+    const portfolioProjects = portfolioResponse?.data?.content?.map(mapToUIProject) || projects;
 
     const totalPages = apiResponse?.meta?.totalPages || 1;
+    const globalMetrics = useMemo(() => {
+        const workspaceSet = new Set(
+            portfolioProjects.map((project) => project.workspaceId ?? "personal").filter(Boolean)
+        );
+        return {
+            workspaceCount: workspaceSet.size,
+            projectCount: portfolioResponse?.meta?.totalElements ?? portfolioProjects.length,
+            riskCount: portfolioProjects.filter((project) => project.status === "Active" && project.overdueTasks > 0).length,
+            overdueCount: portfolioProjects.reduce((sum, project) => sum + project.overdueTasks, 0),
+        };
+    }, [portfolioProjects, portfolioResponse?.meta?.totalElements]);
 
     // Mutations
     const updateMutation = useMutation({
@@ -546,8 +619,8 @@ export default function ProjectsPage() {
             <div className="px-2 md:px-4 py-2 flex flex-col gap-4 flex-shrink-0 mb-4">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
-                        <h1 className="text-[24px] md:text-[28px] font-extrabold text-gray-900 tracking-tight">{t('project.myProjects')}</h1>
-                        <p className="text-[13px] text-gray-500 font-medium">{t('project.trackProgress')}</p>
+                        <h1 className="text-[24px] md:text-[30px] font-extrabold text-gray-900 tracking-tight">Risk Control Center</h1>
+                        <p className="text-[13px] text-gray-500 font-medium">Monitor project health, delivery risk, and urgent execution hotspots in one place.</p>
                         <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-700">
                             <Building2 className="h-3.5 w-3.5" />
                             {effectiveWorkspace
@@ -570,6 +643,13 @@ export default function ProjectsPage() {
                         </button>
                     </div>
                 </div>
+
+                <GlobalKPIBanner
+                    workspaceCount={globalMetrics.workspaceCount}
+                    projectCount={globalMetrics.projectCount}
+                    riskCount={globalMetrics.riskCount}
+                    overdueCount={globalMetrics.overdueCount}
+                />
 
                 {/* Toolbar */}
                 <div className="flex flex-wrap items-center gap-3">
@@ -716,49 +796,53 @@ export default function ProjectsPage() {
                         </div>
                     )
                 ) : view === "grid" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-10">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6 pb-10">
                         {projects.map((p) => (
-                            <div 
-                                key={p.id} 
+                            <div
+                                key={p.id}
                                 className={cn(
-                                    "group flex flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all cursor-pointer relative",
-                                    p.status === "Archived" 
-                                        ? "opacity-60 grayscale-[30%] hover:shadow-md" 
-                                        : "hover:shadow-xl hover:border-blue-200"
-                                )} 
+                                    "group flex flex-col rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(15,23,42,0.05)] transition-all cursor-pointer relative",
+                                    p.status === "Archived"
+                                        ? "opacity-70 grayscale-[20%] hover:shadow-md"
+                                        : "hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_44px_rgba(15,23,42,0.08)]"
+                                )}
                                 onClick={() => router.push(`/projects/${p.id}`)}
                             >
                                 {currentUser && (
-                                    <div className="absolute top-3 right-2 z-10" onClick={(e) => e.stopPropagation()}>
+                                    <div className="absolute top-4 right-4 z-10" onClick={(e) => e.stopPropagation()}>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <button className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all"><MoreVertical size={18} /></button>
+                                                <button className="flex h-9 w-9 items-center justify-center rounded-[12px] text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-600">
+                                                    <MoreVertical size={16} />
+                                                </button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-44 rounded-xl border-gray-200 p-1 shadow-xl bg-white z-[100]">
                                                 <DropdownMenuItem onClick={() => router.push(`/projects/${p.id}`)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                    <Folder size={14} className="mr-2" /> {t('project.viewDetails', { defaultValue: 'Xem chi tiết' })}
+                                                    <Folder size={14} className="mr-2" /> {t('project.viewDetails', { defaultValue: 'View details' })}
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => handleCopyProjectLink(p.id)} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                    <Link2 size={14} className="mr-2" /> {t('project.copyLink', { defaultValue: 'Sao chép liên kết' })}
+                                                    <Link2 size={14} className="mr-2" /> {t('project.copyLink', { defaultValue: 'Copy link' })}
                                                 </DropdownMenuItem>
-                                                
+
                                                 {p.status === "Archived" ? (
-                                                    // Menu for archived
                                                     <>
                                                         {(p.isOwner || isAdmin) && (
                                                             <DropdownMenuItem onClick={() => openModal(p, "restore")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
-                                                                <RotateCcw size={14} className="mr-2" /> {t('common.restore', { defaultValue: 'Khôi phục dự án' })}
+                                                                <RotateCcw size={14} className="mr-2" /> {t('common.restore', { defaultValue: 'Restore project' })}
                                                             </DropdownMenuItem>
                                                         )}
                                                     </>
                                                 ) : (
-                                                    // Menu for active/completed
                                                     <>
                                                         {canEditProject(p) && (
-                                                            <DropdownMenuItem onClick={() => openModal(p, "edit")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer"><Pencil size={14} className="mr-2" /> {t('project.edit')}</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => openModal(p, "edit")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
+                                                                <Pencil size={14} className="mr-2" /> {t('project.edit')}
+                                                            </DropdownMenuItem>
                                                         )}
                                                         {canArchiveProject(p) && (
-                                                            <DropdownMenuItem onClick={() => openModal(p, "archive")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer"><Archive size={14} className="mr-2" /> {t('project.archive')}</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => openModal(p, "archive")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer">
+                                                                <Archive size={14} className="mr-2" /> {t('project.archive')}
+                                                            </DropdownMenuItem>
                                                         )}
                                                     </>
                                                 )}
@@ -766,7 +850,9 @@ export default function ProjectsPage() {
                                                 {(isAdmin || canArchiveProject(p)) && (
                                                     <>
                                                         <DropdownMenuSeparator className="my-1" />
-                                                        <DropdownMenuItem onClick={() => openModal(p, "delete")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer text-red-600 hover:bg-red-50"><Trash2 size={14} className="mr-2" /> {t('project.deletePermanently')}</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => openModal(p, "delete")} className="rounded-lg px-3 py-2 text-sm font-medium cursor-pointer text-red-600 hover:bg-red-50">
+                                                            <Trash2 size={14} className="mr-2" /> {t('project.deletePermanently')}
+                                                        </DropdownMenuItem>
                                                     </>
                                                 )}
                                             </DropdownMenuContent>
@@ -774,43 +860,86 @@ export default function ProjectsPage() {
                                     </div>
                                 )}
 
-                                <h3 className="text-[16px] font-bold text-gray-900 mb-1.5 group-hover:text-blue-600 transition-colors truncate pr-6">{p.name}</h3>
-                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3">
-                                    <span className="text-[9px] font-bold text-gray-400 tracking-wider uppercase">{p.key}</span>
-                                    <span className="h-1 w-1 rounded-full bg-gray-300" />
-                                    <VisibilityInfo visibility={p.visibility} />
-                                    <span className="h-1 w-1 rounded-full bg-gray-300" />
-                                    <div className="flex items-center gap-1 text-gray-400">
-                                        <Calendar size={11} />
-                                        <span className="text-[10px] font-bold">{p.startDate}</span>
-                                    </div>
-                                </div>
-
-                                <p className="text-[13px] text-gray-500 leading-relaxed line-clamp-2 min-h-[40px] mb-5">{p.description}</p>
-
-                                <div className="mb-5">
-                                    <ProgressSection completed={p.tasksCompleted} total={p.tasksTotal} progress={p.progress} />
-                                </div>
-
-                                <div className="mt-auto border-t border-gray-50 pt-4 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                            <UserAvatar name={p.owner} size={20} />
-                                            <span className="text-[11px] font-bold text-gray-600 truncate max-w-[90px]">{p.owner}</span>
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                                            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">
+                                                {p.key}
+                                            </span>
+                                            <StatusBadge status={p.status} />
                                         </div>
-                                        <ProjectMembers projectId={p.id} count={p.memberCount} />
+                                        <h3 className="truncate pr-8 text-[22px] font-black tracking-tight text-slate-950 transition-colors group-hover:text-blue-700">
+                                            {p.name}
+                                        </h3>
+                                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
+                                            <VisibilityInfo visibility={p.visibility} />
+                                            <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:inline-block" />
+                                            <div className="flex items-center gap-1">
+                                                <Calendar size={13} />
+                                                <span>Start {p.startDate}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <StatusBadge status={p.status} />
-                                        {p.status === "Archived" && (p.isOwner || isAdmin) && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); openModal(p, "restore"); }}
-                                                className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded-lg transition-all"
-                                            >
-                                                <RotateCcw size={12} /> {t('common.restore', { defaultValue: 'Khôi phục' })}
-                                            </button>
+                                </div>
+
+                                <div className="mt-5 rounded-[20px] border border-slate-100 bg-slate-50/80 p-4">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                            <div className="text-[11px] font-medium text-slate-500">Completion</div>
+                                            <div className="mt-2 text-4xl font-extrabold tracking-tight text-[#4F46E5]">
+                                                {Number(p.progress).toFixed(1)}%
+                                            </div>
+                                        </div>
+                                        <div className="rounded-[14px] bg-white px-3 py-2 shadow-sm">
+                                            <div className="text-[11px] font-medium text-slate-500">Tasks</div>
+                                            <div className="mt-1 whitespace-nowrap text-lg font-bold tabular-nums text-slate-900">
+                                                {p.tasksCompleted}/{p.tasksTotal}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
+                                        <div
+                                            className="h-full rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-500 transition-all duration-700"
+                                            style={{ width: `${Math.max(0, Math.min(p.progress, 100))}%` }}
+                                        />
+                                    </div>
+
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        {p.overdueTasks > 0 && (
+                                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700">
+                                                {pluralize(p.overdueTasks, "overdue task")}
+                                            </span>
+                                        )}
+                                        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600">
+                                            {pluralize(p.memberCount, "member")}
+                                        </span>
+                                        {p.status === "Completed" && (
+                                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
+                                                Delivery complete
+                                            </span>
                                         )}
                                     </div>
+                                </div>
+
+                                <p className="mt-4 line-clamp-2 min-h-[40px] text-[13px] leading-relaxed text-slate-500">
+                                    {p.description || "No project summary has been provided yet."}
+                                </p>
+
+                                <div className="mt-auto flex items-center justify-between gap-4 pt-5">
+                                    <ProjectMembers projectId={p.id} count={p.memberCount} />
+
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setHealthProject(p);
+                                        }}
+                                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-[14px] bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                    >
+                                        Khám sức khỏe
+                                        <ArrowRight size={16} />
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -959,6 +1088,14 @@ export default function ProjectsPage() {
                     </div>
                 )}
             </div>
+
+            <ProjectHealthCheckDrawer
+                open={!!healthProject}
+                onOpenChange={(open) => {
+                    if (!open) setHealthProject(null);
+                }}
+                project={healthProject ? { id: healthProject.id, name: healthProject.name, key: healthProject.key } : null}
+            />
 
             {/* Modals */}
             {activeProject && modalType && (
