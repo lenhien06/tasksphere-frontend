@@ -53,17 +53,37 @@ jobs:
       # ── 4. Verify frontend is up ─────────────────────────────────────────
       - name: Verify frontend health
         run: |
-          echo "Waiting 15s for service to stabilise..."
-          sleep 15
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 10 \
-            https://tasksphere.io.vn/images/logo.png || echo "000")
-          echo "Frontend returned: $HTTP_STATUS"
-          if [[ "$HTTP_STATUS" != "200" ]]; then
-            echo "::error::Frontend health check failed (HTTP $HTTP_STATUS)."
-            exit 1
-          fi
-          echo "Frontend is live."
+          URL="https://tasksphere.io.vn/images/logo.png"
+          MAX_ATTEMPTS=18
+          SLEEP_SECONDS=10
+          LAST_STATUS="000"
+
+          echo "Waiting for frontend to stabilise..."
+
+          for ATTEMPT in $(seq 1 $MAX_ATTEMPTS); do
+            LAST_STATUS=$(curl -sS -L -o /dev/null -w "%{http_code}" \
+              --connect-timeout 5 \
+              --max-time 15 \
+              "$URL" || true)
+
+            if [[ -z "$LAST_STATUS" ]]; then
+              LAST_STATUS="000"
+            fi
+
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS -> HTTP $LAST_STATUS"
+
+            if [[ "$LAST_STATUS" == "200" || "$LAST_STATUS" == "301" || "$LAST_STATUS" == "302" ]]; then
+              echo "Frontend is live."
+              exit 0
+            fi
+
+            if [[ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]]; then
+              sleep "$SLEEP_SECONDS"
+            fi
+          done
+
+          echo "::error::Frontend health check failed after $MAX_ATTEMPTS attempts (last HTTP $LAST_STATUS)."
+          exit 1
 
       # ── 5. Notify on failure ─────────────────────────────────────────────
       - name: Notify failure
