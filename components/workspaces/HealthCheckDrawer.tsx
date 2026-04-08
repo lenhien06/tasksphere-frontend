@@ -6,7 +6,6 @@ import {
   CartesianGrid,
   Cell,
   Label,
-  Legend,
   Line,
   LineChart,
   Pie,
@@ -16,7 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AlertCircle, AlertTriangle, ArrowRight, Clock3, FolderKanban, ShieldAlert, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { Workspace, WorkspaceHealthMetrics } from "@/app/types/workspace.schema";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,6 +44,12 @@ function riskBadge(riskLevel?: string | null) {
   return "border-emerald-300 bg-emerald-50 text-emerald-700";
 }
 
+function riskLabel(riskLevel?: string | null) {
+  if (riskLevel === "CRITICAL") return "Critical";
+  if (riskLevel === "WARNING") return "Attention";
+  return "Stable";
+}
+
 export default function HealthCheckDrawer({
   open,
   onOpenChange,
@@ -58,11 +63,33 @@ export default function HealthCheckDrawer({
 }) {
   const router = useRouter();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [chartRenderKey, setChartRenderKey] = useState(0);
 
   useEffect(() => {
     if (!metrics) return;
     setSelectedProjectId(metrics.focusProject?.projectId ?? metrics.projects[0]?.projectId ?? "");
   }, [metrics]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const resizeSoon = window.setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 80);
+    const remountCharts = window.setTimeout(() => {
+      setChartRenderKey((current) => current + 1);
+      window.dispatchEvent(new Event("resize"));
+    }, 220);
+    const resizeAfterAnimation = window.setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 520);
+
+    return () => {
+      window.clearTimeout(resizeSoon);
+      window.clearTimeout(remountCharts);
+      window.clearTimeout(resizeAfterAnimation);
+    };
+  }, [open, metrics?.workspaceId]);
 
   const selectedProject = useMemo(
     () => metrics?.projects.find((project) => project.projectId === selectedProjectId) ?? metrics?.projects[0] ?? null,
@@ -77,6 +104,19 @@ export default function HealthCheckDrawer({
       { name: "Done", value: metrics.taskDistribution.done },
     ];
   }, [metrics]);
+
+  const pieTotal = useMemo(
+    () => pieData.reduce((sum, item) => sum + item.value, 0),
+    [pieData]
+  );
+
+  const hasBurndownData = useMemo(
+    () =>
+      (metrics?.burndown ?? []).some(
+        (point) => point.idealRemaining > 0 || point.actualRemaining > 0
+      ),
+    [metrics]
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -93,11 +133,11 @@ export default function HealthCheckDrawer({
 
             <div className="flex items-start justify-between gap-4 pb-5">
               <div>
-                <div className="text-[13px] font-semibold uppercase tracking-[0.24em] text-slate-400">
-                  Workspace Health
+                <div className="text-[12px] font-medium text-slate-500">
+                  Workspace health
                 </div>
                 <h2 className="mt-2 text-[22px] font-black tracking-tight text-slate-950">
-                  Tổng Quan Dự Án
+                  Executive overview
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
                   {workspace?.name ?? metrics?.workspaceName ?? "Workspace"}
@@ -106,25 +146,25 @@ export default function HealthCheckDrawer({
 
               <div className="grid grid-cols-4 gap-5 text-right">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Giai đoạn</div>
+                  <div className="text-[11px] font-medium text-slate-500">Sprint</div>
                   <div className="mt-1 font-mono text-[15px] font-bold text-slate-950">
                     {metrics?.sprintHealth?.sprintName ?? "N/A"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Còn lại</div>
+                  <div className="text-[11px] font-medium text-slate-500">Remaining</div>
                   <div className="mt-1 font-mono text-[15px] font-bold text-slate-950">
-                    {metrics?.sprintHealth?.daysRemaining != null ? `${metrics.sprintHealth.daysRemaining} ngày` : "N/A"}
+                    {metrics?.sprintHealth?.daysRemaining != null ? `${metrics.sprintHealth.daysRemaining} days` : "N/A"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Tổng</div>
+                  <div className="text-[11px] font-medium text-slate-500">Story points</div>
                   <div className="mt-1 font-mono text-[15px] font-bold text-slate-950">
                     {metrics?.sprintHealth?.totalStoryPoints ?? 0}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Quá hạn</div>
+                  <div className="text-[11px] font-medium text-slate-500">Overdue</div>
                   <div className="mt-1 font-mono text-[15px] font-bold text-slate-950">
                     {metrics?.overdueTaskCount ?? 0}
                   </div>
@@ -132,14 +172,14 @@ export default function HealthCheckDrawer({
               </div>
             </div>
 
-            <section className="rounded-[30px] border border-white/60 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+            <section className="rounded-[20px] border border-white/60 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
               <div className="grid gap-6 border-b border-slate-200 pb-6 lg:grid-cols-2">
                 <div>
-                  <h3 className="mb-4 text-base font-semibold text-slate-700">Trạng thái công việc</h3>
+                  <h3 className="mb-4 text-base font-semibold text-slate-700">Task distribution</h3>
                   <div className="h-[220px]">
-                    {metrics ? (
+                    {metrics && pieTotal > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
+                        <PieChart key={`workspace-health-pie-${metrics.workspaceId}-${chartRenderKey}`}>
                           <Pie
                             data={pieData}
                             dataKey="value"
@@ -157,28 +197,43 @@ export default function HealthCheckDrawer({
                                   <tspan x="50%" y="46%" className="fill-slate-950 text-[24px] font-black">
                                     {Math.round(metrics.globalProgress)}%
                                   </tspan>
-                                  <tspan x="50%" y="60%" className="fill-slate-600 text-[12px] font-semibold">
-                                    HOÀN THÀNH
+                                  <tspan x="50%" y="60%" className="fill-slate-600 text-[12px] font-medium">
+                                    Completed
                                   </tspan>
                                 </text>
                               )}
                             />
                           </Pie>
-                          <Legend verticalAlign="bottom" iconType="circle" />
                         </PieChart>
                       </ResponsiveContainer>
+                    ) : metrics ? (
+                      <div className="grid h-full place-items-center rounded-[18px] border border-dashed border-slate-200 bg-slate-50 px-6 text-center text-sm text-slate-500">
+                        Not enough task data is available to render the distribution chart.
+                      </div>
                     ) : (
-                      <div className="grid h-full place-items-center text-sm text-slate-400">Đang tải biểu đồ...</div>
+                      <div className="grid h-full place-items-center text-sm text-slate-400">Loading chart...</div>
                     )}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                    {pieData.map((item, index) => (
+                      <div key={item.name} className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1.5">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PIE_COLORS[index] }} />
+                        <span>{item.name}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="mb-4 text-base font-semibold text-slate-700">Biểu đồ Burn-down</h3>
-                  <div className="h-[220px] rounded-[24px] border border-dashed border-slate-300 p-3">
-                    {metrics ? (
+                  <h3 className="mb-4 text-base font-semibold text-slate-700">Burn-down trend</h3>
+                  <div className="h-[220px] rounded-[18px] border border-dashed border-slate-300 p-3">
+                    {metrics && hasBurndownData ? (
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={metrics.burndown} margin={{ top: 12, right: 10, left: -20, bottom: 0 }}>
+                        <LineChart
+                          key={`workspace-health-burndown-${metrics.workspaceId}-${chartRenderKey}`}
+                          data={metrics.burndown}
+                          margin={{ top: 12, right: 10, left: -20, bottom: 0 }}
+                        >
                           <CartesianGrid strokeDasharray="4 4" stroke="#CBD5E1" />
                           <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#64748B", fontSize: 11 }} />
                           <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748B", fontSize: 11 }} />
@@ -187,8 +242,12 @@ export default function HealthCheckDrawer({
                           <Line type="monotone" dataKey="actualRemaining" stroke="#A7342A" strokeWidth={3} dot={false} />
                         </LineChart>
                       </ResponsiveContainer>
+                    ) : metrics ? (
+                      <div className="grid h-full place-items-center rounded-[16px] bg-slate-50 px-6 text-center text-sm text-slate-500">
+                        No active sprint or story point baseline is available for the burn-down chart.
+                      </div>
                     ) : (
-                      <div className="grid h-full place-items-center text-sm text-slate-400">Đang tải burn-down...</div>
+                      <div className="grid h-full place-items-center text-sm text-slate-400">Loading burn-down...</div>
                     )}
                   </div>
                 </div>
@@ -198,32 +257,28 @@ export default function HealthCheckDrawer({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-[18px] font-semibold text-slate-950">
-                      {selectedProject?.projectName ?? metrics?.focusProject?.projectName ?? "Chưa có dự án nổi bật"}
+                      {selectedProject?.projectName ?? metrics?.focusProject?.projectName ?? "No highlighted project"}
                     </h3>
-                    <p className="mt-2 text-sm text-slate-500">Điểm Nóng Rủi Ro</p>
+                    <p className="mt-2 text-sm text-slate-500">Risk hotspots</p>
                   </div>
-                  <span className={`rounded-full border px-4 py-2 text-sm font-bold ${riskBadge(selectedProject?.riskLevel ?? metrics?.focusProject?.riskLevel)}`}>
-                    {selectedProject?.riskLevel === "CRITICAL"
-                      ? "NGHIÊM TRỌNG"
-                      : selectedProject?.riskLevel === "WARNING"
-                        ? "CẦN CHÚ Ý"
-                        : "ỔN ĐỊNH"}
+                  <span className={`rounded-full border px-4 py-2 text-sm font-semibold ${riskBadge(selectedProject?.riskLevel ?? metrics?.focusProject?.riskLevel)}`}>
+                    {riskLabel(selectedProject?.riskLevel ?? metrics?.focusProject?.riskLevel)}
                   </span>
                 </div>
 
                 <div className="mt-4 space-y-3">
                   {(metrics?.hotspots ?? []).slice(0, 5).map((hotspot) => (
-                    <div key={hotspot.taskId} className="rounded-[18px] bg-slate-100 px-4 py-4">
+                    <div key={hotspot.taskId} className="rounded-[16px] bg-slate-100 px-4 py-4">
                       <div className="flex items-start gap-3">
-                        <AlertCircle className="mt-1 h-5 w-5 shrink-0 text-rose-600" />
+                        <span className="mt-[7px] h-2.5 w-2.5 shrink-0 rounded-full bg-rose-500" />
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-[16px] font-semibold text-slate-950">
                             {hotspot.taskCode} - {hotspot.title}
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                            <span>Hạn: {hotspot.dueDate ? new Date(hotspot.dueDate).toLocaleDateString("vi-VN") : "Chưa thiết lập"}</span>
+                            <span>Due: {hotspot.dueDate ? new Date(hotspot.dueDate).toLocaleDateString("en-GB") : "Not set"}</span>
                             <span>•</span>
-                            <span>Phụ trách: {hotspot.assigneeName}</span>
+                            <span>Owner: {hotspot.assigneeName}</span>
                           </div>
                         </div>
                         <Avatar className="h-10 w-10">
@@ -236,19 +291,19 @@ export default function HealthCheckDrawer({
                     </div>
                   ))}
                   {metrics && metrics.hotspots.length === 0 && (
-                    <div className="rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-medium text-emerald-700">
-                      Không có hotspot nghiêm trọng nào trong workspace ở thời điểm hiện tại.
+                    <div className="rounded-[16px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-medium text-emerald-700">
+                      No critical hotspot requires intervention at the moment.
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="border-t border-slate-200 pt-6">
-                <h3 className="text-[18px] font-semibold text-slate-700">Cảnh Báo Nguồn Lực</h3>
+                <h3 className="text-[18px] font-semibold text-slate-700">Capacity alerts</h3>
                 <div className="mt-4 space-y-3">
                   {(metrics?.overloadedMembers ?? []).length > 0 ? (
                     metrics?.overloadedMembers.map((member) => (
-                      <div key={member.userId} className="flex items-center gap-3 rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3">
+                      <div key={member.userId} className="flex items-center gap-3 rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3">
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={member.avatarUrl ?? undefined} alt={member.fullName} />
                           <AvatarFallback className="bg-amber-200 text-xs font-bold text-amber-900">
@@ -258,15 +313,14 @@ export default function HealthCheckDrawer({
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-semibold text-slate-900">{member.fullName}</div>
                           <div className="mt-1 text-sm text-amber-800">
-                            Cảnh báo: Vượt quá {member.capacityHours}h/tuần ({member.allocatedHours}h)
+                            Capacity exceeded: {member.allocatedHours}h allocated against {member.capacityHours}h/week
                           </div>
                         </div>
-                        <Zap className="h-5 w-5 text-amber-600" />
                       </div>
                     ))
                   ) : (
-                    <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
-                      Chưa phát hiện thành viên nào vượt quá tải trong tuần hiện tại.
+                    <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                      No team member is above weekly capacity right now.
                     </div>
                   )}
                 </div>
@@ -274,13 +328,12 @@ export default function HealthCheckDrawer({
             </section>
 
             <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
-              <div className="flex min-w-0 items-center gap-3 rounded-full border border-slate-300 bg-white px-4 py-2 shadow-sm lg:flex-1">
-                <FolderKanban className="h-4 w-4 text-slate-400" />
-                <span className="shrink-0 text-sm text-slate-600">Chọn Dự Án</span>
+              <div className="flex min-w-0 items-center gap-3 rounded-[16px] border border-slate-300 bg-white px-4 py-2 shadow-sm lg:flex-1">
+                <span className="shrink-0 text-sm text-slate-600">Project</span>
                 <div className="min-w-0 flex-1">
                   <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                    <SelectTrigger className="h-11 rounded-full border-blue-500/50 bg-white shadow-none">
-                      <SelectValue placeholder="Chọn dự án" />
+                    <SelectTrigger className="h-11 rounded-[14px] border-blue-500/50 bg-white shadow-none">
+                      <SelectValue placeholder="Select project" />
                     </SelectTrigger>
                     <SelectContent>
                       {(metrics?.projects ?? []).map((project) => (
@@ -301,16 +354,15 @@ export default function HealthCheckDrawer({
                   router.push(`/projects/${selectedProject.projectId}`);
                 }}
                 disabled={!selectedProject?.projectId}
-                className="inline-flex h-[56px] items-center justify-center gap-2 rounded-full bg-slate-200 px-8 text-lg font-medium text-slate-800 transition enabled:hover:bg-slate-950 enabled:hover:text-white disabled:cursor-not-allowed disabled:opacity-70 lg:min-w-[320px]"
+                className="inline-flex h-[56px] items-center justify-center gap-2 rounded-[16px] bg-slate-200 px-8 text-lg font-medium text-slate-800 transition enabled:hover:bg-slate-950 enabled:hover:text-white disabled:cursor-not-allowed disabled:opacity-70 lg:min-w-[320px]"
               >
-                Đến Chi Tiết Dự Án
+                Open project details
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-              <Clock3 className="h-3.5 w-3.5" />
-              Snapshot lúc {metrics?.generatedAt ? new Date(metrics.generatedAt).toLocaleTimeString("vi-VN") : "đang cập nhật"}
+            <div className="mt-3 text-xs text-slate-500">
+              Snapshot time: {metrics?.generatedAt ? new Date(metrics.generatedAt).toLocaleTimeString("en-GB") : "updating"}
             </div>
           </div>
         </div>

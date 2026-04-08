@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Activity, Building2, Loader2, Plus, ShieldAlert } from "lucide-react";
+import { Building2, Loader2, Plus } from "lucide-react";
 
 import { WorkspaceService } from "@/app/services/workspace.service";
 import {
@@ -24,33 +24,32 @@ function DashboardHero({
   totalRisks: number;
 }) {
   return (
-    <section className="rounded-[32px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_35%),linear-gradient(135deg,_#ffffff,_#eef4ff)] p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
+    <section className="rounded-[22px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_34%),linear-gradient(135deg,_#ffffff,_#f4f7fc)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">
-            <Activity className="h-3.5 w-3.5" />
-            Workspace Health Dashboard
+          <div className="text-[12px] font-medium text-slate-500">
+            Workspace portfolio
           </div>
           <h1 className="mt-4 text-[28px] font-black tracking-tight text-slate-950 sm:text-[34px]">
-            Theo dõi sức khỏe tổ chức theo thời gian thực
+            Operational visibility across every workspace
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-            Xem tiến độ tổng hợp, điểm nóng rủi ro và cảnh báo quá tải nguồn lực của từng workspace
-            trong cùng một bảng điều khiển.
+            Monitor execution progress, delivery risk, and resource pressure across the organization
+            from one executive dashboard.
           </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-[24px] border border-white/80 bg-white/90 px-5 py-4 shadow-sm">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Workspace</div>
+          <div className="rounded-[18px] border border-white/80 bg-white/90 px-5 py-4 shadow-sm">
+            <div className="text-[12px] font-medium text-slate-500">Workspaces</div>
             <div className="mt-2 text-3xl font-black text-slate-950">{totalWorkspaces}</div>
           </div>
-          <div className="rounded-[24px] border border-amber-100 bg-amber-50/90 px-5 py-4 shadow-sm">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-600">Rủi ro</div>
+          <div className="rounded-[18px] border border-amber-100 bg-amber-50/90 px-5 py-4 shadow-sm">
+            <div className="text-[12px] font-medium text-amber-700">Projects at risk</div>
             <div className="mt-2 text-3xl font-black text-amber-700">{totalRisks}</div>
           </div>
-          <div className="rounded-[24px] border border-rose-100 bg-rose-50/90 px-5 py-4 shadow-sm">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-600">Quá hạn</div>
+          <div className="rounded-[18px] border border-rose-100 bg-rose-50/90 px-5 py-4 shadow-sm">
+            <div className="text-[12px] font-medium text-rose-700">Overdue tasks</div>
             <div className="mt-2 text-3xl font-black text-rose-700">{totalOverdue}</div>
           </div>
         </div>
@@ -111,25 +110,25 @@ export default function WorkspaceListPage() {
       <div className="mx-auto w-full max-w-[1680px] space-y-6 px-4 pb-8 pt-4 sm:px-6 lg:px-8 2xl:px-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="text-[12px] font-semibold uppercase tracking-[0.24em] text-slate-400">
-              Organization View
+            <div className="text-[12px] font-medium text-slate-500">
+              Organization overview
             </div>
             <h1 className="mt-2 text-[28px] font-black tracking-tight text-slate-950 sm:text-[32px]">
               Workspaces
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              Refactor danh sách workspace thành bảng điều khiển sức khỏe đa chiều cho PM, giúp phát hiện
-              nhanh các workspace có nguy cơ chậm tiến độ hoặc quá tải nguồn lực.
+              Review delivery health, portfolio exposure, and team capacity without opening each workspace
+              one by one.
             </p>
           </div>
 
           <button
             type="button"
             onClick={() => router.push("/workspaces/new")}
-            className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+            className="inline-flex items-center gap-2 rounded-[14px] bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
             <Plus className="h-4 w-4" />
-            Tạo workspace
+            Create workspace
           </button>
         </div>
 
@@ -146,34 +145,33 @@ export default function WorkspaceListPage() {
         )}
 
         {isError && (
-          <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-6 py-5 text-sm text-rose-700">
-            Không thể tải danh sách workspace. Vui lòng thử lại.
+          <div className="rounded-[18px] border border-rose-200 bg-rose-50 px-6 py-5 text-sm text-rose-700">
+            Unable to load workspaces. Please try again.
           </div>
         )}
 
         {!isLoading && !isError && organizationWorkspaces.length === 0 && (
-          <div className="rounded-[28px] border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
+          <div className="rounded-[20px] border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
             <Building2 size={42} className="mx-auto mb-3 text-slate-400" />
-            <h2 className="text-lg font-semibold text-slate-950">Bạn chưa có organization workspace nào</h2>
+            <h2 className="text-lg font-semibold text-slate-950">No organization workspace found</h2>
             <p className="mt-2 text-sm text-slate-500">
-              Tạo workspace đầu tiên để bắt đầu theo dõi sức khỏe đội ngũ và tiến độ dự án.
+              Create your first workspace to start monitoring delivery health and team capacity.
             </p>
             <button
               type="button"
               onClick={() => router.push("/workspaces/new")}
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              className="mt-5 inline-flex items-center gap-2 rounded-[14px] bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               <Plus className="h-4 w-4" />
-              Tạo workspace đầu tiên
+              Create your first workspace
             </button>
           </div>
         )}
 
         {!isLoading && !isError && organizationWorkspaces.length > 0 && (
           <section className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-              <ShieldAlert className="h-4 w-4 text-amber-500" />
-              Smart Workspace Cards
+            <div className="text-sm font-semibold text-slate-800">
+              Workspace health cards
             </div>
 
             <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
