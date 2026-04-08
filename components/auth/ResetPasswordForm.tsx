@@ -50,6 +50,7 @@ export default function ResetPasswordForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
   const emailForm = useForm<ForgotPasswordFormValues>({
@@ -304,12 +305,22 @@ export default function ResetPasswordForm() {
                     <div className="relative">
                       <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <Input
-                        type={showPassword ? "text" : "password"}
+                        type={showConfirmPassword ? "text" : "password"}
                         placeholder="••••••••"
-                        className="h-11 pl-10 rounded-xl border-gray-200 bg-white text-gray-900 shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-400 transition-all text-sm placeholder:text-gray-300"
+                        className="h-11 pl-10 pr-10 rounded-xl border-gray-200 bg-white text-gray-900 shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-400 transition-all text-sm placeholder:text-gray-300"
                         disabled={isLoading}
                         {...field}
                       />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        disabled={isLoading}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
                     </div>
                   </FormControl>
                   <FormMessage className="text-xs text-red-500" />
