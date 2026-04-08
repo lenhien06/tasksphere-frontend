@@ -5,6 +5,8 @@ import StatCardsRow from "./StatCardsRow";
 import ProjectSummaryCard from "./ProjectSummaryCard";
 import DueSoonCard from "./DueSoonCard";
 import TaskBadgeCard from "./TaskBadgeCard";
+import TaskDistributionCard from "./TaskDistributionCard";
+import PerformanceSummaryCard from "./PerformanceSummaryCard";
 import type { ProjectOverviewPageProps } from "./types";
 
 export type { ProjectOverviewPageProps };
@@ -48,6 +50,20 @@ export default function ProjectOverviewPage(props: ProjectOverviewPageProps) {
 
         <div className="grid grid-cols-1 gap-3">
           <DueSoonCard dueSoon={props.dueSoon} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+          <div className="lg:col-span-5">
+            <TaskDistributionCard
+              statusDistribution={props.overview.statusDistribution}
+            />
+          </div>
+          <div className="lg:col-span-7">
+            <PerformanceSummaryCard
+              memberPerformance={props.memberPerformance}
+              canViewMemberPerformance={props.canViewMemberPerformance}
+            />
+          </div>
         </div>
       </div>
     </div>
