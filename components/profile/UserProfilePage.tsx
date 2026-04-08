@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback } from "react";
 import {
-  Camera, Pencil, Plus, X, Check, Loader2, Sparkles
+  Camera, Pencil, Plus, X, Check, Loader2, Briefcase
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/common/UserAvatar";
@@ -279,11 +279,11 @@ export default function UserProfilePage() {
             <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
               <div>
                 <h2 className="text-[15px] font-extrabold text-slate-900 flex items-center gap-2">
-                  <Sparkles size={16} className="text-purple-500" />
-                  {t("profile.skillsTitle", { defaultValue: "Kỹ năng chuyên môn & Năng lực AI" })}
+                  <Briefcase size={16} className="text-slate-600" />
+                  {t("profile.skillsTitle", { defaultValue: "Professional skills & delivery capacity" })}
                 </h2>
                 <p className="text-[12px] text-slate-400 font-medium mt-0.5">
-                  {t("profile.skillsDesc", { defaultValue: "Quản lý kỹ năng để AI phân công việc chính xác." })}
+                  {t("profile.skillsDesc", { defaultValue: "Maintain current skills and weekly capacity to improve planning accuracy." })}
                 </p>
               </div>
 
@@ -353,7 +353,7 @@ export default function UserProfilePage() {
 
               <div className="flex items-center pt-1">
                 <span className="text-[11px] text-slate-400">
-                  {skillTags.length} {t("profile.skillsCount", { defaultValue: "kỹ năng" })} &middot; {capacity}{t("profile.aiReady", { defaultValue: "h/tuần → sẵn sàng cho AI phân công" })}
+                  {skillTags.length} {t("profile.skillsCount", { defaultValue: "skills" })} &middot; {capacity}{t("profile.aiReady", { defaultValue: "h/week capacity recorded" })}
                 </span>
               </div>
             </div>

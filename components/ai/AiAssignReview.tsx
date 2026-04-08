@@ -65,7 +65,7 @@ function DroppableTaskSlot({
       ref={setNodeRef}
       className={`min-h-[3rem] rounded-lg border-2 border-dashed p-2 transition-colors ${
         isOver
-          ? 'border-blue-400 bg-blue-50'
+          ? 'border-slate-400 bg-slate-100'
           : assignment?.assigneeId
           ? 'border-green-300 bg-green-50'
           : 'border-gray-200 bg-gray-50'
@@ -77,13 +77,13 @@ function DroppableTaskSlot({
           <span className="text-sm font-medium text-gray-800">{assignment.assigneeName}</span>
           {!assignment.suggestionId && (
             <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
-              Override
+              Manual
             </span>
           )}
         </div>
       ) : (
         <p className="text-xs text-gray-400 text-center py-1">
-          {isOver ? 'Thả vào đây để phân công' : 'Kéo thả member hoặc click để chọn'}
+          {isOver ? 'Drop here to assign' : 'Drag a member here or click to select'}
         </p>
       )}
       {children}
@@ -277,11 +277,11 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">🤖 AI gợi ý phân công</h2>
+            <h2 className="text-lg font-bold text-gray-900">Assignment recommendations</h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              {step === 'intro'        ? 'AI sẽ chấm điểm từng cặp (task, member) và đề xuất top-3 cho mỗi task.' :
-               step === 'select-tasks' ? 'Chọn task muốn AI phân công' :
-                                         'Click để chọn, hoặc kéo thả member sang task khác để override'}
+              {step === 'intro'        ? 'Review member fit, workload, and difficulty alignment before confirming assignments.' :
+               step === 'select-tasks' ? 'Select the work items to include in the recommendation set.' :
+                                         'Click to select a member or drag a recommendation to another work item.'}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl">✕</button>
@@ -294,15 +294,15 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
           {step === 'intro' && (
             <div className="text-center py-12">
               <p className="text-gray-500 mb-4">
-                AI sẽ chấm điểm từng cặp (task, member) và đề xuất top-3 cho mỗi task.
+                The assistant reviews each task against member capacity and skill fit, then ranks the top options.
               </p>
               <button
                 onClick={handleStartAnalysis}
                 disabled={loadingTasks}
-                className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold
-                           hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                className="rounded-lg bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white
+                           transition-colors hover:bg-slate-800 disabled:opacity-50"
               >
-                {loadingTasks ? 'Đang tải task...' : '🚀 Bắt đầu phân tích'}
+                {loadingTasks ? 'Loading work items...' : 'Start review'}
               </button>
             </div>
           )}
@@ -312,28 +312,28 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
             <div>
               {availableTasks.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
-                  Tất cả task đã được phân công rồi.
+                  All open work items are already assigned.
                 </div>
               ) : (
                 <>
                   {/* Header row */}
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm text-gray-500">
-                      {availableTasks.length} task chưa được phân công
+                      {availableTasks.length} unassigned work items
                     </span>
                     <div className="flex gap-3">
                       <button
                         onClick={() => setSelectedTaskIds(new Set(availableTasks.map((t) => t.id)))}
-                        className="text-xs text-indigo-600 hover:underline"
+                        className="text-xs text-slate-700 hover:underline"
                       >
-                        Chọn tất cả
+                        Select all
                       </button>
                       <span className="text-gray-300">|</span>
                       <button
                         onClick={() => setSelectedTaskIds(new Set())}
                         className="text-xs text-gray-500 hover:underline"
                       >
-                        Bỏ chọn
+                        Clear
                       </button>
                     </div>
                   </div>
@@ -346,11 +346,11 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
                         onClick={() => setPriorityFilter(p)}
                         className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                           priorityFilter === p
-                            ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'
+                            ? 'bg-slate-900 text-white border-slate-900'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-slate-400'
                         }`}
                       >
-                        {p === 'all' ? 'Tất cả' : p.charAt(0).toUpperCase() + p.slice(1)}
+                        {p === 'all' ? 'All' : p.charAt(0).toUpperCase() + p.slice(1)}
                       </button>
                     ))}
                   </div>
@@ -359,7 +359,7 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
                   <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
                     {filteredTasks.length === 0 ? (
                       <p className="text-center text-sm text-gray-400 py-6">
-                        Không có task với priority này.
+                        No work items match this priority filter.
                       </p>
                     ) : (
                       filteredTasks.map((task) => {
@@ -495,16 +495,16 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
                 onClick={() => setStep('intro')}
                 className="text-sm text-gray-500 hover:text-gray-700 underline"
               >
-                ← Quay lại
+                Back
               </button>
               <button
                 disabled={selectedTaskIds.size === 0}
                 onClick={() => runAnalysis(Array.from(selectedTaskIds))}
-                className="px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold
-                           hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed
+                className="rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white
+                           hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed
                            transition-colors"
               >
-                🤖 Phân tích {selectedTaskIds.size} task đã chọn
+                Analyze {selectedTaskIds.size} selected items
               </button>
             </>
           )}
@@ -512,7 +512,7 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
           {step === 'review' && hasSuggs && (
             <>
               <span className="text-sm text-gray-500">
-                Đã phân công <strong>{assignedCount}</strong> / {suggestions.length} task
+                Assigned <strong>{assignedCount}</strong> / {suggestions.length} work items
               </span>
               <div className="flex gap-3">
                 <button
@@ -520,16 +520,16 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
                   className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700
                              hover:bg-gray-100 transition-colors"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
                   disabled={assignedCount === 0 || confirmMutation.isPending}
-                  className="px-5 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold
-                             hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed
+                  className="px-5 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold
+                             hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed
                              transition-colors"
                 >
-                  {confirmMutation.isPending ? 'Đang xác nhận...' : `Xác nhận ${assignedCount} phân công`}
+                  {confirmMutation.isPending ? 'Confirming...' : `Confirm ${assignedCount} assignments`}
                 </button>
               </div>
             </>
@@ -541,7 +541,7 @@ export function AiAssignReview({ projectId, preSelectedTaskIds, onClose, onSucce
               className="ml-auto px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700
                          hover:bg-gray-100 transition-colors"
             >
-              Đóng
+              Close
             </button>
           )}
         </div>

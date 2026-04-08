@@ -418,8 +418,8 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
         },
     });
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={t('project.inviteMember')} description="Mời thành viên tham gia dự án." maxWidth="max-w-md">
-            <div className="space-y-5">
+        <Modal isOpen={isOpen} onClose={onClose} title={t('project.inviteMember')} description="Invite a member to this project." maxWidth="max-w-md">
+            <div className="space-y-4">
                 <div>
                     <FieldLabel required>Email Address</FieldLabel>
                     <InputStyled
@@ -431,15 +431,15 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                         placeholder="email@example.com"
                     />
                     {(showEmailError || emailError) && (
-                        <p className="mt-1 text-xs font-medium text-red-500">{emailError || "Email không đúng định dạng"}</p>
+                        <p className="mt-1 text-xs font-medium text-red-500">{emailError || "Invalid email format"}</p>
                     )}
                 </div>
                 {isValidEmail && (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                    <div className="border-t border-slate-200 pt-4">
                         {inviteePreviewQuery.isLoading ? (
                             <div className="flex items-center gap-3 text-sm text-slate-500">
                                 <Loader2 size={16} className="animate-spin" />
-                                Đang kiểm tra tài khoản và skills...
+                                Checking account and skills...
                             </div>
                         ) : preview?.existsInSystem ? (
                             <div className="space-y-4">
@@ -472,7 +472,7 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                                             </span>
                                         )) : (
                                             <span className="text-xs text-slate-500">
-                                                Người dùng này chưa khai báo skill trên profile.
+                                                This user has not added profile skills yet.
                                             </span>
                                         )}
                                     </div>
@@ -484,10 +484,10 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                                             type="button"
                                             onClick={() => setSkillMode("profile")}
                                             className={cn(
-                                                "rounded-xl border px-3 py-2 text-left text-sm font-semibold transition",
+                                                "border px-3 py-2 text-left text-sm font-medium transition",
                                                 skillMode === "profile"
-                                                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                                                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                                                    ? "border-slate-900 bg-slate-900 text-white"
+                                                    : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
                                             )}
                                         >
                                             Use profile skills
@@ -496,10 +496,10 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                                             type="button"
                                             onClick={() => setSkillMode("custom")}
                                             className={cn(
-                                                "rounded-xl border px-3 py-2 text-left text-sm font-semibold transition",
+                                                "border px-3 py-2 text-left text-sm font-medium transition",
                                                 skillMode === "custom"
-                                                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                                                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                                                    ? "border-slate-900 bg-slate-900 text-white"
+                                                    : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
                                             )}
                                         >
                                             Set project skills
@@ -524,7 +524,7 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                                                     type="button"
                                                     onClick={addCustomSkill}
                                                     disabled={!skillInput.trim()}
-                                                    className="rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    className="border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
                                                     Add
                                                 </button>
@@ -542,7 +542,7 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                                                     </span>
                                                 )) : (
                                                     <span className="text-xs text-slate-500">
-                                                        Nếu để trống, hệ thống sẽ fallback về skills trên profile.
+                                                        Leave this empty to keep using the profile skills above.
                                                     </span>
                                                 )}
                                             </div>
@@ -559,7 +559,7 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                                     <div className="min-w-0">
                                         <div className="truncate text-sm font-bold text-slate-900">{normalizedEmail}</div>
                                         <div className="text-xs text-slate-500">
-                                            Chưa có tài khoản trong hệ thống. Email mời sẽ được gửi ngay.
+                                            No internal account found. The invitation email will be sent immediately.
                                         </div>
                                     </div>
                                 </div>
@@ -584,7 +584,7 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                                             type="button"
                                             onClick={addCustomSkill}
                                             disabled={!skillInput.trim()}
-                                            className="rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             Add
                                         </button>
@@ -602,7 +602,7 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                                             </span>
                                         )) : (
                                             <span className="text-xs text-slate-500">
-                                                PM có thể gắn sẵn skill cho lời mời này để dùng khi người được mời tham gia dự án.
+                                                You can define initial skills for this invite before the member joins the project.
                                             </span>
                                         )}
                                     </div>
@@ -611,25 +611,25 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                         )}
                     </div>
                 )}
-                <div><FieldLabel>Vai trò</FieldLabel><div className="grid grid-cols-1 gap-2">
+                <div><FieldLabel>Role</FieldLabel><div className="grid grid-cols-1 gap-2">
                     {([
-                        { id: "MEMBER" as const, label: "Thành viên", desc: "Tạo và sửa task, kéo thả Kanban, bình luận, tải tệp" },
-                        { id: "VIEWER" as const, label: "Người xem", desc: "Chỉ xem dự án và task, không thực hiện thao tác ghi" },
+                        { id: "MEMBER" as const, label: "Member", desc: "Create and update tasks, move work items, comment, and upload files" },
+                        { id: "VIEWER" as const, label: "Viewer", desc: "View project information and tasks without edit permissions" },
                     ]).map((v) => (
                         <button
                             key={v.id}
                             onClick={() => setRole(v.id)}
                             className={cn(
-                                "p-4 rounded-xl border-2 text-left transition-all flex flex-col gap-1",
-                                role === v.id ? "border-blue-500 bg-blue-50" : "border-slate-100 hover:border-slate-200 bg-white"
+                                "flex flex-col gap-1 border p-3 text-left transition-all",
+                                role === v.id ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white hover:border-slate-400"
                             )}
                         >
-                            <span className="text-[15px] font-bold text-gray-900">{v.label}</span>
-                            <span className="text-sm text-gray-500 font-medium leading-tight">{v.desc}</span>
+                            <span className={cn("text-[15px] font-bold", role === v.id ? "text-white" : "text-gray-900")}>{v.label}</span>
+                            <span className={cn("text-sm font-medium leading-tight", role === v.id ? "text-slate-200" : "text-gray-500")}>{v.desc}</span>
                         </button>
                     ))}
                 </div></div>
-                <div className="flex justify-end gap-3 pt-4"><SecondaryButton onClick={onClose}>{t('common.cancel')}</SecondaryButton><PrimaryButton onClick={() => inviteMutation.mutate()} disabled={!canSubmit || inviteMutation.isPending} loading={inviteMutation.isPending}>Gửi lời mời</PrimaryButton></div>
+                <div className="flex justify-end gap-3 pt-3"><SecondaryButton onClick={onClose}>{t('common.cancel')}</SecondaryButton><PrimaryButton onClick={() => inviteMutation.mutate()} disabled={!canSubmit || inviteMutation.isPending} loading={inviteMutation.isPending}>Send invitation</PrimaryButton></div>
             </div>
         </Modal>
     );

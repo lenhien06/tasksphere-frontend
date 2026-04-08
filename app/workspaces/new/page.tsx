@@ -422,7 +422,7 @@ export default function WorkspaceCreatePage() {
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-[#D8DEE4] bg-white p-5 shadow-sm">
+                  <div className="border-t border-[#D8DEE4] pt-5">
                     <div className="mb-4">
                       <p className="text-sm font-semibold text-[#24292F]">
                         Add members <span className="text-[#D1242F]">*</span>
@@ -460,7 +460,7 @@ export default function WorkspaceCreatePage() {
                       </div>
 
                       {isValidInviteEmail ? (
-                        <div className="rounded-xl border border-[#D8DEE4] bg-[#F6F8FA] p-4">
+                        <div className="border-t border-[#D8DEE4] pt-4">
                           {inviteePreviewQuery.isLoading ? (
                             <div className="flex items-center gap-2 text-sm text-[#57606A]">
                               <Loader2 size={15} className="animate-spin" />
@@ -543,12 +543,12 @@ export default function WorkspaceCreatePage() {
                                 className={cn(
                                   "rounded-md border px-3 py-2.5 text-left transition",
                                   inviteRole === option.id
-                                    ? "border-[#0969DA] bg-[#F6F8FA] ring-2 ring-[#0969DA]/10"
-                                    : "border-[#D8DEE4] hover:border-[#0969DA]/40 hover:bg-[#F6F8FA]"
+                                    ? "border-[#24292F] bg-[#24292F]"
+                                    : "border-[#D8DEE4] hover:border-[#57606A] bg-white"
                                 )}
                               >
-                                <p className="text-sm font-semibold text-[#24292F]">{option.label}</p>
-                                <p className="mt-1 text-xs text-[#57606A]">{option.description}</p>
+                                <p className={cn("text-sm font-semibold", inviteRole === option.id ? "text-white" : "text-[#24292F]")}>{option.label}</p>
+                                <p className={cn("mt-1 text-xs", inviteRole === option.id ? "text-[#D8DEE4]" : "text-[#57606A]")}>{option.description}</p>
                               </button>
                             ))}
                           </div>
@@ -567,8 +567,8 @@ export default function WorkspaceCreatePage() {
                                   className={cn(
                                     "rounded-md border px-3 py-2 text-left text-sm font-semibold transition",
                                     skillMode === "profile"
-                                      ? "border-[#0969DA] bg-[#F6F8FA] ring-2 ring-[#0969DA]/10 text-[#0969DA]"
-                                      : "border-[#D8DEE4] bg-white text-[#24292F] hover:border-[#0969DA]/40"
+                                      ? "border-[#24292F] bg-[#24292F] text-white"
+                                      : "border-[#D8DEE4] bg-white text-[#24292F] hover:border-[#57606A]"
                                   )}
                                 >
                                   Use profile skills
@@ -579,8 +579,8 @@ export default function WorkspaceCreatePage() {
                                   className={cn(
                                     "rounded-md border px-3 py-2 text-left text-sm font-semibold transition",
                                     skillMode === "custom"
-                                      ? "border-[#0969DA] bg-[#F6F8FA] ring-2 ring-[#0969DA]/10 text-[#0969DA]"
-                                      : "border-[#D8DEE4] bg-white text-[#24292F] hover:border-[#0969DA]/40"
+                                      ? "border-[#24292F] bg-[#24292F] text-white"
+                                      : "border-[#D8DEE4] bg-white text-[#24292F] hover:border-[#57606A]"
                                   )}
                                 >
                                   Set workspace skills
@@ -650,7 +650,7 @@ export default function WorkspaceCreatePage() {
                         <button
                           type="button"
                           onClick={addMember}
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#1677FF] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0958D9]"
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#24292F] px-4 text-sm font-semibold text-white transition hover:bg-[#1B1F24]"
                         >
                           <Plus size={16} />
                           Add member
@@ -659,7 +659,7 @@ export default function WorkspaceCreatePage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-[#D8DEE4] bg-white p-5 shadow-sm">
+                  <div className="border-t border-[#D8DEE4] pt-5">
                     <div className="mb-4 flex items-center gap-2">
                       <Users size={16} className="text-[#57606A]" />
                       <p className="text-sm font-semibold text-[#24292F]">
@@ -672,7 +672,7 @@ export default function WorkspaceCreatePage() {
                         {members.map((member) => (
                           <div
                             key={member.email}
-                            className="flex items-start gap-3 rounded-lg border border-[#D8DEE4] bg-[#F6F8FA] px-4 py-3"
+                            className="flex items-start gap-3 border-b border-[#D8DEE4] px-1 py-3 last:border-b-0"
                           >
                             {member.existsInSystem && member.avatarUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element

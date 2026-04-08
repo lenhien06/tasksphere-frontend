@@ -42,7 +42,7 @@ export function TaskSuggestionCard({ task, index, selected, onChange, onToggle }
   return (
     <div
       className={`rounded-lg border-2 transition-colors ${
-        selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+        selected ? 'border-slate-500 bg-slate-50' : 'border-gray-200 bg-white'
       }`}
     >
       {/* ── Header row ─────────────────────────────────────────────────── */}
@@ -62,7 +62,7 @@ export function TaskSuggestionCard({ task, index, selected, onChange, onToggle }
             maxLength={80}
             placeholder="Task title..."
             className="w-full text-sm font-semibold bg-transparent border-0 border-b border-transparent
-                       focus:border-blue-400 focus:outline-none pb-0.5"
+                       focus:border-slate-500 focus:outline-none pb-0.5"
           />
 
           {/* Meta row */}
@@ -76,7 +76,7 @@ export function TaskSuggestionCard({ task, index, selected, onChange, onToggle }
             <select
               value={task.priority}
               onChange={(e) => update('priority', e.target.value as AiTaskPriority)}
-              className={`text-xs px-2 py-0.5 rounded-full border font-medium cursor-pointer
+              className={`cursor-pointer rounded-full border px-2 py-0.5 text-xs font-medium
                           focus:outline-none ${PRIORITY_COLORS[task.priority]}`}
             >
               {(['critical', 'high', 'medium', 'low'] as AiTaskPriority[]).map((p) => (
@@ -90,10 +90,10 @@ export function TaskSuggestionCard({ task, index, selected, onChange, onToggle }
               onChange={(e) =>
                 update('story_points', e.target.value ? (Number(e.target.value) as StoryPoints) : null)
               }
-              className="text-xs px-2 py-0.5 rounded-full border border-purple-300
-                         bg-purple-50 text-purple-700 focus:outline-none cursor-pointer"
+              className="cursor-pointer rounded-full border border-slate-300
+                         bg-slate-100 px-2 py-0.5 text-xs text-slate-700 focus:outline-none"
             >
-              <option value="">SP?</option>
+              <option value="">SP</option>
               {SP_OPTIONS.map((sp) => (
                 <option key={sp} value={sp}>{sp} SP</option>
               ))}
@@ -105,8 +105,7 @@ export function TaskSuggestionCard({ task, index, selected, onChange, onToggle }
                 {task.skill_tags_required.map((tag) => (
                   <span
                     key={tag}
-                    className="text-xs px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600
-                               border border-indigo-200"
+                    className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700"
                   >
                     {tag}
                   </span>
@@ -121,7 +120,7 @@ export function TaskSuggestionCard({ task, index, selected, onChange, onToggle }
           onClick={() => setExpanded((v) => !v)}
           className="text-xs text-gray-400 hover:text-gray-700 shrink-0 mt-1"
         >
-          {expanded ? '▲ Thu gọn' : '▼ Chi tiết'}
+          {expanded ? 'Hide details' : 'View details'}
         </button>
       </div>
 
@@ -129,19 +128,19 @@ export function TaskSuggestionCard({ task, index, selected, onChange, onToggle }
       {expanded && (
         <div className="border-t border-gray-100 px-4 pb-4 pt-3 space-y-3">
           <div>
-            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Mô tả
+            <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Description
             </label>
             <textarea
               value={task.description}
               onChange={(e) => update('description', e.target.value)}
               rows={3}
               className="mt-1 w-full text-sm border border-gray-200 rounded p-2
-                         focus:outline-none focus:border-blue-400 resize-none"
+                         focus:outline-none focus:border-slate-400 resize-none"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
               Acceptance Criteria
             </label>
             <textarea
@@ -149,7 +148,7 @@ export function TaskSuggestionCard({ task, index, selected, onChange, onToggle }
               onChange={(e) => update('acceptance_criteria', e.target.value)}
               rows={2}
               className="mt-1 w-full text-sm border border-gray-200 rounded p-2
-                         focus:outline-none focus:border-blue-400 resize-none"
+                         focus:outline-none focus:border-slate-400 resize-none"
             />
           </div>
         </div>

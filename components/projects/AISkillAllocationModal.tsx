@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { X, Sparkles, Plus, Check, Bot, Loader2 } from "lucide-react";
+import { X, Plus, Check, Loader2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -74,11 +74,11 @@ function AddSkillPopup({ onConfirm, onCancel }: {
         onChange={e => setValue(e.target.value)}
         onKeyDown={e => { if (e.key === "Enter") submit(); if (e.key === "Escape") onCancel(); }}
         placeholder="Add skill..."
-        className="h-7 w-28 text-[12px] font-semibold px-2 border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400 text-slate-700 placeholder:text-slate-300 transition-all"
+        className="h-7 w-28 rounded-lg border border-slate-300 px-2 text-[12px] font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
       />
       <button
         onClick={submit}
-        className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
+        className="h-7 w-7 flex items-center justify-center rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-sm active:scale-95"
       >
         <Check size={13} strokeWidth={3} />
       </button>
@@ -180,7 +180,7 @@ export function AISkillAllocationModal({
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-[18px] font-extrabold text-slate-900 tracking-tight">
-            AI-Powered Skill Allocation &amp; Verification
+            Capacity and skill review
           </h2>
           <button
             onClick={onClose}
@@ -194,20 +194,19 @@ export function AISkillAllocationModal({
         <div className="flex flex-col gap-4 px-6 pt-4 pb-2 overflow-y-auto max-h-[65vh]">
 
           {/* INFO ALERT */}
-          <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50/70 px-4 py-3">
-            <div className="mt-0.5 h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-              <Bot size={15} />
+          <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-700">
+              <Users size={15} />
             </div>
             <p className="text-[13px] font-medium text-slate-700 leading-relaxed">
-              AI will allocate tasks based on technical skills. Please verify and refine your
-              team&apos;s skills for optimal accuracy.
+              Review team skills before task planning so recommendations reflect real technical capability and delivery capacity.
             </p>
           </div>
 
           {/* WARNING: members without skills */}
           {membersWithoutSkills.length > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-700 font-medium">
-              ⚠ {membersWithoutSkills.length} member chưa có skill — AI sẽ chỉ dựa vào workload để phân công.
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] font-medium text-amber-700">
+              {membersWithoutSkills.length} members do not have skills recorded. Recommendations will rely more heavily on workload data.
             </div>
           )}
 
@@ -215,7 +214,7 @@ export function AISkillAllocationModal({
           {isLoading ? (
             <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
               <Loader2 size={18} className="animate-spin" />
-              <span className="text-[13px]">Đang tải danh sách thành viên...</span>
+              <span className="text-[13px]">Loading team members...</span>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -223,7 +222,7 @@ export function AISkillAllocationModal({
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th className="px-4 py-3 text-[12px] font-bold text-slate-700 whitespace-nowrap">Member Name</th>
-                    <th className="px-4 py-3 text-[12px] font-bold text-slate-700 whitespace-nowrap">Kỹ năng (Skills)</th>
+                    <th className="px-4 py-3 text-[12px] font-bold text-slate-700 whitespace-nowrap">Skills</th>
                     <th className="px-4 py-3 text-[12px] font-bold text-slate-700 text-center whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
@@ -245,7 +244,7 @@ export function AISkillAllocationModal({
                               {member.fullName}
                             </p>
                             {member.role && (
-                              <p className="text-[11px] text-slate-400 font-medium leading-snug">
+                              <p className="text-[11px] font-medium leading-snug text-slate-400">
                                 {member.role}
                               </p>
                             )}
@@ -281,7 +280,7 @@ export function AISkillAllocationModal({
                         {canEdit && addingTo !== member.userId && (
                           <button
                             onClick={() => setAddingTo(member.userId)}
-                            className="h-8 w-8 mx-auto flex items-center justify-center rounded-full border-2 border-blue-400 text-blue-500 hover:bg-blue-50 hover:border-blue-500 transition-all active:scale-90 shadow-sm"
+                            className="mx-auto flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition-all active:scale-90 shadow-sm"
                             aria-label={`Add skill for ${member.fullName}`}
                           >
                             <Plus size={15} strokeWidth={3} />
@@ -294,7 +293,7 @@ export function AISkillAllocationModal({
                   {!isLoading && (apiMembers || []).length === 0 && (
                     <tr>
                       <td colSpan={3} className="px-4 py-10 text-center text-[13px] text-slate-400 font-medium">
-                        Không có thành viên nào.
+                        No members found.
                       </td>
                     </tr>
                   )}
@@ -310,7 +309,7 @@ export function AISkillAllocationModal({
             onClick={onClose}
             className="h-9 px-5 rounded-xl border border-slate-200 bg-white text-[13px] font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-95"
           >
-            Hủy
+            Cancel
           </button>
           <button
             id="ai-skill-start-creation-btn"
@@ -327,10 +326,10 @@ export function AISkillAllocationModal({
               onConfirm(entries);
               onClose();
             }}
-            className="flex items-center gap-2 h-9 px-5 rounded-xl bg-blue-600 text-white text-[13px] font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/25 active:scale-95"
+            className="flex items-center gap-2 h-9 px-5 rounded-xl bg-slate-900 text-white text-[13px] font-bold hover:bg-slate-800 transition-all shadow-sm active:scale-95"
           >
-            <Sparkles size={14} />
-            Bắt đầu tạo
+            <Users size={14} />
+            Continue
           </button>
         </div>
       </div>
@@ -351,10 +350,10 @@ export function AISkillTriggerButton({ onClick, className }: {
       <button
         id="ai-skill-allocation-trigger"
         onClick={onClick}
-        className="flex items-center gap-2 h-[38px] px-4 bg-white border-2 border-purple-400 text-purple-700 rounded-xl text-[13px] font-bold hover:bg-purple-50 hover:border-purple-500 transition-all shadow-sm shadow-purple-200 active:scale-95 whitespace-nowrap"
+        className="flex items-center gap-2 h-[38px] px-4 bg-white border border-slate-300 text-slate-700 rounded-xl text-[13px] font-bold hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm active:scale-95 whitespace-nowrap"
       >
-        <Sparkles size={15} className="text-purple-500" />
-        Tạo dự án mới với AI
+        <Users size={15} className="text-slate-600" />
+        Review team skills
       </button>
     </div>
   );

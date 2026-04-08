@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Plus, Target, Sparkles } from "lucide-react";
+import { AlertCircle, Plus, Target, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import type { ProjectOverviewPageProps } from "./types";
@@ -87,10 +87,10 @@ export default function ProjectSummaryCard({ project, overview, userRole, onCrea
           {onOpenAISkillModal && (
             <button
               onClick={onOpenAISkillModal}
-              className="w-full py-2 rounded-lg font-bold text-sm bg-white border-2 border-purple-400 text-purple-700 hover:bg-purple-50 hover:border-purple-500 inline-flex items-center justify-center gap-2 transition-all shadow-sm shadow-purple-200 active:scale-95"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white py-2 text-sm font-bold text-slate-700 shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-95"
             >
-              <Sparkles size={15} className="text-purple-500" />
-              Sắp xếp nhanh công việc với AI
+              <Users size={15} className="text-slate-600" />
+              Review team allocation inputs
             </button>
           )}
           <button

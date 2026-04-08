@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback } from "react";
-import { X, Sparkles, Upload, CheckCircle2, AlertCircle, MessageSquare, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
+import { X, Upload, CheckCircle2, MessageSquare, Loader2, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -121,8 +121,8 @@ export function AIProjectCreationModal({
     const [handleFallbacks, setHandleFallbacks] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [chatMessages, setChatMessages] = useState<AIChatMessage[]>([
-        { role: "assistant", content: "AI Assistant: Analyze prompt.." },
-        { role: "assistant", content: "Waiting for details." },
+        { role: "assistant", content: "Planning assistant ready." },
+        { role: "assistant", content: "Provide the project brief and delivery constraints." },
     ]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -153,18 +153,18 @@ export function AIProjectCreationModal({
         setIsGenerating(true);
         setChatMessages((prev) => [
             ...prev,
-            { role: "assistant", content: "AI Assistant: Processing your requirements..." },
+            { role: "assistant", content: "Reviewing your requirements..." },
         ]);
         try {
             // Placeholder – wire real API here
             await onGenerate?.({ prompt, files: uploadedFiles, handleFallbacks });
-            toast.success("Project đã được tạo thành công bởi AI!");
+            toast.success("Project created successfully.");
             onClose();
         } catch (err: any) {
-            toast.error(err?.message || "Lỗi khi tạo dự án bằng AI.");
+            toast.error(err?.message || "Unable to create the project from the provided brief.");
             setChatMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: "AI Assistant: An error occurred. Please try again." },
+                { role: "assistant", content: "An error occurred. Please review the brief and try again." },
             ]);
         } finally {
             setIsGenerating(false);
@@ -177,13 +177,13 @@ export function AIProjectCreationModal({
         // Live feedback in chat area
         if (val.trim().length > 10) {
             setChatMessages([
-                { role: "assistant", content: "AI Assistant: Analyzing your prompt in real-time..." },
-                { role: "assistant", content: `Detected ${val.split(/\s+/).filter(Boolean).length} words. Keep adding details.` },
+                { role: "assistant", content: "Reviewing the brief in real time..." },
+                { role: "assistant", content: `Detected ${val.split(/\s+/).filter(Boolean).length} words. Add scope, outcome, and timing details if needed.` },
             ]);
         } else {
             setChatMessages([
-                { role: "assistant", content: "AI Assistant: Analyze prompt.." },
-                { role: "assistant", content: "Waiting for details." },
+                { role: "assistant", content: "Planning assistant ready." },
+                { role: "assistant", content: "Waiting for project details." },
             ]);
         }
     }, []);
@@ -210,11 +210,11 @@ export function AIProjectCreationModal({
                 {/* ── Header ── */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                     <div className="flex items-center gap-2">
-                        <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center shadow-md shadow-purple-500/20">
-                            <Sparkles size={14} className="text-white" />
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 shadow-sm">
+                            <Briefcase size={14} className="text-white" />
                         </div>
                         <h2 className="text-[17px] font-bold text-slate-900 tracking-tight">
-                            AI-Powered Project Creation
+                            Project planning assistant
                         </h2>
                     </div>
                     <button
@@ -236,7 +236,7 @@ export function AIProjectCreationModal({
                         <div className="md:col-span-3 flex flex-col gap-1.5">
                             <label className="text-[12px] font-bold text-slate-700">
                                 Describe your project or paste requirements{" "}
-                                <span className="text-slate-400 font-normal">(Prompt for AI)</span>
+                                <span className="text-slate-400 font-normal">(Project brief)</span>
                             </label>
                             <textarea
                                 id="ai-project-prompt"
@@ -246,14 +246,14 @@ export function AIProjectCreationModal({
                                     "Example: Scrum workflow for e-commerce backend.\nProject Name: Alpha.\nDeadline: 2026-06-30."
                                 }
                                 rows={8}
-                                className="w-full resize-none rounded-xl border border-blue-200 bg-white px-3.5 py-3 text-[13px] text-slate-700 placeholder:text-slate-300 outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400 transition-all leading-relaxed shadow-sm"
+                                className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[13px] text-slate-700 placeholder:text-slate-300 outline-none transition-all leading-relaxed shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                             />
                         </div>
 
                         {/* ── Right: Requirements checklist (2/5) ── */}
                         <div className="md:col-span-2 flex flex-col gap-2">
                             <label className="text-[12px] font-bold text-slate-700">
-                                Required Project Requirements Status
+                                Brief completeness
                             </label>
                             <div className="flex-1 bg-slate-50 rounded-xl border border-slate-100 px-4 py-3 flex flex-col gap-0.5">
                                 {requirements.map((req) => (
@@ -261,19 +261,19 @@ export function AIProjectCreationModal({
                                 ))}
                                 {allRequirementsMet && (
                                     <p className="mt-2 text-[11px] font-bold text-emerald-600">
-                                        ✓ All requirements met!
+                                        Ready for generation
                                     </p>
                                 )}
                             </div>
                         </div>
                     </div>
 
-                    {/* ── AI Chat Feedback Area ── */}
+                    {/* ── Planning feedback area ── */}
                     <div className="flex flex-col gap-1.5">
                         <div className="flex items-center gap-1.5">
                             <MessageSquare size={12} className="text-slate-400" />
                             <label className="text-[12px] font-bold text-slate-700">
-                                AI Chat Feedback Area
+                                Planning feedback
                             </label>
                         </div>
                         <div
@@ -282,14 +282,14 @@ export function AIProjectCreationModal({
                             className="w-full min-h-[88px] rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-[13px] text-slate-600 leading-relaxed space-y-1 select-none"
                         >
                             {chatMessages.map((msg, idx) => (
-                                <p key={idx} className={cn("font-medium", msg.role === "assistant" ? "text-slate-500" : "text-blue-600")}>
+                                <p key={idx} className={cn("font-medium", msg.role === "assistant" ? "text-slate-600" : "text-slate-900")}>
                                     {msg.content}
                                 </p>
                             ))}
                             {isGenerating && (
-                                <p className="flex items-center gap-1.5 text-purple-600 font-semibold animate-pulse">
+                                <p className="flex items-center gap-1.5 font-semibold text-slate-700 animate-pulse">
                                     <Loader2 size={12} className="animate-spin" />
-                                    Generating your project...
+                                    Preparing the project structure...
                                 </p>
                             )}
                         </div>
@@ -312,10 +312,10 @@ export function AIProjectCreationModal({
                         />
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 bg-white text-slate-600 text-[12px] font-bold hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm whitespace-nowrap"
+                            className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-bold text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50"
                         >
                             <Upload size={13} />
-                            Upload Files (Tải tệp lên)
+                            Attach files
                         </button>
                     </div>
 
@@ -341,7 +341,7 @@ export function AIProjectCreationModal({
                     {/* Fallback toggle */}
                     <div className="flex items-center gap-2 shrink-0 ml-auto">
                         <span className="text-[12px] font-bold text-slate-600 whitespace-nowrap">
-                            Handle Fallbacks automatically?
+                            Auto-handle fallbacks
                         </span>
                         <ToggleSwitch
                             enabled={handleFallbacks}
@@ -358,12 +358,12 @@ export function AIProjectCreationModal({
                             className={cn(
                                 "flex items-center gap-2 h-9 px-5 rounded-xl text-[13px] font-bold transition-all",
                                 allRequirementsMet && !isGenerating
-                                    ? "bg-gradient-to-r from-purple-600 to-violet-600 text-white hover:from-purple-700 hover:to-violet-700 shadow-lg shadow-purple-500/25 active:scale-95"
+                                    ? "bg-slate-900 text-white shadow-sm active:scale-95 hover:bg-slate-800"
                                     : "bg-slate-100 text-slate-400 cursor-not-allowed opacity-70"
                             )}
                         >
                             {isGenerating && <Loader2 size={14} className="animate-spin" />}
-                            Generate &amp; Create Project (Tạo và Bắt đầu dự án)
+                            Generate and create project
                         </button>
                     </div>
                 </div>
@@ -387,10 +387,10 @@ export function AIProjectTriggerButton({ onClick, className }: AIProjectTriggerB
             <button
                 id="ai-create-project-trigger"
                 onClick={onClick}
-                className="flex items-center gap-2 h-[38px] px-4 bg-white border-2 border-purple-400 text-purple-700 rounded-xl text-[13px] font-bold hover:bg-purple-50 hover:border-purple-500 transition-all shadow-sm shadow-purple-200 active:scale-95 whitespace-nowrap"
+                className="flex h-[38px] items-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-95"
             >
-                <Sparkles size={15} className="text-purple-500" />
-                Tạo dự án mới với AI
+                <Briefcase size={15} className="text-slate-600" />
+                New project assistant
             </button>
         </div>
     );

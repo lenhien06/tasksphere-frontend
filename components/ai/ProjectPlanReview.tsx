@@ -3,14 +3,11 @@
 import { useState } from "react";
 import {
   FolderKanban,
-  Zap,
   List,
   ChevronLeft,
-  Sparkles,
   Loader2,
   Tag,
   User,
-  Flag,
   Hash,
   Calendar,
 } from "lucide-react";
@@ -47,7 +44,7 @@ function MemberAvatar({ member }: { member?: MemberOption }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img src={member.avatarUrl} alt={member.fullName} className="h-6 w-6 rounded-full object-cover" title={member.fullName} />
   ) : (
-    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-violet-500 text-[9px] font-bold text-white" title={member.fullName}>
+    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-700 text-[9px] font-bold text-white" title={member.fullName}>
       {(member.fullName && typeof member.fullName === 'string' ? member.fullName.slice(0, 2) : "??").toUpperCase()}
     </div>
   );
@@ -61,14 +58,14 @@ function InfoTab({ plan }: { plan: GenerateProjectPlanResponse }) {
   const p = plan.project;
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 text-sm font-black text-white shadow">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white shadow-sm">
             {p.projectKey}
           </div>
           <div>
             <h3 className="font-bold text-slate-800">{p.name}</h3>
-            <p className="text-xs text-slate-400">{p.estimatedWeeks} tuần</p>
+            <p className="text-xs text-slate-500">{p.estimatedWeeks} weeks</p>
           </div>
         </div>
         {p.description && (
@@ -78,9 +75,9 @@ function InfoTab({ plan }: { plan: GenerateProjectPlanResponse }) {
 
       <div className="grid grid-cols-3 gap-3">
         {[
-          { icon: Zap,          label: "Sprints",        value: plan.sprints.length },
-          { icon: List,         label: "Tổng task",      value: plan.totalTasks },
-          { icon: Hash,         label: "Story Points",   value: plan.totalStoryPoints },
+          { icon: Calendar,     label: "Sprints",      value: plan.sprints.length },
+          { icon: List,         label: "Tasks",        value: plan.totalTasks },
+          { icon: Hash,         label: "Story points", value: plan.totalStoryPoints },
         ].map(({ icon: Icon, label, value }) => (
           <div key={label} className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white py-4 text-center">
             <Icon size={18} className="mb-1 text-slate-400" />
@@ -108,10 +105,10 @@ function SprintsTab({ sprints }: { sprints: SprintPlanDto[] }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-slate-800">{sprint.name}</p>
-              <p className="text-xs text-slate-400">Tuần {sprint.weekStart}–{sprint.weekEnd}</p>
+              <p className="text-xs text-slate-500">Weeks {sprint.weekStart}-{sprint.weekEnd}</p>
             </div>
             <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
-              {sprint.tasks?.length ?? 0} task
+              {sprint.tasks?.length ?? 0} tasks
             </span>
           </div>
           {sprint.goal && (
@@ -121,7 +118,7 @@ function SprintsTab({ sprints }: { sprints: SprintPlanDto[] }) {
           {/* Sprint progress bar placeholder */}
           <div className="ml-10 mt-3 h-1.5 rounded-full bg-slate-100">
             <div
-              className="h-1.5 rounded-full bg-gradient-to-r from-blue-400 to-violet-500"
+              className="h-1.5 rounded-full bg-slate-900"
               style={{ width: `${Math.min(100, ((sprint.tasks?.length ?? 0) / 6) * 100)}%` }}
             />
           </div>
@@ -265,9 +262,9 @@ export default function ProjectPlanReview({
   };
 
   const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-    { key: "info",    label: "Thông tin",      icon: FolderKanban },
-    { key: "sprints", label: "Sprint Plan",    icon: Calendar },
-    { key: "tasks",   label: `Tasks (${plan.totalTasks})`, icon: List },
+    { key: "info",    label: "Overview", icon: FolderKanban },
+    { key: "sprints", label: "Sprint structure", icon: Calendar },
+    { key: "tasks",   label: `Work items (${plan.totalTasks})`, icon: List },
   ];
 
   return (
@@ -282,7 +279,7 @@ export default function ProjectPlanReview({
             className={cn(
               "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition",
               activeTab === key
-                ? "bg-white text-blue-700 shadow-sm"
+                ? "bg-white text-slate-900 shadow-sm"
                 : "text-slate-500 hover:text-slate-700"
             )}
           >
@@ -309,20 +306,16 @@ export default function ProjectPlanReview({
           className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
         >
           <ChevronLeft size={15} />
-          Quay lại
+          Back
         </button>
         <button
           type="button"
           onClick={() => onConfirm(plan)}
           disabled={isConfirming}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 px-6 py-2.5 text-sm font-bold text-white shadow hover:from-blue-700 hover:to-violet-700 disabled:opacity-60"
+          className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
         >
-          {isConfirming ? (
-            <Loader2 size={15} className="animate-spin" />
-          ) : (
-            <Sparkles size={15} />
-          )}
-          {isConfirming ? "Đang tạo dự án..." : "✨ Tạo dự án"}
+          {isConfirming ? <Loader2 size={15} className="animate-spin" /> : null}
+          {isConfirming ? "Creating project..." : "Create project"}
         </button>
       </div>
     </div>

@@ -114,15 +114,14 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
   return (
     <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto
-                      bg-white rounded-2xl shadow-2xl flex flex-col">
+        <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-y-auto rounded-2xl bg-white shadow-2xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">✨ AI tạo Task</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Nhập mô tả requirements → AI phân tích → review → tạo task
+            <h2 className="text-lg font-bold text-gray-900">Task planning assistant</h2>
+            <p className="mt-0.5 text-sm text-gray-500">
+              Turn delivery requirements into a reviewed work-item list before creation.
             </p>
           </div>
           <button
@@ -141,8 +140,8 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
 
           {/* Requirements textarea */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mô tả Requirements <span className="text-red-500">*</span>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Requirements brief <span className="text-red-500">*</span>
             </label>
             <textarea
               ref={textareaRef}
@@ -150,13 +149,13 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
               onChange={(e) => setRequirements(e.target.value)}
               maxLength={5000}
               rows={6}
-              placeholder="Mô tả chi tiết tính năng, mục tiêu, hoặc user story cần triển khai..."
+              placeholder="Describe the scope, expected outcomes, user stories, and any delivery constraints..."
               disabled={isAnalyzing}
               className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none
                          focus:outline-none focus:ring-2 focus:ring-blue-400
                          disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
-            <div className="text-right text-xs text-gray-400 mt-1">
+            <div className="mt-1 text-right text-xs text-gray-400">
               {requirements.length}/5000
             </div>
           </div>
@@ -164,11 +163,11 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
           {/* Tech stack + max tasks */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tech Stack</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Technology stack</label>
               <input
                 value={techStack}
                 onChange={(e) => setTechStack(e.target.value)}
-                placeholder="React, Spring Boot, MySQL..."
+                placeholder="React, Spring Boot, PostgreSQL..."
                 disabled={isAnalyzing}
                 className="w-full border border-gray-300 rounded-lg p-2 text-sm
                            focus:outline-none focus:ring-2 focus:ring-blue-400
@@ -176,8 +175,8 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Số task tối đa
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Maximum tasks
               </label>
               <input
                 type="number"
@@ -198,8 +197,8 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
             <button
               onClick={handleAnalyze}
               disabled={!requirements.trim() || isAnalyzing}
-              className="w-full py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold
-                         hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
+              className="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white
+                         hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50
                          transition-colors"
             >
               {isAnalyzing ? (
@@ -210,9 +209,9 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
                     <path className="opacity-75" fill="currentColor"
                           d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
-                  AI đang phân tích (5–10 giây)...
+                  Reviewing requirements (5-10 seconds)...
                 </span>
-              ) : '🔍 Phân tích'}
+              ) : 'Analyze requirements'}
             </button>
           )}
 
@@ -238,21 +237,21 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-700">
-                    AI gợi ý {tasks.length} task — hãy review và chỉnh sửa trước khi tạo
+                    Recommended work items: {tasks.length} entries ready for review
                   </h3>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setSelected(new Set(tasks.map((_, i) => i)))}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-slate-700 hover:underline"
                     >
-                      Chọn tất cả
+                      Select all
                     </button>
                     <span className="text-gray-300">|</span>
                     <button
                       onClick={() => setSelected(new Set())}
                       className="text-xs text-gray-500 hover:underline"
                     >
-                      Bỏ chọn
+                      Clear
                     </button>
                   </div>
                 </div>
@@ -276,18 +275,17 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
           {/* Success screen */}
           {isSuccess && (
             <div className="flex flex-col items-center justify-center py-8 text-center gap-4">
-              <div className="text-5xl">🎉</div>
               <div>
                 <p className="text-lg font-bold text-gray-900">
-                  Đã tạo thành công {confirmResult.count} task!
+                  {confirmResult.count} tasks created successfully
                 </p>
                 {confirmResult.memberCount > 0 ? (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Project có {confirmResult.memberCount} thành viên — bạn có muốn phân công ngay không?
+                  <p className="mt-1 text-sm text-gray-500">
+                    {confirmResult.memberCount} project members are available. Continue with assignment recommendations?
                   </p>
                 ) : (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Project chưa có thành viên, hãy thêm thành viên trước khi phân công.
+                  <p className="mt-1 text-sm text-gray-500">
+                    No project members are available yet. Add members before assigning work.
                   </p>
                 )}
               </div>
@@ -295,26 +293,26 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
                 <div className="flex gap-3 mt-2">
                   <button
                     onClick={() => setShowAssignModal(true)}
-                    className="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold
-                               hover:bg-blue-700 transition-colors"
+                    className="rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white
+                               transition-colors hover:bg-slate-800"
                   >
-                    🤖 Phân công ngay
+                    Review assignments
                   </button>
                   <button
                     onClick={onClose}
-                    className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm
-                               hover:bg-gray-50 transition-colors"
+                    className="rounded-lg border border-gray-300 px-5 py-2 text-sm text-gray-700
+                               transition-colors hover:bg-gray-50"
                   >
-                    Để sau
+                    Close for now
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={onClose}
-                  className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm
-                             hover:bg-gray-50 transition-colors"
+                  className="rounded-lg border border-gray-300 px-5 py-2 text-sm text-gray-700
+                             transition-colors hover:bg-gray-50"
                 >
-                  Đóng
+                  Close
                 </button>
               )}
             </div>
@@ -343,23 +341,23 @@ export function AiTaskGenerator({ projectId, projectName, sprintId, onSuccess, o
                   onClick={() => { setTasks([]); setSelected(new Set()); generateMutation.reset(); }}
                   className="text-sm text-gray-500 hover:text-gray-700 underline"
                 >
-                  ← Nhập lại requirements
+                  Back to brief
                 </button>
                 <button
                   onClick={handleConfirm}
                   disabled={selectedCount === 0 || isConfirming}
-                  className="px-5 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold
-                             hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed
+                  className="rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white
+                             hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed
                              transition-colors"
                 >
                   {isConfirming
-                    ? 'Đang tạo...'
-                    : `Tạo ${selectedCount} task đã chọn`}
+                    ? 'Creating tasks...'
+                    : `Create ${selectedCount} selected tasks`}
                 </button>
               </>
             ) : (
               <button onClick={onClose} className="ml-auto text-sm text-gray-500 hover:text-gray-700">
-                Hủy
+                Cancel
               </button>
             )}
           </div>

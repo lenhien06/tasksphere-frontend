@@ -67,7 +67,7 @@ function SingleChoiceQuestion({
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-xs font-bold text-slate-500">
                 {(question.options?.length ?? 0) + 1}
               </span>
-              {question.customPlaceholder ?? "Tự nhập..."}
+              {question.customPlaceholder ?? "Enter a custom value..."}
               <ArrowRight size={14} className="ml-auto shrink-0 text-slate-300" />
             </button>
           ) : (
@@ -78,15 +78,15 @@ function SingleChoiceQuestion({
                 value={customValue}
                 onChange={(e) => setCustomValue(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && customValue.trim() && onAnswer(customValue.trim())}
-                placeholder={question.customPlaceholder ?? "Nhập giá trị..."}
-                className="flex-1 rounded-xl border border-blue-300 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-100"
+                placeholder={question.customPlaceholder ?? "Enter a value..."}
+                className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-100"
               />
               <button
                 type="button"
                 onClick={() => customValue.trim() && onAnswer(customValue.trim())}
-                className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
               >
-                OK
+                Confirm
               </button>
             </div>
           )}
@@ -100,7 +100,7 @@ function SingleChoiceQuestion({
             onClick={onSkip}
             className="text-xs text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline"
           >
-            Bỏ qua
+            Skip
           </button>
         </div>
       )}
@@ -147,8 +147,8 @@ function MemberSelectQuestion({
             className={cn(
               "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
               isSelected
-                ? "border-blue-400 bg-blue-50"
-                : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50"
+                ? "border-slate-400 bg-slate-50"
+                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
             )}
           >
             {/* Avatar */}
@@ -156,7 +156,7 @@ function MemberSelectQuestion({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={m.avatarUrl} alt={m.fullName} className="h-9 w-9 rounded-full object-cover" />
             ) : (
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-violet-500 text-xs font-bold text-white">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-xs font-bold text-white">
                 {(m.fullName && typeof m.fullName === 'string' ? m.fullName.slice(0, 2) : "??").toUpperCase()}
               </div>
             )}
@@ -184,7 +184,7 @@ function MemberSelectQuestion({
             <div
               className={cn(
                 "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
-                isSelected ? "border-blue-500 bg-blue-500" : "border-slate-300 bg-white"
+                isSelected ? "border-slate-900 bg-slate-900" : "border-slate-300 bg-white"
               )}
             >
               {isSelected && <Check size={11} className="text-white" />}
@@ -195,7 +195,7 @@ function MemberSelectQuestion({
 
       <div className="flex items-center justify-between pt-2">
         <span className="text-xs text-slate-400">
-          {selected.size > 0 ? `Đã chọn ${selected.size} người` : "Chọn ít nhất 1 thành viên"}
+          {selected.size > 0 ? `${selected.size} members selected` : "Select at least one member"}
         </span>
         <button
           type="button"
@@ -203,10 +203,10 @@ function MemberSelectQuestion({
           disabled={selected.size === 0}
           className={cn(
             "rounded-xl px-4 py-2 text-sm font-semibold text-white transition",
-            selected.size > 0 ? "bg-blue-600 hover:bg-blue-700" : "cursor-not-allowed bg-slate-300"
+            selected.size > 0 ? "bg-slate-900 hover:bg-slate-800" : "cursor-not-allowed bg-slate-300"
           )}
         >
-          Tiếp tục →
+          Continue
         </button>
       </div>
     </div>
@@ -239,8 +239,8 @@ export default function QuestionCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div className="min-w-0">
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-blue-600">
-            Câu hỏi {questionNumber} / {totalQuestions}
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+            Clarification {questionNumber} / {totalQuestions}
           </div>
           <h3 className="text-base font-semibold text-slate-800">{question.question}</h3>
         </div>

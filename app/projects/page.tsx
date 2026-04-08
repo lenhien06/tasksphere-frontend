@@ -814,12 +814,12 @@ export default function ProjectsPage() {
                         </div>
                     )
                 ) : view === "grid" ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 pb-10">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3.5 pb-10">
                         {projects.map((p) => (
                             <div
                                 key={p.id}
                                 className={cn(
-                                    "group flex flex-col rounded-[18px] border border-slate-200 bg-white p-3.5 shadow-[0_12px_36px_rgba(15,23,42,0.05)] transition-all cursor-pointer relative",
+                                    "group flex flex-col rounded-[16px] border border-slate-200 bg-white p-3 shadow-[0_10px_28px_rgba(15,23,42,0.05)] transition-all cursor-pointer relative",
                                     p.status === "Archived"
                                         ? "opacity-70 grayscale-[20%] hover:shadow-md"
                                         : "hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_44px_rgba(15,23,42,0.08)]"
@@ -827,11 +827,11 @@ export default function ProjectsPage() {
                                 onClick={() => router.push(`/projects/${p.id}`)}
                             >
                                 {currentUser && (
-                                    <div className="absolute right-3 top-3 z-10" onClick={(e) => e.stopPropagation()}>
+                                    <div className="absolute right-2.5 top-2.5 z-10" onClick={(e) => e.stopPropagation()}>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <button className="flex h-8 w-8 items-center justify-center rounded-[10px] text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-600">
-                                                    <MoreVertical size={16} />
+                                                <button className="flex h-7.5 w-7.5 items-center justify-center rounded-[10px] text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-600">
+                                                    <MoreVertical size={15} />
                                                 </button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-44 rounded-xl border-gray-200 p-1 shadow-xl bg-white z-[100]">
@@ -878,69 +878,69 @@ export default function ProjectsPage() {
                                     </div>
                                 )}
 
-                                <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                        <div className="mb-2.5 flex flex-wrap items-center gap-2">
-                                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                                        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600">
                                                 {p.key}
                                             </span>
                                             <StatusBadge status={p.status} />
                                         </div>
-                                        <h3 className="truncate pr-8 text-[20px] font-black tracking-tight text-slate-950 transition-colors group-hover:text-blue-700">
+                                        <h3 className="truncate pr-7 text-[17px] font-black leading-tight tracking-tight text-slate-950 transition-colors group-hover:text-blue-700">
                                             {p.name}
                                         </h3>
-                                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-slate-500">
+                                        <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-slate-500">
                                             <VisibilityInfo visibility={p.visibility} />
                                             <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:inline-block" />
                                             <div className="flex items-center gap-1">
-                                                <Calendar size={13} />
+                                                <Calendar size={12} />
                                                 <span>Start {p.startDate}</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="mt-3 border-t border-slate-100 pt-3">
-                                    <div className="flex items-end justify-between gap-4">
+                                <div className="mt-2.5 border-t border-slate-100 pt-2.5">
+                                    <div className="flex items-end justify-between gap-3">
                                         <div className="min-w-0">
-                                            <div className="text-[12px] font-medium text-slate-500">
+                                            <div className="text-[11px] font-medium text-slate-500">
                                                 Completion ({p.tasksCompleted}/{p.tasksTotal} tasks)
                                             </div>
                                         </div>
-                                        <div className="whitespace-nowrap text-[26px] leading-none font-extrabold tracking-tight text-[#4F46E5] tabular-nums">
+                                        <div className="whitespace-nowrap text-[22px] leading-none font-extrabold tracking-tight text-[#4F46E5] tabular-nums">
                                             {Number(p.progress).toFixed(1)}%
                                         </div>
                                     </div>
 
-                                    <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-slate-200">
+                                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
                                         <div
                                             className="h-full rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-500 transition-all duration-700"
                                             style={{ width: `${Math.max(0, Math.min(p.progress, 100))}%` }}
                                         />
                                     </div>
 
-                                    <div className="mt-2.5 flex flex-wrap gap-2">
+                                    <div className="mt-2 flex flex-wrap gap-1.5">
                                         {p.overdueTasks > 0 && (
-                                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-700">
+                                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-medium text-rose-700">
                                                 {pluralize(p.overdueTasks, "overdue task")}
                                             </span>
                                         )}
-                                        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-medium text-slate-600">
                                             {pluralize(p.memberCount, "member")}
                                         </span>
                                         {p.status === "Completed" && (
-                                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700">
                                                 Delivery complete
                                             </span>
                                         )}
                                     </div>
                                 </div>
 
-                                <p className="mt-3 line-clamp-2 min-h-[34px] text-[12px] leading-relaxed text-slate-500">
+                                <p className="mt-2.5 line-clamp-2 min-h-[30px] text-[11px] leading-relaxed text-slate-500">
                                     {p.description || "No project summary has been provided yet."}
                                 </p>
 
-                                <div className="mt-auto flex items-center justify-between gap-3 pt-3.5">
+                                <div className="mt-auto flex items-center justify-between gap-2.5 pt-3">
                                     <button
                                         type="button"
                                         onClick={(e) => {
@@ -959,10 +959,10 @@ export default function ProjectsPage() {
                                             e.stopPropagation();
                                             setHealthProject(p);
                                         }}
-                                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-[12px] bg-gray-900 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-700"
+                                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-[12px] bg-gray-900 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-blue-700"
                                     >
                                         Open health view
-                                        <ArrowRight size={16} />
+                                        <ArrowRight size={14} />
                                     </button>
                                 </div>
                             </div>

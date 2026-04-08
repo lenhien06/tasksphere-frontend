@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Sparkles, Zap } from "lucide-react";
+import { Plus, ClipboardList, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface TaskPrimaryActionsProps {
@@ -37,10 +37,10 @@ export default function TaskPrimaryActions({
         <button
           type="button"
           onClick={onAiGenerate}
-          className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-indigo-700"
+          className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-slate-800"
         >
-          <Sparkles size={15} />
-          AI tạo task
+          <ClipboardList size={15} />
+          Plan tasks
         </button>
       ) : null}
 
@@ -48,10 +48,10 @@ export default function TaskPrimaryActions({
         <button
           type="button"
           onClick={onAiAssign}
-          className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-purple-700"
+          className="flex items-center gap-1.5 rounded-xl bg-slate-700 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-slate-800"
         >
-          <Zap size={15} />
-          AI phân công
+          <Users size={15} />
+          Recommend assignments
         </button>
       ) : null}
     </div>
