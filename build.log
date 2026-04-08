@@ -8,63 +8,19 @@
      ✓ webpackMemoryOptimizations
 
    Creating an optimized production build ...
- ✓ Compiled successfully in 24.2s
+ ✓ Compiled successfully in 24.5s
    Skipping linting
    Checking validity of types ...
-   Collecting page data ...
-   Generating static pages (0/9) ...
-   Generating static pages (2/9) 
-   Generating static pages (4/9) 
-   Generating static pages (6/9) 
- ✓ Generating static pages (9/9)
-   Finalizing page optimization ...
-   Collecting build traces ...
+Failed to compile.
 
-Route (app)                                   Size  First Load JS
-┌ ƒ /                                      25.8 kB         190 kB
-├ ƒ /_not-found                              159 B         102 kB
-├ ƒ /api/auth/logout                         159 B         102 kB
-├ ƒ /api/auth/me                             159 B         102 kB
-├ ƒ /api/auth/me-token                       159 B         102 kB
-├ ƒ /api/auth/refresh                        159 B         102 kB
-├ ƒ /api/auth/send-otp                       159 B         102 kB
-├ ƒ /api/auth/signin                         159 B         102 kB
-├ ƒ /api/auth/signup                         159 B         102 kB
-├ ƒ /dashboard                             12.3 kB         221 kB
-├ ƒ /forgot-password                       5.92 kB         180 kB
-├ ƒ /invites/[token]                         422 B         103 kB
-├ ƒ /invites/accept                        6.05 kB         155 kB
-├ ƒ /my-tasks                              4.14 kB         173 kB
-├ ƒ /profile                               7.39 kB         167 kB
-├ ƒ /projects                              11.6 kB         246 kB
-├ ƒ /projects/[id]                         49.9 kB         679 kB
-├ ƒ /projects/[id]/backlog                 1.44 kB         456 kB
-├ ƒ /projects/[id]/board                   5.31 kB         462 kB
-├ ƒ /projects/[id]/calendar                5.02 kB         436 kB
-├ ƒ /projects/[id]/members                 1.29 kB         103 kB
-├ ƒ /projects/[id]/reports                 5.85 kB         326 kB
-├ ƒ /projects/[id]/settings                  683 B         103 kB
-├ ƒ /projects/[id]/settings/custom-fields  7.55 kB         202 kB
-├ ƒ /projects/[id]/settings/versions       7.87 kB         209 kB
-├ ƒ /projects/[id]/settings/webhooks        7.8 kB         203 kB
-├ ƒ /projects/[id]/sprint                  19.7 kB         245 kB
-├ ƒ /projects/[id]/sprints                 7.26 kB         215 kB
-├ ƒ /projects/[id]/tasks/[taskId]            417 B         103 kB
-├ ƒ /settings                              5.77 kB         163 kB
-├ ƒ /signin                                7.58 kB         184 kB
-├ ƒ /signup                                10.4 kB         191 kB
-├ ƒ /test                                    159 B         102 kB
-├ ƒ /workspaces                            4.69 kB         144 kB
-├ ƒ /workspaces/new                        7.41 kB         172 kB
-├ ƒ /ws/[slug]                             11.4 kB         159 kB
-└ ƒ /ws/[slug]/projects/new-with-ai        9.13 kB         156 kB
-+ First Load JS shared by all               102 kB
-  ├ chunks/1255-8befde0980f5cba9.js        45.6 kB
-  ├ chunks/4bd1b696-100b9d70ed4e49c1.js    54.2 kB
-  └ other shared chunks (total)            2.31 kB
+./components/project-overview/TaskDistributionCard.tsx:12:7
+Type error: Property 'testing' is missing in type '{ todo: { labelKey: string; color: string; }; in_progress: { labelKey: string; color: string; }; in_review: { labelKey: string; color: string; }; done: { labelKey: string; color: string; }; cancelled: { labelKey: string; color: string; }; }' but required in type 'Record<"done" | "todo" | "in_progress" | "in_review" | "testing" | "cancelled", { labelKey: string; color: string; }>'.
 
-
-ƒ Middleware                               34.1 kB
-
-ƒ  (Dynamic)  server-rendered on demand
-
+[0m [90m 10 |[39m }
+ [90m 11 |[39m
+[31m[1m>[22m[39m[90m 12 |[39m [36mconst[39m [33mSTATUS_CONFIG[39m[33m:[39m [33mRecord[39m[33m<[39m[33mProjectOverviewPageProps[39m[[32m"overview"[39m][[32m"statusDistribution"[39m][number][[32m"status"[39m][33m,[39m { labelKey[33m:[39m string[33m;[39m color[33m:[39m string }[33m>[39m [33m=[39m {
+ [90m    |[39m       [31m[1m^[22m[39m
+ [90m 13 |[39m   todo[33m:[39m { labelKey[33m:[39m [32m"task.status_TODO"[39m[33m,[39m color[33m:[39m [32m"#9CA3AF"[39m }[33m,[39m
+ [90m 14 |[39m   in_progress[33m:[39m { labelKey[33m:[39m [32m"task.status_IN_PROGRESS"[39m[33m,[39m color[33m:[39m [32m"#3B82F6"[39m }[33m,[39m
+ [90m 15 |[39m   in_review[33m:[39m { labelKey[33m:[39m [32m"task.status_IN_REVIEW"[39m[33m,[39m color[33m:[39m [32m"#A855F7"[39m }[33m,[39m[0m
+Next.js build worker exited with code: 1 and signal: null
