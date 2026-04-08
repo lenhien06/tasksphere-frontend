@@ -147,15 +147,16 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     const raw = membersData as unknown;
     const list = (
       raw && typeof raw === "object" && "data" in raw
-        ? (raw as { data?: Array<{ user?: { id: string; fullName: string; avatarUrl?: string | null }; id?: string; fullName?: string; avatarUrl?: string | null }> }).data
+        ? (raw as { data?: Array<{ user?: { id: string; fullName: string; avatarUrl?: string | null; skillTags?: string[]; skills?: string[] }; id?: string; fullName?: string; avatarUrl?: string | null; skillTags?: string[]; skills?: string[] }> }).data
         : raw
-    ) as Array<{ user?: { id: string; fullName: string; avatarUrl?: string | null }; id?: string; fullName?: string; avatarUrl?: string | null }> | undefined;
+    ) as Array<{ user?: { id: string; fullName: string; avatarUrl?: string | null; skillTags?: string[]; skills?: string[] }; id?: string; fullName?: string; avatarUrl?: string | null; skillTags?: string[]; skills?: string[] }> | undefined;
     if (!Array.isArray(list)) return [];
     return list.map((m) => ({
       id: m.user?.id ?? m.id ?? "",
       name: m.user?.fullName ?? m.fullName ?? "",
       email: "",
       avatarUrl: m.user?.avatarUrl ?? m.avatarUrl ?? undefined,
+      skillTags: m.skillTags ?? m.skills ?? m.user?.skillTags ?? m.user?.skills ?? [],
     }));
   })();
 
@@ -315,23 +316,22 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
             columns={createColumns}
             defaultColumnId={createColumns[0]?.id}
             projectKey={projectData.data.projectKey}
-            onConfirm={(payload: CreateTaskPayload) => {
-              createTask.mutate(
-                {
-                  title: payload.title,
-                  description: payload.description,
-                  type: payload.type,
-                  priority: payload.priority,
-                  assigneeId: payload.assigneeId ?? undefined,
-                  dueDate: payload.dueDate ?? undefined,
-                  storyPoints: payload.storyPoints ?? undefined,
-                  statusColumnId: payload.statusColumnId,
-                  parentTaskId: payload.parentTaskId ?? undefined,
-                  sprintId: payload.sprintId ?? undefined,
-                },
-                { onSuccess: () => setShowCreateTask(false) }
-              );
-            }}
+            onConfirm={(payload: CreateTaskPayload) =>
+              createTask.mutateAsync({
+                title: payload.title,
+                description: payload.description,
+                type: payload.type,
+                priority: payload.priority,
+                assigneeId: payload.assigneeId ?? undefined,
+                dueDate: payload.dueDate ?? undefined,
+                storyPoints: payload.storyPoints ?? undefined,
+                skillTagsRequired: payload.skillTagsRequired,
+                confirmActiveSprintChange: payload.confirmActiveSprintChange,
+                statusColumnId: payload.statusColumnId,
+                parentTaskId: payload.parentTaskId ?? undefined,
+                sprintId: payload.sprintId ?? undefined,
+              }).then(() => setShowCreateTask(false))
+            }
             onClose={() => setShowCreateTask(false)}
           />
         )}

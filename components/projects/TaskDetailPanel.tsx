@@ -13,6 +13,7 @@ export interface Member {
     name: string
     email: string
     avatarUrl?: string
+    skillTags?: string[]
 }
 
 export interface TaskDetailPanelProps {

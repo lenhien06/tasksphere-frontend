@@ -874,6 +874,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                         name: m.user.fullName,
                         email: m.user.email,
                         avatarUrl: m.user.avatarUrl || undefined,
+                        skillTags: m.skillTags || m.skills || m.user?.skillTags || m.user?.skills || [],
                     }))}
                     columns={projectColumns.map(c => ({
                         id: c.id,

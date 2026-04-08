@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState, useMemo, useEffect } from 'react'
-import { UserCircle, Calendar, Clock, Zap, Loader2 } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { UserCircle, Calendar, Loader2, TriangleAlert, X, Zap } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { UserAvatar } from '@/components/common/UserAvatar'
@@ -13,7 +13,6 @@ import { useTranslation } from 'react-i18next'
 // ── Types ─────────────────────────────────────────────────────
 
 export type TaskPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
-// FIX 1: add FEATURE (standard BE enum), STORY = "Story" in agile
 export type TaskType = "TASK" | "BUG" | "FEATURE" | "STORY" | "EPIC" | "SUB_TASK"
 
 export interface CreateTaskPayload {
@@ -24,7 +23,9 @@ export interface CreateTaskPayload {
     assigneeId: string | null
     dueDate: string | null
     storyPoints: number | null
-    estimatedHours: number | null
+    estimatedHours?: number | null
+    skillTagsRequired: string[]
+    confirmActiveSprintChange?: boolean
     statusColumnId: string
     parentTaskId: string | null
     sprintId: string | null
@@ -35,6 +36,7 @@ export interface Member {
     name: string
     email: string
     avatarUrl?: string
+    skillTags?: string[]
 }
 
 export interface Column {
@@ -74,7 +76,40 @@ const PRIORITY_CONFIG: Record<TaskPriority, { bg: string; text: string }> = {
     LOW:      { bg: "bg-[#DBEAFE]", text: "text-[#1D4ED8]" },
 }
 
-const STORY_POINT_PRESETS = [1, 2, 3, 5]
+const STORY_POINT_PRESETS = [1, 2, 3, 5, 8, 13]
+
+const QUICK_CREATE_TYPES: TaskType[] = ["BUG", "FEATURE", "TASK", "STORY"]
+const MAX_REQUIRED_SKILLS = 8
+
+function normalizeSkillTag(value: string) {
+    return value.trim().replace(/\s+/g, " ")
+}
+
+function getSprintStatusLabel(status: Sprint["status"], t: (key: string, options?: Record<string, unknown>) => string) {
+    return t(`task.sprintStatusLabel_${status}`, {
+        defaultValue:
+            status === "ACTIVE"
+                ? "Dang chay - Active"
+                : status === "PLANNED"
+                    ? "Len ke hoach - Planned"
+                    : "Da ket thuc - Completed",
+    })
+}
+
+function getSprintOptionLabel(sprint: Sprint, t: (key: string, options?: Record<string, unknown>) => string) {
+    return `${sprint.name} (${getSprintStatusLabel(sprint.status, t)})`
+}
+
+function getSuggestedSkills(members: Member[]) {
+    return Array.from(
+        new Set(
+            members
+                .flatMap((member) => member.skillTags ?? [])
+                .map(normalizeSkillTag)
+                .filter(Boolean)
+        )
+    ).sort((a, b) => a.localeCompare(b))
+}
 
 // ── SprintSelector (FIX 5) ────────────────────────────────────
 // ≤3 sprints → button group, >3 → dropdown
@@ -123,7 +158,7 @@ function SprintSelector({ sprints, isLoading, value, onChange }: SprintSelectorP
         )
     }
 
-    if (sprints.length <= 3) {
+    if (false && sprints.length <= 3) {
         return (
             <div className="flex gap-1.5 flex-wrap">
                 {backlogBtn}
@@ -169,10 +204,72 @@ function SprintSelector({ sprints, isLoading, value, onChange }: SprintSelectorP
 
 // ── QuickCreateTask ───────────────────────────────────────────
 
+interface ActiveSprintWarningDialogProps {
+    open: boolean
+    sprintName?: string | null
+    isSubmitting: boolean
+    onCancel: () => void
+    onConfirm: () => void
+}
+
+function ActiveSprintWarningDialog({
+    open,
+    sprintName,
+    isSubmitting,
+    onCancel,
+    onConfirm,
+}: ActiveSprintWarningDialogProps) {
+    const { t } = useTranslation()
+
+    if (!open) return null
+
+    return (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[1px]">
+            <div className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-5 shadow-2xl">
+                <div className="flex items-start gap-3">
+                    <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-600">
+                        <TriangleAlert size={18} />
+                    </div>
+                    <div className="space-y-2">
+                        <h3 className="text-lg font-bold text-slate-900">
+                            {t("task.activeSprintWarningTitle", { defaultValue: "Canh bao thay doi tien do Sprint!" })}
+                        </h3>
+                        <p className="text-sm leading-6 text-slate-600">
+                            {t("task.activeSprintWarningBody", {
+                                sprintName: sprintName ?? "",
+                                defaultValue: "Ban dang them task vao sprint dang hoat dong. Viec nay se lam tang tong Story Points va thay doi truc tiep bieu do Burn-down.",
+                            })}
+                        </p>
+                    </div>
+                </div>
+                <div className="mt-5 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={isSubmitting}
+                        className="h-10 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                        {t("task.activeSprintWarningCancel", { defaultValue: "Huy bo" })}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        disabled={isSubmitting}
+                        className="flex h-10 items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 text-sm font-bold text-white hover:bg-amber-600 disabled:opacity-50"
+                    >
+                        {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
+                        {t("task.activeSprintWarningConfirm", { defaultValue: "Van them" })}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 interface QuickCreateProps {
     columnId: string
     columnName: string
-    onConfirm: (payload: CreateTaskPayload) => void
+    onConfirm: (payload: CreateTaskPayload) => void | Promise<unknown>
     onCancel: () => void
     onOpenFull: (title: string) => void
 }
@@ -183,7 +280,7 @@ export function QuickCreateTask({ columnId, columnName, onConfirm, onCancel, onO
 
     const handleSubmit = () => {
         if (!title.trim()) return
-        onConfirm({
+        void onConfirm({
             title: title.trim(),
             priority: "MEDIUM",
             type: "TASK",
@@ -191,7 +288,7 @@ export function QuickCreateTask({ columnId, columnName, onConfirm, onCancel, onO
             assigneeId: null,
             dueDate: null,
             storyPoints: null,
-            estimatedHours: null,
+            skillTagsRequired: [],
             parentTaskId: null,
             sprintId: null,
         })
@@ -211,7 +308,7 @@ export function QuickCreateTask({ columnId, columnName, onConfirm, onCancel, onO
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSubmit())}
-                placeholder={t('task.namePlaceholder')}
+                placeholder={`${t('task.namePlaceholder')} - ${columnName}`}
                 className="w-full text-sm text-gray-800 resize-none outline-none leading-relaxed"
             />
             <div className="flex justify-between items-center mt-2 pt-2 border-t">
@@ -235,7 +332,7 @@ interface FullCreateProps {
     projectMembers: Member[]
     columns: Column[]
     projectKey?: string
-    onConfirm: (payload: CreateTaskPayload) => void
+    onConfirm: (payload: CreateTaskPayload) => Promise<unknown>
     onClose: () => void
 }
 
@@ -265,27 +362,38 @@ export function FullCreateTask({
     const [isCustomSP, setIsCustomSP]   = useState(false)
 
     // NEW field: estimatedHours
-    const [estimatedHours, setEstimatedHours] = useState<string>("")
+    const [requiredSkillInput, setRequiredSkillInput] = useState("")
+    const [requiredSkills, setRequiredSkills] = useState<string[]>([])
+    const estimatedHours = ""
+    const setEstimatedHours = (_value: string) => {}
 
     // FIX-7 — 400 inline field errors
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+    const [showActiveSprintWarning, setShowActiveSprintWarning] = useState(false)
+    const [pendingPayload, setPendingPayload] = useState<CreateTaskPayload | null>(null)
 
     // EPIC cannot be assigned to a sprint — clear sprintId when type changes to EPIC
-    useEffect(() => {
-        if (type === "EPIC") setSprintId(null)
-    }, [type])
-
     const selectedMember = useMemo(
         () => projectMembers.find(m => m.id === assigneeId),
         [projectMembers, assigneeId]
     )
 
-    // min date = tomorrow (BE @Future rejects today)
     const minDueDate = useMemo(() => {
-        const d = new Date()
-        d.setDate(d.getDate() + 1)
-        return d.toISOString().split("T")[0]
+        return new Date().toISOString().split("T")[0]
     }, [])
+
+    const suggestedSkills = useMemo(() => getSuggestedSkills(projectMembers), [projectMembers])
+    const suggestedAssignee = useMemo(() => {
+        if (requiredSkills.length === 0) return null
+        return projectMembers
+            .map((member) => {
+                const memberSkills = (member.skillTags ?? []).map((skill) => skill.toLowerCase())
+                const matchedSkills = requiredSkills.filter((skill) => memberSkills.includes(skill.toLowerCase()))
+                return matchedSkills.length > 0 ? { member, matchedSkills } : null
+            })
+            .filter((item): item is { member: Member; matchedSkills: string[] } => item !== null)
+            .sort((a, b) => b.matchedSkills.length - a.matchedSkills.length)[0] ?? null
+    }, [projectMembers, requiredSkills])
 
     const taskCode = projectKey ? `${projectKey}-???` : "???"
 
@@ -294,6 +402,126 @@ export function FullCreateTask({
         title.length > 245 ? "text-red-500" :
         title.length > 230 ? "text-amber-500" :
         "text-gray-400"
+
+    const addRequiredSkill = (rawValue: string) => {
+        const normalized = normalizeSkillTag(rawValue)
+        if (!normalized) return
+        if (requiredSkills.some((skill) => skill.toLowerCase() === normalized.toLowerCase())) return
+        if (requiredSkills.length >= MAX_REQUIRED_SKILLS) {
+            toast.error(t("task.requiredSkillsLimit", { defaultValue: "Toi da 8 ky nang moi task." }))
+            return
+        }
+        setRequiredSkills((current) => [...current, normalized])
+        setRequiredSkillInput("")
+    }
+
+    const resetModernForm = () => {
+        setTitle("")
+        setDescription("")
+        setType("TASK")
+        setPriority("MEDIUM")
+        setAssigneeId(null)
+        setDueDate(null)
+        setSprintId(null)
+        setStoryPoints(null)
+        setCustomSP("")
+        setIsCustomSP(false)
+        setRequiredSkillInput("")
+        setRequiredSkills([])
+        setFieldErrors({})
+        setPendingPayload(null)
+        setShowActiveSprintWarning(false)
+    }
+
+    const submitModernPayload = async (payload: CreateTaskPayload) => {
+        setIsSubmitting(true)
+        try {
+            await onConfirm(payload)
+            if (createAnother) {
+                resetModernForm()
+                setIsSubmitting(false)
+            } else {
+                onClose()
+            }
+        } catch (err: any) {
+            setIsSubmitting(false)
+            const status = err?.response?.status
+            const message = err?.response?.data?.message ?? err?.response?.data?.detail
+            if (status === 404) {
+                toast.error(`Not found: ${message ?? "sprint or column does not exist"}`)
+                queryClient.invalidateQueries({ queryKey: ["sprints", projectId] })
+            } else if (status === 409) {
+                toast.warning(message ?? "Sprint dang chay va can xac nhan truoc khi them task.")
+            } else if (status === 422) {
+                toast.error(message ?? "Business rule violation")
+            } else if (status === 400) {
+                const raw = err?.response?.data?.meta?.message ?? message ?? ""
+                const parsed: Record<string, string> = {}
+                raw.split(", ").forEach((part: string) => {
+                    const colonIdx = part.indexOf(": ")
+                    if (colonIdx !== -1) {
+                        const field = part.substring(0, colonIdx).trim()
+                        const msg = part.substring(colonIdx + 2).trim()
+                        if (field) parsed[field] = msg
+                    }
+                })
+                if (Object.keys(parsed).length > 0) {
+                    setFieldErrors(parsed)
+                }
+                toast.error(raw || "Du lieu khong hop le")
+            }
+        }
+    }
+
+    const handleCreateTask = async () => {
+        if (!title.trim() || isSubmitting) return
+        setFieldErrors({})
+
+        if (title.length > 255) {
+            toast.error(t("task.titleMaxLength"))
+            return
+        }
+        if (dueDate && dueDate < minDueDate) {
+            toast.error(t("task.dueDateAfterToday"))
+            return
+        }
+        if (storyPoints !== null && (storyPoints < 1 || storyPoints > 100)) {
+            toast.error(t("task.storyPointsRange"))
+            return
+        }
+        if (sprintId && !sprints.find((sprint) => sprint.id === sprintId)) {
+            toast.error(t("task.invalidSprint"))
+            setSprintId(null)
+            queryClient.invalidateQueries({ queryKey: ["sprints", projectId] })
+            return
+        }
+
+        const payload: CreateTaskPayload = {
+            title: title.trim(),
+            description: description || undefined,
+            type: QUICK_CREATE_TYPES.includes(type) ? type : "TASK",
+            priority,
+            assigneeId,
+            dueDate,
+            storyPoints,
+            skillTagsRequired: requiredSkills,
+            statusColumnId: defaultColumnId || columns[0]?.id || "",
+            parentTaskId: parentTask?.id || null,
+            sprintId,
+        }
+
+        const selectedSprint = payload.sprintId
+            ? sprints.find((sprint) => sprint.id === payload.sprintId) ?? null
+            : null
+
+        if (selectedSprint?.status === "ACTIVE") {
+            setPendingPayload(payload)
+            setShowActiveSprintWarning(true)
+            return
+        }
+
+        await submitModernPayload(payload)
+    }
 
     const handleSubmit = async () => {
         if (!title.trim() || isSubmitting) return
@@ -337,6 +565,7 @@ export function FullCreateTask({
             dueDate,
             storyPoints,
             estimatedHours: estHoursNum,
+            skillTagsRequired: requiredSkills,
             statusColumnId: defaultColumnId || columns[0]?.id || "", // Always use default TODO status
             parentTaskId: parentTask?.id || null,
             sprintId,
@@ -396,6 +625,17 @@ export function FullCreateTask({
                 initial={{ scale: 0.98, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.98, opacity: 0 }}
                 className="relative bg-white rounded-2xl w-full max-w-[700px] shadow-2xl flex flex-col overflow-hidden"
             >
+                <ActiveSprintWarningDialog
+                    open={showActiveSprintWarning}
+                    sprintName={pendingPayload?.sprintId ? sprints.find((sprint) => sprint.id === pendingPayload.sprintId)?.name : null}
+                    isSubmitting={isSubmitting}
+                    onCancel={() => {
+                        setPendingPayload(null)
+                        setShowActiveSprintWarning(false)
+                    }}
+                    onConfirm={() => pendingPayload ? submitModernPayload({ ...pendingPayload, confirmActiveSprintChange: true }) : undefined}
+                />
+
                 {/* Header */}
                 <div className="px-6 pt-5 pb-4 flex justify-between items-center border-b border-gray-100">
                     <h2 className="text-xl font-bold text-gray-900 tracking-tight">{t('task.createNew')}</h2>
@@ -438,23 +678,70 @@ export function FullCreateTask({
                         />
                     </div>
 
-                    {/* Estimated Hours */}
-                    <div className="w-1/2">
-                        <label className="text-sm font-semibold text-gray-800 mb-1 block">{t('task.estimatedHours')}</label>
-                        <div className="relative">
-                            <input
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                max="999.99"
-                                value={estimatedHours}
-                                onChange={e => setEstimatedHours(e.target.value)}
-                                placeholder="0.0"
-                                className="w-full h-10 border border-gray-200 rounded-lg pl-10 pr-3 text-sm focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                            />
-                            <Clock size={16} className="absolute left-3 top-3 text-gray-400" />
+                    <div>
+                        <div className="flex items-center justify-between mb-1">
+                            <label className="text-sm font-semibold text-gray-800 block">
+                                {t("task.requiredSkills", { defaultValue: "Required Skills" })}
+                            </label>
+                            <span className="text-[11px] text-gray-400">
+                                {t("task.optional", { defaultValue: "Optional" })}
+                            </span>
                         </div>
-                        <p className="text-[10px] text-gray-400 mt-1">{t('task.estimatedHoursHint')}</p>
+                        <div className="rounded-xl border border-gray-200 px-3 py-3">
+                            <div className="flex flex-wrap gap-2">
+                                {requiredSkills.map((skill) => (
+                                    <span
+                                        key={skill}
+                                        className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
+                                    >
+                                        {skill}
+                                        <button
+                                            type="button"
+                                            onClick={() => setRequiredSkills((current) => current.filter((item) => item !== skill))}
+                                            className="text-slate-400 hover:text-slate-700"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </span>
+                                ))}
+                                <input
+                                    value={requiredSkillInput}
+                                    onChange={(e) => setRequiredSkillInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === ",") {
+                                            e.preventDefault()
+                                            addRequiredSkill(requiredSkillInput)
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        if (requiredSkillInput.trim()) addRequiredSkill(requiredSkillInput)
+                                    }}
+                                    placeholder={t("task.requiredSkillsPlaceholder", {
+                                        defaultValue: "Nhap ky nang va nhan Enter",
+                                    })}
+                                    className="min-w-[180px] flex-1 border-none p-0 text-sm outline-none placeholder:text-gray-400"
+                                />
+                            </div>
+                        </div>
+                        {suggestedSkills.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {suggestedSkills.slice(0, 10).map((skill) => (
+                                    <button
+                                        key={skill}
+                                        type="button"
+                                        onClick={() => addRequiredSkill(skill)}
+                                        className="rounded-full border border-dashed border-gray-300 px-2.5 py-1 text-xs text-gray-500 hover:border-blue-300 hover:text-blue-500"
+                                    >
+                                        {skill}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        <p className="text-[11px] text-gray-400 mt-1.5">
+                            {t("task.requiredSkillsHint", {
+                                defaultValue: "Truong nay chi dung de goi y assignee khi tao task. Khong can hien lai o chi tiet task.",
+                            })}
+                        </p>
                     </div>
 
                     {/* Type + Priority */}
@@ -462,7 +749,9 @@ export function FullCreateTask({
                         <div className="flex-1">
                             <label className="text-sm font-semibold text-gray-800 mb-2 block">{t('task.type')}</label>
                             <div className="flex gap-1.5 flex-wrap">
-                                {(Object.entries(TYPE_CONFIG) as [TaskType, typeof TYPE_CONFIG[TaskType]][]).map(([key, val]) => (
+                                {QUICK_CREATE_TYPES.map((key) => {
+                                    const val = TYPE_CONFIG[key]
+                                    return (
                                     <button
                                         key={key}
                                         type="button"
@@ -475,7 +764,8 @@ export function FullCreateTask({
                                     >
                                         <span>{val.icon}</span>{t(`task.type_${key}`)}
                                     </button>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
 
@@ -521,6 +811,26 @@ export function FullCreateTask({
                                 </div>
                                 <div className="absolute right-3 top-3.5 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-gray-400 pointer-events-none" />
                             </div>
+                            {suggestedAssignee && assigneeId !== suggestedAssignee.member.id && (
+                                <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                                    <div className="font-semibold">
+                                        {t("task.assigneeSuggestionTitle", { defaultValue: "Goi y giao viec" })}: {suggestedAssignee.member.name}
+                                    </div>
+                                    <div className="mt-1">
+                                        {t("task.assigneeSuggestionBody", {
+                                            count: suggestedAssignee.matchedSkills.length,
+                                            defaultValue: `Khop ${suggestedAssignee.matchedSkills.length} ky nang voi task nay.`,
+                                        })}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setAssigneeId(suggestedAssignee.member.id)}
+                                        className="mt-2 font-semibold underline"
+                                    >
+                                        {t("task.useSuggestedAssignee", { defaultValue: "Chon nguoi nay" })}
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex-1">
@@ -547,6 +857,11 @@ export function FullCreateTask({
                         <div className="flex-1">
                             <label className="text-sm font-semibold text-gray-800 mb-2 block">{t('task.sprint')}</label>
                             <SprintSelector sprints={sprints} isLoading={sprintsLoading} value={sprintId} onChange={setSprintId} />
+                            {sprintId && sprints.find((sprint) => sprint.id === sprintId) && (
+                                <p className="text-[11px] text-gray-500 mt-1.5">
+                                    {getSprintOptionLabel(sprints.find((sprint) => sprint.id === sprintId)!, t)}
+                                </p>
+                            )}
                         </div>
                         ) : (
                         <div className="flex-1">
@@ -616,7 +931,20 @@ export function FullCreateTask({
                                     </button>
                                 )}
                             </div>
-                            <p className="text-[11px] text-gray-400 mt-1.5">{t('task.storyPointsHint')}</p>
+                            <p className="text-[11px] text-gray-400 mt-1.5">
+                                {t("task.storyPointsHint", { defaultValue: "Dung day Fibonacci: 1, 2, 3, 5, 8, 13." })}
+                            </p>
+                            <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] leading-5 text-blue-800">
+                                <div className="font-semibold">
+                                    {t("task.scrumSizingTitle", { defaultValue: "Story Points khong phai gio lam" })}
+                                </div>
+                                <div>
+                                    {t("task.scrumSizingHint", {
+                                        defaultValue:
+                                            "Story Points do do kho va no luc. Due Date la han phai ban giao. He thong quan tam task nang bao nhieu diem va den ngay nao phai xong, khong ep team phai mat chinh xac bao nhieu gio.",
+                                    })}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -642,7 +970,7 @@ export function FullCreateTask({
                             {t('common.cancel')}
                         </button>
                         <button
-                            onClick={handleSubmit}
+                            onClick={handleCreateTask}
                             disabled={!title.trim() || isSubmitting}
                             className="h-10 px-8 rounded-lg bg-[#3B82F6] text-white text-sm font-bold shadow-md hover:bg-blue-600 disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2"
                         >

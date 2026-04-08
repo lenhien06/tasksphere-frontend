@@ -260,6 +260,7 @@ export default function KanbanBoard({
           name: m.user?.fullName || m.fullName || "Unknown",
           email: m.user?.email || m.email || "",
           avatarUrl: m.user?.avatarUrl || m.avatarUrl || undefined,
+          skillTags: m.skillTags || m.skills || m.user?.skillTags || m.user?.skills || [],
         },
       ];
     });
@@ -581,28 +582,25 @@ export default function KanbanBoard({
             projectMembers={members}
             columns={columns.map((c) => ({ id: c.id, name: c.name, color: c.colorHex }))}
             projectKey={projectData?.data?.projectKey}
-            onConfirm={(payload: CreateTaskPayload) => {
-              createTask.mutate(
-                {
-            title: payload.title,
-            description: payload.description,
-            type: payload.type,
-            priority: payload.priority,
-            assigneeId: payload.assigneeId ?? undefined,
-            dueDate: payload.dueDate ?? undefined,
-            storyPoints: payload.storyPoints ?? undefined,
-            statusColumnId: payload.statusColumnId,
-            parentTaskId: payload.parentTaskId ?? undefined,
-            sprintId: payload.sprintId ?? undefined,
-                },
-                {
-                  onSuccess: () => {
-                    setShowCreate(false);
-                    setCreateDefaults({});
-                  },
-                }
-              );
-            }}
+            onConfirm={(payload: CreateTaskPayload) =>
+              createTask.mutateAsync({
+                title: payload.title,
+                description: payload.description,
+                type: payload.type,
+                priority: payload.priority,
+                assigneeId: payload.assigneeId ?? undefined,
+                dueDate: payload.dueDate ?? undefined,
+                storyPoints: payload.storyPoints ?? undefined,
+                skillTagsRequired: payload.skillTagsRequired,
+                confirmActiveSprintChange: payload.confirmActiveSprintChange,
+                statusColumnId: payload.statusColumnId,
+                parentTaskId: payload.parentTaskId ?? undefined,
+                sprintId: payload.sprintId ?? undefined,
+              }).then(() => {
+                setShowCreate(false);
+                setCreateDefaults({});
+              })
+            }
             onClose={() => {
               setShowCreate(false);
               setCreateDefaults({});

@@ -132,6 +132,8 @@ export interface CreateTaskRequest {
     dueDate?: string                    // ISO 8601
     storyPoints?: number                // 0–100
     estimatedHours?: number
+    skillTagsRequired?: string[]
+    confirmActiveSprintChange?: boolean
     sprintId?: string                   // null = backlog
     parentTaskId?: string
     statusColumnId?: string             // null = first column
