@@ -212,6 +212,9 @@ export default function KanbanBoard({
 
   const effectiveTaskParams = useMemo(() => {
     const params: Record<string, unknown> = { page: 0, size: 200, activeSprintOnly: true };
+    if (activeSprint?.id) {
+      params.sprintId = activeSprint.id;
+    }
     if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
     if (filters.assigneeId) params.assigneeId = filters.assigneeId;
     if (filters.priorities.length > 0) {
@@ -221,12 +224,12 @@ export default function KanbanBoard({
     if (filters.smartFilter === "overdue") params.overdue = true;
     if (filters.smartFilter === "my_tasks") params.assigneeId = "me";
     return params;
-  }, [debouncedSearch, filters]);
+  }, [activeSprint?.id, debouncedSearch, filters]);
 
   const { data: tasksData, isLoading: tasksLoading, isFetching: tasksFetching } = useQuery({
     queryKey: ["tasks", projectId, effectiveTaskParams],
     queryFn: () => TaskService.getTasks(projectId, effectiveTaskParams as any),
-    enabled: !!projectId,
+    enabled: !!projectId && !!activeSprint?.id,
     staleTime: 30_000,
   });
 
@@ -292,7 +295,9 @@ export default function KanbanBoard({
 
   const columns = useMemo(() => mapColumns(columnsData), [columnsData]);
   const tasks = useMemo<TaskCardData[]>(() => {
-    const list = tasksData?.content ?? [];
+    const list = activeSprint?.id
+      ? (tasksData?.content ?? []).filter((t) => t.sprintId === activeSprint.id)
+      : [];
     return list.map((t) => ({
       id: t.id,
       taskId: t.taskCode,
@@ -316,7 +321,7 @@ export default function KanbanBoard({
       isOverdue: t.overdue,
       isRecurring: t.recurring,
     }));
-  }, [tasksData]);
+  }, [activeSprint?.id, tasksData]);
 
   const openTaskById = (taskId: string) => {
     setSelectedTaskId(taskId);
