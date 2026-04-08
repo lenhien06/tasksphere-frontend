@@ -14,6 +14,7 @@ import { usePermission } from "@/hooks/usePermission";
 import type {
   BurnupReportData,
   BurndownData,
+  ReportInsight,
   SprintDetail,
   VelocityForecastData,
 } from "@/app/types/task.schema";
@@ -210,20 +211,34 @@ function ReportEmpty({
   );
 }
 
-function InsightPanel({ insights }: { insights: string[] }) {
+function InsightPanel({
+  insight,
+  isLoading,
+}: {
+  insight?: ReportInsight | null;
+  isLoading?: boolean;
+}) {
+  const badgeLabel = insight?.aiGenerated ? "Live AI analysis" : "System note";
+
   return (
     <div className="mx-auto max-w-5xl rounded-[24px] border border-indigo-100 bg-indigo-50/70 px-6 py-5">
       <div className="flex items-center gap-3">
         <Lightbulb className="h-5 w-5 text-indigo-600" />
-        <h3 className="text-xl font-bold text-slate-950">AI insights</h3>
+        <h3 className="text-xl font-bold text-slate-950">{insight?.title ?? "AI analysis"}</h3>
+        <span className="rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">
+          {badgeLabel}
+        </span>
       </div>
-      <div className="mt-4 space-y-3">
-        {insights.map((insight) => (
-          <p key={insight} className="text-base leading-8 text-slate-700">
-            {insight}
-          </p>
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="mt-4 flex items-center gap-3 text-base text-slate-600">
+          <Loader2 className="h-5 w-5 animate-spin text-indigo-500" />
+          <p>AI is reading the live chart data and preparing a delivery diagnosis...</p>
+        </div>
+      ) : (
+        <p className="mt-4 text-base leading-8 text-slate-700">
+          {insight?.analysis ?? "The system will show an explanation here as soon as enough report data is available."}
+        </p>
+      )}
     </div>
   );
 }
@@ -486,110 +501,6 @@ function VelocityChart({ data }: { data: VelocityForecastData }) {
   );
 }
 
-function buildBurndownInsights(data?: BurndownData | null) {
-  if (!data || data.idealLine.length === 0) {
-    return [
-      "This sprint does not have enough burndown history yet. The chart will populate after the sprint dates and sprint tasks are in place.",
-      "Move work to Done as progress happens so the actual remaining line reflects the team’s daily burn rate.",
-    ];
-  }
-
-  const points = data.idealLine.map((idealPoint, index) => ({
-    ideal: Number(idealPoint.remainingPoints ?? 0),
-    actual: data.actualLine[index]?.remainingPoints ?? idealPoint.remainingPoints,
-  }));
-  const last = points[points.length - 1];
-  const lastActual = last.actual ?? last.ideal;
-  const gap = Math.round((lastActual - last.ideal) * 10) / 10;
-  const insights = [];
-
-  if (gap > 0) {
-    insights.push(`Actual remaining work is ${gap} story points above the ideal line. The sprint is burning work slower than planned and needs tighter daily closeout on in-progress items.`);
-  } else if (gap < 0) {
-    insights.push(`Actual remaining work is ${Math.abs(gap)} story points below the ideal line. The team is currently ahead of the planned burn rate.`);
-  } else {
-    insights.push("Actual remaining work is aligned with the ideal line. The sprint is tracking closely to plan.");
-  }
-
-  let flatDays = 0;
-  for (let index = points.length - 1; index > 0; index -= 1) {
-    if (points[index].actual === points[index - 1].actual) {
-      flatDays += 1;
-    } else {
-      break;
-    }
-  }
-  if (flatDays >= 2) {
-    insights.push(`Remaining work has been flat for ${flatDays + 1} consecutive days. That usually means tasks are staying open too long or the team is waiting on review or dependency resolution.`);
-  } else {
-    insights.push("The remaining work line is moving consistently, which suggests work is being closed rather than accumulating in the middle of the sprint.");
-  }
-
-  return insights;
-}
-
-function buildBurnupInsights(data?: BurnupReportData | null) {
-  if (!data || data.data.length === 0) {
-    return [
-      "This sprint does not have enough scope history yet. Once the sprint is active and tasks start moving, the burnup report will show both delivery progress and scope change.",
-      "Use this report to spot scope growth early before it pushes completion risk into the final days of the sprint.",
-    ];
-  }
-
-  const scopeChange = data.latestScopePoints - data.initialScopePoints;
-  const completionRate = data.latestScopePoints > 0
-    ? Math.round((data.latestCompletedPoints / data.latestScopePoints) * 1000) / 10
-    : 0;
-  const insights = [];
-
-  if (scopeChange > 0) {
-    insights.push(`Scope increased by ${scopeChange} story points after the sprint started. This is a clear sign of mid-sprint scope growth and should be reviewed with the project manager.`);
-  } else if (scopeChange < 0) {
-    insights.push(`Scope reduced by ${Math.abs(scopeChange)} story points during the sprint. The team narrowed the sprint scope to protect delivery.`);
-  } else {
-    insights.push("Sprint scope has remained stable since kickoff. This makes the completion trend easier to trust.");
-  }
-
-  if (completionRate >= 100) {
-    insights.push("Completed work has caught up to total scope. The team has fully burned up the sprint scope that is currently recorded.");
-  } else {
-    insights.push(`The team has completed ${completionRate}% of the current sprint scope. The remaining gap should be monitored together with any new scope added late in the sprint.`);
-  }
-
-  return insights;
-}
-
-function buildVelocityInsights(data?: VelocityForecastData | null) {
-  if (!data || data.sprints.length === 0) {
-    return [
-      "No closed sprint history is available yet. The velocity report will become useful after the team completes the first sprint.",
-      "Once several sprints are closed, compare committed and completed points to set a more reliable planning baseline.",
-    ];
-  }
-
-  const latest = data.sprints[data.sprints.length - 1];
-  const overCommit = latest.committedPoints - latest.completedPoints;
-  const insights = [];
-
-  insights.push(`Average completed velocity across the recent sprint history is ${data.averageCompleted} story points. This is the most stable baseline for the next planning conversation.`);
-
-  if (overCommit > 0) {
-    insights.push(`In the latest sprint, the team committed ${latest.committedPoints} points but completed ${latest.completedPoints}. The ${overCommit}-point gap suggests the plan was heavier than the team’s recent delivery capacity.`);
-  } else {
-    insights.push(`In the latest sprint, committed work and completed work were closely aligned. This indicates stronger planning accuracy and healthier sprint intake.`);
-  }
-
-  if (data.trend === "UP") {
-    insights.push("Completed velocity is trending upward. The team may be improving flow efficiency, but the next sprint should still stay close to proven historical throughput.");
-  } else if (data.trend === "DOWN") {
-    insights.push("Completed velocity is trending downward. Review blockers, review queues, and scope discipline before increasing future sprint commitments.");
-  } else {
-    insights.push("Velocity has remained relatively stable. Planning should be anchored to the historical average rather than optimistic stretch targets.");
-  }
-
-  return insights;
-}
-
 export default function ReportsPage({
   projectId,
   sprintId,
@@ -652,6 +563,16 @@ export default function ReportsPage({
     queryFn: () => TaskService.getVelocityForecast(projectId, 5),
     enabled: selectedReport === "velocity" && !!projectId,
     staleTime: 5 * 60_000,
+  });
+
+  const insightQuery = useQuery({
+    queryKey: ["reports-ai-insight", projectId, selectedReport, selectedSprintId],
+    queryFn: () => TaskService.getReportInsight(projectId, selectedReport as ReportType, selectedSprintId || undefined),
+    enabled:
+      !!projectId &&
+      !!selectedReport &&
+      (selectedReport === "velocity" || !!selectedSprintId),
+    staleTime: 0,
   });
 
   const handleSelectReport = (report: ReportType) => {
@@ -750,10 +671,13 @@ export default function ReportsPage({
           ) : burndownQuery.data ? (
             <>
               <BurndownChart data={burndownQuery.data} />
-              <InsightPanel insights={buildBurndownInsights(burndownQuery.data)} />
+              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
             </>
           ) : (
-            <ReportEmpty title="Burndown data is not available for this sprint yet." description="The chart will appear after sprint dates are configured and work starts moving to Done." />
+            <>
+              <ReportEmpty title="Burndown data is not available for this sprint yet." description="The chart will appear after sprint dates are configured and work starts moving to Done." />
+              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
+            </>
           )}
         </ChartShell>
       ) : null}
@@ -773,10 +697,13 @@ export default function ReportsPage({
           ) : burnupQuery.data ? (
             <>
               <BurnupChart data={burnupQuery.data} />
-              <InsightPanel insights={buildBurnupInsights(burnupQuery.data)} />
+              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
             </>
           ) : (
-            <ReportEmpty title="Burnup data is not available for this sprint yet." description="Once the sprint has active work and scope history, this report will show how scope and completed work evolve day by day." />
+            <>
+              <ReportEmpty title="Burnup data is not available for this sprint yet." description="Once the sprint has active work and scope history, this report will show how scope and completed work evolve day by day." />
+              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
+            </>
           )}
         </ChartShell>
       ) : null}
@@ -794,10 +721,13 @@ export default function ReportsPage({
           ) : velocityQuery.data && velocityQuery.data.sprints.length > 0 ? (
             <>
               <VelocityChart data={velocityQuery.data} />
-              <InsightPanel insights={buildVelocityInsights(velocityQuery.data)} />
+              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
             </>
           ) : (
-            <ReportEmpty title="Closed sprint history is not available yet." description="The velocity report will become available after the team completes at least one sprint and records delivery history." />
+            <>
+              <ReportEmpty title="Closed sprint history is not available yet." description="The velocity report will become available after the team completes at least one sprint and records delivery history." />
+              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
+            </>
           )}
         </ChartShell>
       ) : null}

@@ -485,6 +485,15 @@ export interface VelocityForecastData {
     sprints: VelocityForecastSprint[]
 }
 
+export interface ReportInsight {
+    reportType: string
+    title: string
+    analysis: string
+    aiGenerated: boolean
+    model: string | null
+    generatedAt: string
+}
+
 // FR-28: Member Performance
 export interface MemberPerformance {
     user:                 UserSummary & { projectRole: string }

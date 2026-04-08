@@ -28,6 +28,7 @@ import {
     BurnupReportData,
     VelocityData,
     VelocityForecastData,
+    ReportInsight,
     ProjectOverview,
     MemberPerformance,
     MemberReportData,
@@ -403,6 +404,18 @@ export const TaskService = {
         const res = await apiJava.get<ApiResponse<VelocityForecastData>>(
             `${BASE}/${projectId}/reports/velocity-forecast`,
             { params: { limit } }
+        );
+        return res.data.data;
+    },
+
+    getReportInsight: async (
+        projectId: string,
+        type: "burnup" | "burndown" | "velocity",
+        sprintId?: string
+    ): Promise<ReportInsight> => {
+        const res = await apiJava.get<ApiResponse<ReportInsight>>(
+            `${BASE}/${projectId}/reports/insights`,
+            { params: { type, sprintId } }
         );
         return res.data.data;
     },
