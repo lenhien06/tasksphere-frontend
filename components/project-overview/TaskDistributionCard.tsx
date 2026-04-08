@@ -13,6 +13,7 @@ const STATUS_CONFIG: Record<ProjectOverviewPageProps["overview"]["statusDistribu
   todo: { labelKey: "task.status_TODO", color: "#9CA3AF" },
   in_progress: { labelKey: "task.status_IN_PROGRESS", color: "#3B82F6" },
   in_review: { labelKey: "task.status_IN_REVIEW", color: "#A855F7" },
+  testing: { labelKey: "task.status_TESTING", color: "#A78BFA" },
   done: { labelKey: "task.status_DONE", color: "#22C55E" },
   cancelled: { labelKey: "task.status_CANCELLED", color: "#EF4444" },
 };
@@ -21,6 +22,7 @@ const FALLBACK_ORDER: Array<ProjectOverviewPageProps["overview"]["statusDistribu
   "todo",
   "in_progress",
   "in_review",
+  "testing",
   "done",
   "cancelled",
 ];
