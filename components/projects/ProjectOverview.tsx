@@ -290,7 +290,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     userRole,
     currentUserId,
     onCreateTask: () => setShowCreateTask(true),
-    onNavigateToMembers: () => router.push(`/projects/${projectId}/members`),
+    onNavigateToMembers: () => router.push(`/projects/${projectId}?tab=members`),
     onNavigateToBoard: () => router.push(`/projects/${projectId}/board`),
     onNavigateToBacklog: () => router.push(`/projects/${projectId}/backlog`),
     onOpenAISkillModal: userRole === "PROJECT_MANAGER"

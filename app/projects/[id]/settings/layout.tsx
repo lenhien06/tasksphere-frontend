@@ -34,7 +34,7 @@ export default function ProjectSettingsLayout({
       id: "members",
       label: "Members",
       icon: Users,
-      path: `/projects/${projectId}/members`,
+      path: `/projects/${projectId}?tab=members`,
     },
     {
       id: "workflow",
