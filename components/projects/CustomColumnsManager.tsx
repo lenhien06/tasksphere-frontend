@@ -17,6 +17,16 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { TaskService } from "@/app/services/TaskService"
 import type { ColumnResponse, TaskStatus, CreateColumnRequest } from "@/app/types/task.schema"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 // ════════════════════════════════════════
 // CONSTANTS
@@ -354,6 +364,7 @@ export default function CustomColumnsManager({
     const canEdit = currentUserRole === "PM"
     const qKey = ["columns", projectId]
 
+    const [pendingDeleteColumn, setPendingDeleteColumn] = useState<ColumnResponse | null>(null)
     const [showAddModal, setShowAddModal]   = useState(false)
     const [localOrder, setLocalOrder]       = useState<ColumnResponse[] | null>(null)
 
@@ -421,8 +432,7 @@ export default function CustomColumnsManager({
     }
 
     const handleDelete = (column: ColumnResponse) => {
-        if (!window.confirm(t('columns.confirmDelete', { name: column.name, count: column.taskCount }))) return
-        deleteMutation.mutate(column.id)
+        setPendingDeleteColumn(column)
     }
 
     const handleRename = (id: string, name: string) => {
@@ -491,6 +501,31 @@ export default function CustomColumnsManager({
                     isPending={createMutation.isPending}
                 />
             )}
+
+            <AlertDialog open={!!pendingDeleteColumn} onOpenChange={(open) => !open && setPendingDeleteColumn(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t("columns.delete")}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {pendingDeleteColumn
+                                ? t("columns.confirmDelete", { name: pendingDeleteColumn.name, count: pendingDeleteColumn.taskCount })
+                                : ""}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (!pendingDeleteColumn) return
+                                deleteMutation.mutate(pendingDeleteColumn.id)
+                                setPendingDeleteColumn(null)
+                            }}
+                        >
+                            {t("common.delete", { defaultValue: "Delete" })}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

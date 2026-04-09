@@ -33,6 +33,16 @@ import { TaskDetailService } from "@/app/services/TaskDetailService"
 import { toast } from "sonner"
 import { createPortal } from "react-dom"
 import { getRealtimeAccessToken, getStompConnectHeaders } from "@/lib/realtime/stompAuth"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 // ── Custom Mention node ────────────────────────────────────
 
@@ -745,6 +755,7 @@ function CommentItem({
 }: CommentItemProps) {
     const [isEditing, setIsEditing] = useState(false)
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
     const handleSaveEdit = useCallback(
         (html: string) => { onUpdate({ commentId: comment.id, content: html }); setIsEditing(false) },
@@ -840,7 +851,7 @@ function CommentItem({
                             {comment.canDelete && (
                                 <button
                                     className="text-[12px] font-bold text-slate-500 hover:text-rose-500 transition-colors"
-                                    onClick={() => { if (confirm("Xóa comment này?")) onDelete(comment.id) }}
+                                    onClick={() => setDeleteDialogOpen(true)}
                                 >
                                     Xóa
                                 </button>
@@ -849,6 +860,25 @@ function CommentItem({
                                 <span className="text-[11px] text-slate-400 italic">đã chỉnh sửa</span>
                             )}
                         </div>
+                        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete comment?</AlertDialogTitle>
+                                    <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={() => {
+                                            setDeleteDialogOpen(false)
+                                            onDelete(comment.id)
+                                        }}
+                                    >
+                                        Delete
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </>
                 )}
 

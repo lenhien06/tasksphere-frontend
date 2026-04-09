@@ -112,6 +112,7 @@ export default function TaskDetailPageContent({
     const [newFieldRequired, setNewFieldRequired] = React.useState(false)
     const [newFieldOptionsText, setNewFieldOptionsText] = React.useState("")
     const [promoteToTaskOpen, setPromoteToTaskOpen] = React.useState(false)
+    const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
 
     const { data, isLoading, isError } = useQuery({
         queryKey: ["task", projectId, taskId],
@@ -358,9 +359,7 @@ export default function TaskDetailPageContent({
                                     )}
                                     {canDelete && <DropdownMenuItem
                                         className="text-rose-600 font-semibold focus:text-rose-600 focus:bg-rose-50 rounded-lg cursor-pointer"
-                                        onClick={() => {
-                                            if (confirm("All nested sub-tasks will be deleted as well. Do you want to delete this task?")) deleteTask.mutate()
-                                        }}
+                                        onClick={() => setDeleteDialogOpen(true)}
                                         disabled={deleteTask.isPending}
                                     >
                                         <Trash2 size={16} className="mr-2" /> Delete task
@@ -473,6 +472,29 @@ export default function TaskDetailPageContent({
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
+
+                <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Delete task?</DialogTitle>
+                            <DialogDescription>
+                                All nested sub-tasks will be deleted as well. This action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+                            <Button
+                                variant="destructive"
+                                onClick={() => {
+                                    setDeleteDialogOpen(false)
+                                    deleteTask.mutate()
+                                }}
+                            >
+                                Delete task
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Tabs section */}
                 <div className="mt-8">

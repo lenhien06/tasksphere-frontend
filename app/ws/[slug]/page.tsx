@@ -30,6 +30,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { WorkspaceService } from "@/app/services/workspace.service";
 import { ProjectService } from "@/app/services/ProjectService";
 import { ProfileService, type UserProfileResponse } from "@/app/services/profile.service";
@@ -833,6 +843,9 @@ export default function WorkspaceDetailPage() {
   const [newSkillText, setNewSkillText] = useState("");
   const [selectedMemberProfileId, setSelectedMemberProfileId] = useState<string | null>(null);
   const [inviteStatusFilter, setInviteStatusFilter] = useState<string>("PENDING");
+  const [pendingMemberAction, setPendingMemberAction] = useState<
+    { type: "leave"; userId: string; name: string } | { type: "remove"; userId: string; name: string } | null
+  >(null);
 
   const {
     data: workspaceResponse,
@@ -1458,14 +1471,16 @@ export default function WorkspaceDetailPage() {
                                     <>
                                       <div className="my-1 h-px bg-slate-100" />
                                       <DropdownMenuItem
-                                        onClick={() => {
-                                          if (confirm(`Bạn có chắc muốn rời workspace ${workspace.name}?`)) {
-                                            removeMemberMutation.mutate(member.userId);
-                                          }
-                                        }}
+                                        onClick={() =>
+                                          setPendingMemberAction({
+                                            type: "leave",
+                                            userId: member.userId,
+                                            name: workspace.name,
+                                          })
+                                        }
                                         className="cursor-pointer rounded-lg py-2 text-sm font-semibold text-orange-600 focus:bg-orange-50 focus:text-orange-600"
                                       >
-                                        <ArrowLeft size={16} className="mr-2" /> Rời workspace
+                                        <ArrowLeft size={16} className="mr-2" /> Leave workspace
                                       </DropdownMenuItem>
                                     </>
                                   )}
@@ -1473,14 +1488,16 @@ export default function WorkspaceDetailPage() {
                                     <>
                                       <div className="my-1 h-px bg-slate-100" />
                                       <DropdownMenuItem
-                                        onClick={() => {
-                                          if (confirm(`Xóa ${member.fullName} khỏi workspace?`)) {
-                                            removeMemberMutation.mutate(member.userId);
-                                          }
-                                        }}
+                                        onClick={() =>
+                                          setPendingMemberAction({
+                                            type: "remove",
+                                            userId: member.userId,
+                                            name: member.fullName,
+                                          })
+                                        }
                                         className="cursor-pointer rounded-lg py-2 text-sm font-semibold text-red-600 focus:bg-red-50 focus:text-red-600"
                                       >
-                                        <Trash2 size={16} className="mr-2" /> Xóa khỏi workspace
+                                        <Trash2 size={16} className="mr-2" /> Remove from workspace
                                       </DropdownMenuItem>
                                     </>
                                   )}
@@ -1494,6 +1511,37 @@ export default function WorkspaceDetailPage() {
                   </div>
                 )}
               </div>
+              <AlertDialog
+                open={!!pendingMemberAction}
+                onOpenChange={(open) => {
+                  if (!open) setPendingMemberAction(null);
+                }}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {pendingMemberAction?.type === "leave" ? "Leave workspace?" : "Remove member?"}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {pendingMemberAction?.type === "leave"
+                        ? `Are you sure you want to leave workspace ${pendingMemberAction?.name}?`
+                        : `Remove ${pendingMemberAction?.name} from this workspace?`}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        if (!pendingMemberAction) return;
+                        removeMemberMutation.mutate(pendingMemberAction.userId);
+                        setPendingMemberAction(null);
+                      }}
+                    >
+                      Continue
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

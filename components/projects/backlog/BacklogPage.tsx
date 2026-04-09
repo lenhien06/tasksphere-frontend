@@ -34,6 +34,16 @@ import {
     arrayMove,
     verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 import { TaskService } from "@/app/services/TaskService"
 import { ProjectMemberService } from "@/app/services/project-member.service"
@@ -112,6 +122,11 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     const [sprintOpen, setSprintOpen] = useState<Record<string, boolean>>({})
     const [startTargetId, setStartTargetId] = useState<string | null>(null)
     const [completeTargetId, setCompleteTargetId] = useState<string | null>(null)
+    const [pendingActiveSprintAssignment, setPendingActiveSprintAssignment] = useState<
+        { mode: "single"; sprintId: string; taskId: string } |
+        { mode: "batch"; sprintId: string; taskIds: string[] } |
+        null
+    >(null)
     const backlogDropId = "backlog-drop"
 
     const debouncedSearch = useDebounce(filters.search, 300)
@@ -244,16 +259,16 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
         else setSelectedIds(tasks.map(x => x.id))
     }
 
-    const handleAssignToSprint = async (taskId: string, sprintId: string) => {
+    const handleAssignToSprint = async (taskId: string, sprintId: string, skipActiveConfirm = false) => {
         try {
             // Check if target sprint is ACTIVE - show warning
             const targetSprint = sprints.find(s => s.id === sprintId)
-            if (targetSprint?.status === "ACTIVE") {
-                const confirmed = window.confirm(
-                    `Sprint "${targetSprint.name}" đang chạy. Thêm task vào sprint đang chạy. Tiếp tục?`
-                )
-                if (!confirmed) return
+            if (targetSprint?.status === "ACTIVE" && !skipActiveConfirm) {
+                setPendingActiveSprintAssignment({ mode: "single", sprintId, taskId })
+                return
+            }
 
+            if (targetSprint?.status === "ACTIVE") {
                 // Log activity: PM added task to active sprint
                 const task = tasks.find(t => t.id === taskId)
                 toast.info(t("backlog.activityLog", {
@@ -286,17 +301,17 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
         }
     }
 
-    const handleBatchAssign = async (sprintId: string) => {
+    const handleBatchAssign = async (sprintId: string, skipActiveConfirm = false) => {
         if (selectedIds.length === 0) return
         try {
             // Check if target sprint is ACTIVE - show warning
             const targetSprint = sprints.find(s => s.id === sprintId)
-            if (targetSprint?.status === "ACTIVE") {
-                const confirmed = window.confirm(
-                    `Sprint "${targetSprint.name}" đang chạy. Thêm ${selectedIds.length} task vào sprint đang chạy. Tiếp tục?`
-                )
-                if (!confirmed) return
+            if (targetSprint?.status === "ACTIVE" && !skipActiveConfirm) {
+                setPendingActiveSprintAssignment({ mode: "batch", sprintId, taskIds: [...selectedIds] })
+                return
+            }
 
+            if (targetSprint?.status === "ACTIVE") {
                 // Log activity: PM batch added tasks to active sprint
                 toast.info(t("backlog.activityLogBatch", {
                     defaultValue: `📋 Activity: Added ${selectedIds.length} tasks to active sprint "${targetSprint.name}"`
@@ -427,6 +442,9 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     }
 
     const clearDraggedTask = () => setActiveDraggedTask(null)
+    const pendingSprintName = pendingActiveSprintAssignment
+        ? (sprints.find((s) => s.id === pendingActiveSprintAssignment.sprintId)?.name ?? "")
+        : ""
 
     return (
         <DndContext
@@ -439,6 +457,44 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
             }}
             onDragCancel={clearDraggedTask}
         >
+        <AlertDialog
+            open={!!pendingActiveSprintAssignment}
+            onOpenChange={(open) => {
+                if (!open) setPendingActiveSprintAssignment(null)
+            }}
+        >
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Active sprint warning</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {pendingActiveSprintAssignment?.mode === "batch"
+                            ? `Sprint "${pendingSprintName}" is active. Add ${pendingActiveSprintAssignment.taskIds.length} tasks to this active sprint?`
+                            : `Sprint "${pendingSprintName}" is active. Add this task to the active sprint?`}
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={() => {
+                            if (!pendingActiveSprintAssignment) return
+                            if (pendingActiveSprintAssignment.mode === "single") {
+                                void handleAssignToSprint(
+                                    pendingActiveSprintAssignment.taskId,
+                                    pendingActiveSprintAssignment.sprintId,
+                                    true
+                                )
+                            } else {
+                                setSelectedIds(pendingActiveSprintAssignment.taskIds)
+                                void handleBatchAssign(pendingActiveSprintAssignment.sprintId, true)
+                            }
+                            setPendingActiveSprintAssignment(null)
+                        }}
+                    >
+                        Continue
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
         <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-[#F7F8F9]">
             <div className="sticky top-0 z-20 border-b border-[#DFE1E6] bg-white/95 px-4 py-3 backdrop-blur">
                 <div className="flex flex-wrap items-center gap-2">

@@ -36,13 +36,13 @@ const CreateProjectPageSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["projectKey"],
-        message: "Chỉ được dùng chữ in hoa và số",
+        message: "Only uppercase letters and numbers are allowed",
       });
     } else if (projectKey.length < 2) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["projectKey"],
-        message: "Project Key phải có ít nhất 2 ký tự",
+        message: "Project key must be at least 2 characters",
       });
     }
 
@@ -53,7 +53,7 @@ const CreateProjectPageSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["endDate"],
-          message: "Ngày kết thúc phải sau ngày bắt đầu",
+          message: "End date must be after start date",
         });
       }
     }

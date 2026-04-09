@@ -8,6 +8,14 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 type SkillType = "BE" | "FE" | "AI"
 
@@ -20,6 +28,7 @@ interface Skill {
 export default function AccountSettings() {
   const { t } = useTranslation()
   const [inputValue, setInputValue] = useState("")
+  const [savedDialogOpen, setSavedDialogOpen] = useState(false)
   const [skills, setSkills] = useState<Skill[]>([
     { id: "1", name: "Python (BE)", type: "BE" },
     { id: "2", name: "Node.js (BE)", type: "BE" },
@@ -67,7 +76,7 @@ export default function AccountSettings() {
   const handleSave = () => {
     console.log("Saving skills to backend:", skills)
     // Placeholder for API call
-    alert("Skills saved successfully!")
+    setSavedDialogOpen(true)
   }
 
   const getBadgeColor = (type: SkillType) => {
@@ -125,6 +134,17 @@ export default function AccountSettings() {
           ))}
         </div>
       </CardContent>
+      <Dialog open={savedDialogOpen} onOpenChange={setSavedDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Skills saved</DialogTitle>
+            <DialogDescription>Your skills were saved successfully.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setSavedDialogOpen(false)}>OK</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

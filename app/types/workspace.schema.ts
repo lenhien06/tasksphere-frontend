@@ -52,13 +52,13 @@ export type WorkspaceMember = z.infer<typeof WorkspaceMemberSchema>;
 export const CreateWorkspaceSchema = z.object({
   name: z
     .string()
-    .min(1, "Tên workspace không được để trống")
-    .max(255, "Tên workspace không được quá 255 ký tự"),
+    .min(1, "Workspace name is required")
+    .max(255, "Workspace name must not exceed 255 characters"),
   slug: z
     .string()
-    .min(2, "Slug phải từ 2-50 ký tự")
-    .max(50, "Slug phải từ 2-50 ký tự")
-    .regex(/^[a-z0-9-]+$/, "Slug chỉ gồm chữ thường, số và dấu gạch ngang")
+    .min(2, "Slug must be between 2 and 50 characters")
+    .max(50, "Slug must be between 2 and 50 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug can contain lowercase letters, numbers, and hyphens only")
     .optional()
     .or(z.literal("")),
   description: z.string().optional(),
@@ -67,7 +67,7 @@ export const CreateWorkspaceSchema = z.object({
 export type CreateWorkspaceRequest = z.infer<typeof CreateWorkspaceSchema>;
 
 export const InviteMemberSchema = z.object({
-  email: z.string().email("Email không hợp lệ"),
+  email: z.string().email("Invalid email address"),
   role: WorkspaceRoleEnum.exclude(["OWNER"]),
   skillTags: z.array(z.string()).optional(),
 });

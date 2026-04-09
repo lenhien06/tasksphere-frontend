@@ -13,6 +13,16 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import type { WebhookItem, CreateWebhookRequest, WebhookTestResult } from "@/app/types/task.schema"
 
 // ── Constants ─────────────────────────────────────────────────
@@ -303,6 +313,7 @@ function WebhookCard({
     const [editing, setEditing] = useState(false)
     const [testResult, setTestResult] = useState<WebhookTestResult | null>(null)
     const [testing, setTesting] = useState(false)
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
     const deleteMutation = useMutation({
         mutationFn: () => TaskService.deleteWebhook(webhook.id),
@@ -369,10 +380,7 @@ function WebhookCard({
                             </DropdownMenuItem>
                             <DropdownMenuItem
                                 className="text-red-500 focus:text-red-500"
-                                onClick={() => {
-                                    if (!confirm(`${t('webhook.confirmDelete')} "${webhook.name}"?`)) return
-                                    deleteMutation.mutate()
-                                }}
+                                onClick={() => setDeleteDialogOpen(true)}
                             >
                                 🗑 {t('common.delete')}
                             </DropdownMenuItem>
@@ -428,6 +436,27 @@ function WebhookCard({
                     </div>
                 )}
             </div>
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t("common.delete")}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {`${t("webhook.confirmDelete")} "${webhook.name}"?`}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                setDeleteDialogOpen(false)
+                                deleteMutation.mutate()
+                            }}
+                        >
+                            {t("common.delete")}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {editing && (
                 <WebhookModal

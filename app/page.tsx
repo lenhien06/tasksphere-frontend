@@ -286,7 +286,7 @@ const stagger = {
 export default function LandingPage() {
   const { i18n } = useTranslation();
   const isVi = (i18n.resolvedLanguage || i18n.language || "en").startsWith("vi");
-  const tr = (en: string, vi: string) => (isVi ? vi : en);
+  const tr = (en: string, _vi: string) => en;
 
   const switchLanguage = (lang: "en" | "vi") => {
     i18n.changeLanguage(lang);

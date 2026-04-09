@@ -9,6 +9,16 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { getBeErrorMessage, getStructuredErrorCode } from "@/lib/axios";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function AcceptInviteContent() {
     const { t } = useTranslation();
@@ -22,6 +32,7 @@ function AcceptInviteContent() {
     const [status, setStatus] = useState<"verifying" | "verified" | "accepting" | "declining" | "success" | "declined" | "error" | "mismatch">("verifying");
     const [inviteData, setInviteData] = useState<VerifyInviteResponse | null>(null);
     const [message, setMessage] = useState(t('invite.verifying'));
+    const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
 
     const rememberInviteRedirect = () => {
         if (typeof window === "undefined" || !token) return;
@@ -55,7 +66,7 @@ function AcceptInviteContent() {
                     setStatus("error");
                     setMessage(
                         getBeErrorMessage(error) ||
-                            "Lời mời đã hết hạn hoặc không còn hiệu lực. Vui lòng liên hệ PM để được mời lại."
+                            "This invite has expired or is no longer valid. Please contact the PM for a new invite."
                     );
                 } else if (
                     statusCode === 404 ||
@@ -64,12 +75,12 @@ function AcceptInviteContent() {
                     (statusCode === 400 && errorData?.error === "INVITE_NOT_FOUND")
                 ) {
                     setStatus("error");
-                    setMessage(getBeErrorMessage(error) || "Lời mời không tồn tại hoặc đã bị hủy.");
+                    setMessage(getBeErrorMessage(error) || "This invite does not exist or has been revoked.");
                 } else if (statusCode === 403 && errorData?.error === "EMAIL_MISMATCH") {
                     setInviteData(errorData?.data);
                     setStatus("mismatch");
                     setMessage(
-                        `Tài khoản đang đăng nhập (${currentUserEmail}) không khớp với email được mời (${errorData?.data?.inviteeEmail || "email khác"}). Vui lòng đăng xuất và đăng nhập bằng đúng tài khoản.`
+                        `The signed-in account (${currentUserEmail}) does not match the invited email (${errorData?.data?.inviteeEmail || "another email"}). Please sign out and sign in with the correct account.`
                     );
                 } else {
                     setStatus("error");
@@ -112,18 +123,18 @@ function AcceptInviteContent() {
                 setStatus("mismatch");
                 setMessage(
                     getBeErrorMessage(error) ||
-                        `Tài khoản đang đăng nhập (${currentUserEmail}) không khớp với email được mời (${inviteData?.inviteeEmail || "email khác"}). Vui lòng đăng xuất và đăng nhập bằng đúng tài khoản.`
+                        `The signed-in account (${currentUserEmail}) does not match the invited email (${inviteData?.inviteeEmail || "another email"}). Please sign out and sign in with the correct account.`
                 );
             } else if (statusCode === 409 || errCode === "ALREADY_MEMBER") {
-                toast.error(getBeErrorMessage(error) || "Bạn đã là thành viên dự án hoặc lời mời đã được xử lý.");
+                toast.error(getBeErrorMessage(error) || "You are already a project member or this invite was already processed.");
                 setStatus("error");
-                setMessage(getBeErrorMessage(error) || "Không thể chấp nhận lời mời này.");
+                setMessage(getBeErrorMessage(error) || "Unable to accept this invite.");
             } else if (statusCode === 410 || errCode === "TOKEN_EXPIRED_OR_REVOKED") {
                 setStatus("error");
-                setMessage(getBeErrorMessage(error) || "Lời mời đã hết hạn hoặc không còn hiệu lực.");
+                setMessage(getBeErrorMessage(error) || "This invite has expired or is no longer valid.");
             } else if (statusCode === 404 || errCode === "TOKEN_NOT_FOUND") {
                 setStatus("error");
-                setMessage(getBeErrorMessage(error) || "Không tìm thấy lời mời.");
+                setMessage(getBeErrorMessage(error) || "Invite not found.");
             } else {
                 setStatus("error");
                 setMessage(getBeErrorMessage(error) || t("invite.acceptError"));
@@ -133,8 +144,6 @@ function AcceptInviteContent() {
 
     // 3. Handle Decline
     const handleDecline = async () => {
-        if (!window.confirm(t('invite.declineConfirm'))) return;
-
         setStatus("declining");
         try {
             const res = await ProjectMemberService.declineInvite(token!);
@@ -147,22 +156,22 @@ function AcceptInviteContent() {
             const errCodeDecl = getStructuredErrorCode(error);
 
             if (statusCode === 403 && errorData?.error === "EMAIL_MISMATCH") {
-                toast.error(getBeErrorMessage(error) || "Tài khoản đang đăng nhập không khớp với email được mời.");
+                toast.error(getBeErrorMessage(error) || "The signed-in account does not match the invited email.");
                 setStatus("mismatch");
                 setMessage(
                     getBeErrorMessage(error) ||
-                        `Tài khoản đang đăng nhập (${currentUserEmail}) không khớp với email được mời (${inviteData?.inviteeEmail || "email khác"}). Vui lòng đăng xuất và đăng nhập bằng đúng tài khoản.`
+                        `The signed-in account (${currentUserEmail}) does not match the invited email (${inviteData?.inviteeEmail || "another email"}). Please sign out and sign in with the correct account.`
                 );
             } else if (statusCode === 409 || errCodeDecl === "ALREADY_ACCEPTED") {
-                toast.error(getBeErrorMessage(error) || "Lời mời đã được chấp nhận trước đó.");
+                toast.error(getBeErrorMessage(error) || "This invite has already been accepted.");
                 setStatus("error");
-                setMessage(getBeErrorMessage(error) || "Không thể từ chối lời mời này.");
+                setMessage(getBeErrorMessage(error) || "Unable to decline this invite.");
             } else if (statusCode === 410 || errCodeDecl === "TOKEN_EXPIRED_OR_REVOKED") {
                 setStatus("error");
-                setMessage(getBeErrorMessage(error) || "Lời mời đã hết hạn hoặc không còn hiệu lực.");
+                setMessage(getBeErrorMessage(error) || "This invite has expired or is no longer valid.");
             } else if (statusCode === 404 || errCodeDecl === "TOKEN_NOT_FOUND") {
                 setStatus("error");
-                setMessage(getBeErrorMessage(error) || "Không tìm thấy lời mời.");
+                setMessage(getBeErrorMessage(error) || "Invite not found.");
             } else {
                 setStatus("error");
                 setMessage(getBeErrorMessage(error) || t("invite.declineError"));
@@ -215,7 +224,7 @@ function AcceptInviteContent() {
                         {accessToken ? (
                             <div className="grid grid-cols-2 gap-4 w-full">
                                 <button
-                                    onClick={handleDecline}
+                                    onClick={() => setDeclineDialogOpen(true)}
                                     className="h-12 rounded-xl border border-[#DADCE0] bg-white text-[14px] font-bold text-[#5F6368] hover:bg-[#F8F9FA] transition-all active:scale-95"
                                 >
                                     {t('invite.decline')}
@@ -238,7 +247,7 @@ function AcceptInviteContent() {
                                     }}
                                     className="h-12 rounded-xl border border-[#DADCE0] bg-white text-[14px] font-bold text-[#5F6368] hover:bg-[#F8F9FA] transition-all active:scale-95"
                                 >
-                                    Đăng nhập để chấp nhận
+                                    Sign in to accept
                                 </button>
                                 <button
                                     onClick={() => {
@@ -248,7 +257,7 @@ function AcceptInviteContent() {
                                     }}
                                     className="h-12 rounded-xl bg-[#1A73E8] text-[14px] font-bold text-white shadow-lg shadow-blue-200 hover:bg-[#1557B0] transition-all flex items-center justify-center gap-2 active:scale-95"
                                 >
-                                    Đăng ký tài khoản mới
+                                    Create a new account
                                     <ArrowRight size={16} />
                                 </button>
                             </div>
@@ -298,7 +307,7 @@ function AcceptInviteContent() {
                         <div className="rounded-full bg-amber-50 p-4 mb-6 ring-8 ring-amber-50/50">
                             <AlertTriangle className="h-14 w-14 text-amber-500" />
                         </div>
-                        <h2 className="text-[20px] font-black text-gray-900 mb-2 leading-tight">Sai tài khoản người nhận</h2>
+                        <h2 className="text-[20px] font-black text-gray-900 mb-2 leading-tight">Wrong recipient account</h2>
                         <p className="text-[14px] text-[#5F6368] mb-10 px-6 whitespace-pre-wrap">{message}</p>
                         <button
                             onClick={() => {
@@ -307,7 +316,7 @@ function AcceptInviteContent() {
                             }}
                             className="w-full h-12 rounded-xl bg-gray-900 text-[14px] font-bold text-white hover:bg-black transition-all flex items-center justify-center gap-2"
                         >
-                            Đăng xuất & Đăng nhập lại
+                            Sign out & sign in again
                         </button>
                     </div>
                 )}
@@ -328,6 +337,25 @@ function AcceptInviteContent() {
                     </div>
                 )}
             </div>
+            <AlertDialog open={declineDialogOpen} onOpenChange={setDeclineDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Decline invite?</AlertDialogTitle>
+                        <AlertDialogDescription>{t("invite.declineConfirm")}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                setDeclineDialogOpen(false);
+                                handleDecline();
+                            }}
+                        >
+                            Decline
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

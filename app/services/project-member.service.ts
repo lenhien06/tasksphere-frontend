@@ -15,7 +15,7 @@ import { ApiResponse, PageResponse } from '@/app/types/common..schema';
 export { type ProjectRole };
 
 /**
- * Member & Invite — align với `/api/v1` (baseURL trên apiJava = NEXT_PUBLIC_API_URL, ví dụ .../api)
+ * Member & Invite - aligned with `/api/v1` (apiJava baseURL = NEXT_PUBLIC_API_URL, for example .../api)
  */
 export class ProjectMemberService {
     private static readonly PREFIX = '/v1/projects';
@@ -42,7 +42,7 @@ export class ProjectMemberService {
     /** A3 DELETE .../members/{userId} */
     static async removeMember(projectId: string, userId: string): Promise<{ message: string }> {
         const response = await apiJava.delete<ApiResponse<null>>(`${this.PREFIX}/${projectId}/members/${userId}`);
-        return { message: this.metaMessage(response) || 'Đã xóa thành viên khỏi dự án.' };
+        return { message: this.metaMessage(response) || 'Member removed from project.' };
     }
 
     /** A4 GET .../members/search?q= */
@@ -60,13 +60,13 @@ export class ProjectMemberService {
             `${this.PREFIX}/${projectId}/members/${userId}/role`,
             { role }
         );
-        return { message: this.metaMessage(response) || 'Đã cập nhật vai trò.' };
+        return { message: this.metaMessage(response) || 'Role updated.' };
     }
 
     /** A6 DELETE .../members/leave */
     static async leaveProject(projectId: string): Promise<{ message: string }> {
         const response = await apiJava.delete<ApiResponse<null>>(`${this.PREFIX}/${projectId}/members/leave`);
-        return { message: this.metaMessage(response) || 'Bạn đã rời dự án.' };
+        return { message: this.metaMessage(response) || 'You left the project.' };
     }
 
     /** A7 POST .../invites */
@@ -110,7 +110,7 @@ export class ProjectMemberService {
     /** A9 DELETE .../invites/{inviteId} */
     static async revokeInvite(projectId: string, inviteId: string): Promise<{ message: string }> {
         const response = await apiJava.delete<ApiResponse<null>>(`${this.PREFIX}/${projectId}/invites/${inviteId}`);
-        return { message: this.metaMessage(response) || 'Đã thu hồi lời mời.' };
+        return { message: this.metaMessage(response) || 'Invite revoked.' };
     }
 
     /** A10 POST .../invites/{inviteId}/resend */
@@ -118,7 +118,7 @@ export class ProjectMemberService {
         const response = await apiJava.post<ApiResponse<null>>(
             `${this.PREFIX}/${projectId}/invites/${inviteId}/resend`
         );
-        return { message: this.metaMessage(response) || 'Đã gửi lại lời mời' };
+        return { message: this.metaMessage(response) || 'Invite resent.' };
     }
 
     /** B4 GET /v1/users/me/invites */
@@ -127,7 +127,7 @@ export class ProjectMemberService {
         return response.data?.data ?? [];
     }
 
-    /** B1 GET /v1/invites/{token} — Public (không bắt buộc JWT) */
+    /** B1 GET /v1/invites/{token} - Public (JWT not required) */
     static async verifyInviteToken(token: string): Promise<VerifyInviteResponse> {
         const response = await apiJava.get<ApiResponse<VerifyInviteResponse>>(`/v1/invites/${encodeURIComponent(token)}`);
         const payload = response.data?.data;

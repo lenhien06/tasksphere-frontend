@@ -422,6 +422,7 @@ function WorklogWidget({ task, projectId, canEdit }: { task: TaskDetailResponse;
 export default function TaskMetaGrid({ task, projectId, canEdit, currentUserRole, etag, onBlockedBySubtask }: TaskMetaGridProps) {
     const qc = useQueryClient()
     const reporter = task.reporter ?? { id: "", fullName: "Unknown", avatarUrl: null }
+    const [pendingDueDate, setPendingDueDate] = useState<string | null>(null)
     const updateTask = useMutation({
         mutationFn: (data: any) => TaskService.updateTask(projectId, task.id, { title: task.title, ...data }),
         onSuccess: (_, data) => {
@@ -447,12 +448,8 @@ export default function TaskMetaGrid({ task, projectId, canEdit, currentUserRole
             }
         }
         if (task.sprint?.status === "ACTIVE" && task.dueDate !== dueDate) {
-            const confirmed = window.confirm(
-                "Warning: you are changing the plan of an active sprint. This will affect the burndown chart. Do you want to continue?"
-            )
-            if (!confirmed) {
-                return
-            }
+            setPendingDueDate(dueDate)
+            return
         }
 
         TaskService.updateDueDate(projectId, task.id, dueDate)
@@ -494,6 +491,40 @@ export default function TaskMetaGrid({ task, projectId, canEdit, currentUserRole
                 <div><FieldLabel icon={Flag} label="Priority" /><PriorityField priority={task.priority} onSave={p => updateTask.mutate({ priority: p })} readOnly={!canEdit} isSaving={updateTask.isPending} /></div>
                 <WorklogWidget task={task} projectId={projectId} canEdit={canEdit} />
             </div>
+            <Dialog open={!!pendingDueDate} onOpenChange={(open) => !open && setPendingDueDate(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm due date update</DialogTitle>
+                        <DialogDescription>
+                            You are changing the plan of an active sprint. This may affect the burndown chart.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setPendingDueDate(null)}>Cancel</Button>
+                        <Button
+                            onClick={() => {
+                                const selectedDueDate = pendingDueDate
+                                setPendingDueDate(null)
+                                if (!selectedDueDate) return
+                                TaskService.updateDueDate(projectId, task.id, selectedDueDate)
+                                    .then((response) => {
+                                        patchTaskCollections(qc, projectId, task.id, { dueDate: response.dueDate, overdue: response.overdue })
+                                        qc.invalidateQueries({ queryKey: ["task", projectId, task.id] })
+                                        qc.invalidateQueries({ queryKey: ["activity", projectId, task.id] })
+                                        qc.invalidateQueries({ queryKey: ["calendar", projectId] })
+                                        invalidateTaskCollections(qc, projectId)
+                                        toast.success("Updated due date")
+                                    })
+                                    .catch((err: any) => {
+                                        toast.error(err?.response?.data?.message ?? "Error updating due date")
+                                    })
+                            }}
+                        >
+                            Continue
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

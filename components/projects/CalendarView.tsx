@@ -43,6 +43,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 // ════════════════════════════════════════
 // CONFIGS
@@ -330,6 +340,7 @@ export default function CalendarView({
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [activeTask, setActiveTask] = useState<CalendarApiTask | null>(null)
+  const [pendingScheduleChange, setPendingScheduleChange] = useState<{ taskId: string; dueDate: string } | null>(null)
 
   const [filters, setFilters] = useState({
     search: '',
@@ -507,12 +518,8 @@ export default function CalendarView({
           return
         }
         if (task && needsActiveSprintConfirmation(task, newDate)) {
-          const confirmed = window.confirm(
-            'Cảnh báo: Bạn đang thay đổi kế hoạch của Sprint đang chạy. Việc này sẽ làm biến động biểu đồ Burn-down. Bạn có chắc chắn không?'
-          )
-          if (!confirmed) {
-            return
-          }
+          setPendingScheduleChange({ taskId, dueDate: newDate })
+          return
         }
         updateTaskMutation.mutate({ taskId, dueDate: newDate })
       }
@@ -525,6 +532,33 @@ export default function CalendarView({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      <AlertDialog
+        open={!!pendingScheduleChange}
+        onOpenChange={(open) => {
+          if (!open) setPendingScheduleChange(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm sprint plan change</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are changing the schedule of an active sprint. This may affect the burndown chart. Do you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pendingScheduleChange) return
+                updateTaskMutation.mutate({ taskId: pendingScheduleChange.taskId, dueDate: pendingScheduleChange.dueDate })
+                setPendingScheduleChange(null)
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="flex flex-col min-h-full bg-slate-50/30">
 
         {/* ── TOOLBAR ── */}

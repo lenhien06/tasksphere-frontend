@@ -94,7 +94,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       set({
         isLoading: false,
         isLoaded: true,
-        error: error instanceof Error ? error.message : "Không thể tải thông báo",
+        error: error instanceof Error ? error.message : "Unable to load notifications",
       });
     }
   },
@@ -110,7 +110,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       }));
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : "Không thể tải thông báo",
+        error: error instanceof Error ? error.message : "Unable to load notifications",
       });
     }
   },
@@ -160,7 +160,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
           readAt: null,
         }),
         unreadCount: state.unreadCount,
-        error: error instanceof Error ? error.message : "Không thể cập nhật thông báo",
+        error: error instanceof Error ? error.message : "Unable to update notification",
       });
     }
   },
@@ -182,7 +182,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       set({
         notifications: previous,
         unreadCount: previous.filter((item) => !item.isRead).length,
-        error: error instanceof Error ? error.message : "Không thể đánh dấu tất cả đã đọc",
+        error: error instanceof Error ? error.message : "Unable to mark all as read",
       });
     }
   },
@@ -201,7 +201,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       set({
         notifications: previous,
         unreadCount: previous.filter((item) => !item.isRead).length,
-        error: error instanceof Error ? error.message : "Không thể xóa thông báo",
+        error: error instanceof Error ? error.message : "Unable to delete notification",
       });
     }
   },
