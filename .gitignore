@@ -36,3 +36,4 @@ next-env.d.ts
 dist/
 .idea/
 .claude/
+build-final.log
