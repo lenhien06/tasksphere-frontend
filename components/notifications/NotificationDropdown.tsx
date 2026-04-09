@@ -78,7 +78,19 @@ function NotificationRow({
     onClose();
 
     if (notification.entityType === "TASK" && notification.entityId && notification.projectId) {
-      router.push(`/projects/${notification.projectId}/tasks/${notification.entityId}`);
+      const taskUrl = new URL(
+        `/projects/${notification.projectId}/tasks/${notification.entityId}`,
+        "https://tasksphere.local"
+      );
+
+      if (
+        notification.type === "TASK_COMMENTED" ||
+        notification.type === "TASK_MENTIONED"
+      ) {
+        taskUrl.searchParams.set("tab", "comments");
+      }
+
+      router.push(`${taskUrl.pathname}${taskUrl.search}`);
       return;
     }
 

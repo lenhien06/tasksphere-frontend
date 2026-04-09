@@ -97,6 +97,18 @@ export const WorkspaceInviteListItemSchema = z.object({
 
 export type WorkspaceInviteListItem = z.infer<typeof WorkspaceInviteListItemSchema>;
 
+export const VerifyWorkspaceInviteResponseSchema = z.object({
+  workspaceId: z.string().uuid(),
+  workspaceName: z.string(),
+  workspaceSlug: z.string(),
+  inviterName: z.string(),
+  inviteeEmail: z.string().email(),
+  role: WorkspaceRoleEnum.exclude(["OWNER"]),
+  expiresAt: z.string(),
+});
+
+export type VerifyWorkspaceInviteResponse = z.infer<typeof VerifyWorkspaceInviteResponseSchema>;
+
 // ── Workspace Health Dashboard ───────────────────────────────────────────────
 
 export interface WorkspaceHealthTaskDistribution {

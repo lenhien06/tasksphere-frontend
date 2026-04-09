@@ -12,16 +12,16 @@ export default function ForbiddenPage() {
                 <Lock className="w-8 h-8 text-red-400" />
             </div>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Khong co quyen truy cap
+                Access denied
             </h2>
             <p className="text-gray-500 mb-6">
-                Du an nay o che do rieng tu. Ban can duoc moi de xem.
+                This project is private. You need an invitation to view it.
             </p>
             <button
                 onClick={() => router.back()}
                 className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm"
             >
-                Quay lai
+                Go back
             </button>
         </div>
     );

@@ -3,8 +3,8 @@ import { z } from "zod";
 /** API enum — project roles (spec A1–A6) */
 export type ProjectRole = "PROJECT_MANAGER" | "MEMBER" | "VIEWER";
 
-/** Email invite body — only MEMBER | VIEWER (spec A7) */
-export type InviteEmailRole = "MEMBER" | "VIEWER";
+/** Email invite body */
+export type InviteEmailRole = "PROJECT_MANAGER" | "MEMBER" | "VIEWER";
 
 /** API enum — invite lifecycle (spec A8, B4) */
 export type InviteStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED" | "REVOKED";
@@ -12,7 +12,7 @@ export type InviteStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED" | "RE
 /** Zod: gửi lời mời email */
 export const InviteMemberSchema = z.object({
   email: z.string().email("Invalid email address"),
-  role: z.enum(["MEMBER", "VIEWER"]).default("MEMBER"),
+  role: z.enum(["PROJECT_MANAGER", "MEMBER", "VIEWER"]).default("MEMBER"),
   skillTags: z.array(z.string()).optional(),
 });
 

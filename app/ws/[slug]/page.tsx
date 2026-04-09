@@ -308,12 +308,13 @@ function InviteWorkspaceMemberModal({
       const payload = response.data;
       toast.success(
         payload.addedToWorkspace
-          ? "Thành viên đã được thêm và email đã được gửi ngay."
-          : "Email mời đã được gửi ngay cho người chưa có tài khoản."
+          ? "The member was added to the workspace."
+          : payload.existingUser
+            ? "An invitation email was sent and is now pending acceptance."
+            : "An invitation email was sent to the new user."
       );
-      if (payload.addedToWorkspace) {
-        queryClient.invalidateQueries({ queryKey: ["ws-members", workspaceId] });
-      }
+      queryClient.invalidateQueries({ queryKey: ["ws-members", workspaceId], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["ws-invites", workspaceId], exact: false });
       queryClient.invalidateQueries({ queryKey: ["workspace"] });
       setEmail("");
       setRole("MEMBER");
@@ -325,7 +326,7 @@ function InviteWorkspaceMemberModal({
     },
     onError: (error: unknown) => {
       const message =
-        error instanceof Error ? error.message : "Không thể thêm thành viên";
+        error instanceof Error ? error.message : "Unable to send the workspace invitation";
       toast.error(message);
     },
   });

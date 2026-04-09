@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 
 /**
  * Redirect to board with ?taskId=xxx so the right-side panel opens.
@@ -10,12 +10,15 @@ import { useParams, useRouter } from "next/navigation"
 export default function TaskDetailRedirectPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const projectId = params.id as string
   const taskId = params.taskId as string
 
   useEffect(() => {
-    router.replace(`/projects/${projectId}/board?taskId=${taskId}`)
-  }, [projectId, taskId, router])
+    const nextSearchParams = new URLSearchParams(searchParams.toString())
+    nextSearchParams.set("taskId", taskId)
+    router.replace(`/projects/${projectId}/board?${nextSearchParams.toString()}`)
+  }, [projectId, searchParams, taskId, router])
 
   return null
 }

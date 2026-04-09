@@ -597,6 +597,14 @@ export default function ProjectsPage() {
                                 } else if (event.type === "project_created" || event.type === "project_updated" || event.type === "project_restored") {
                                     queryClient.invalidateQueries({ queryKey: ["projects"], exact: false });
                                     queryClient.invalidateQueries({ queryKey: ["projects-portfolio-metrics"], exact: false });
+                                } else if (event.type === "project_member_joined"
+                                    || event.type === "project_member_added"
+                                    || event.type === "project_member_removed"
+                                    || event.type === "project_member_left"
+                                    || event.type === "project_member_role_updated"
+                                    || event.type === "project_members_updated") {
+                                    queryClient.invalidateQueries({ queryKey: ["projects"], exact: false });
+                                    queryClient.invalidateQueries({ queryKey: ["projects-portfolio-metrics"], exact: false });
                                 }
                             } catch {}
                         });

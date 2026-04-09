@@ -84,7 +84,9 @@ export function useDeleteSubTask(projectId: string, parentTaskId: string) {
             qc.setQueryData(["subtasks", parentTaskId], (old: SubTaskResponse[] | undefined) =>
                 old?.filter(s => s.id !== subtaskId)
             )
+            qc.invalidateQueries({ queryKey: ["subtasks"], exact: false })
             qc.invalidateQueries({ queryKey: ["task", projectId, parentTaskId] })
+            invalidateTaskCollections(qc, projectId)
             toast.success("Sub-task was deleted.")
         },
         onError: (err: any) => {

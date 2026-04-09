@@ -7,7 +7,7 @@ import {
     Search, Lock, Users, Globe, Check, Mail, Crown, Shield, Eye, Settings, Bell,
     AlertTriangle, MessageCircle, Plus, CheckCircle2, BarChart2, Zap,
     ShieldOff, ArrowLeft, X, Calendar, Clock, Trash2, Loader2, ChevronDown, ChevronRight, Archive, RefreshCw, Filter,
-    Layout, Kanban, ListTodo, MoreHorizontal, Tag, Rocket, Webhook, GitBranch, GanttChart
+    Layout, Kanban, ListTodo, MoreHorizontal, Tag, Rocket, Webhook, GitBranch, GanttChart, Briefcase
 } from "lucide-react";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import VersionManagement from "@/components/projects/VersionManagement";
@@ -50,8 +50,9 @@ import TaskDetailPanel, { type Member } from "@/components/projects/TaskDetailPa
 import InviteTableRow from "@/components/projects/InviteTableRow";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import ForbiddenPage from "@/components/common/ForbiddenPage";
-import { ProfileService } from "@/app/services/profile.service";
+import { ProfileService, type UserProfileResponse } from "@/app/services/profile.service";
 import { canActAsProjectManager, toKanbanUserRole, toLegacyMyRoleLower, toTaskPanelRole } from "@/lib/projectRole";
+import { getRealtimeAccessToken, getStompConnectHeaders } from "@/lib/realtime/stompAuth";
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -313,7 +314,7 @@ function normalizeSkillTags(skillTags: string[]) {
 function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen: boolean; onClose: () => void; projectId: string; initialEmail?: string; }) {
     const { t } = useTranslation()
     const [email, setEmail] = useState(initialEmail);
-    const [role, setRole] = useState<"MEMBER" | "VIEWER" | "">("");
+    const [role, setRole] = useState<"PROJECT_MANAGER" | "MEMBER" | "VIEWER" | "">("");
     const [emailError, setEmailError] = useState<string | null>(null);
     const [debouncedEmail, setDebouncedEmail] = useState(initialEmail.trim().toLowerCase());
     const [skillMode, setSkillMode] = useState<"profile" | "custom">("profile");
@@ -376,7 +377,7 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
         mutationFn: () =>
             ProjectMemberService.inviteMember(projectId, {
                 email: normalizedEmail,
-                role: role as "MEMBER" | "VIEWER",
+                role: role as "PROJECT_MANAGER" | "MEMBER" | "VIEWER",
                 skillTags: preview?.existsInSystem
                     ? (skillMode === "custom" ? customSkills : undefined)
                     : customSkills,
@@ -613,6 +614,11 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
                 )}
                 <div><FieldLabel>Role</FieldLabel><div className="grid grid-cols-1 gap-2">
                     {([
+                        {
+                            id: "PROJECT_MANAGER" as const,
+                            label: "Project manager",
+                            desc: "Manage members, adjust roles, coordinate planning, and oversee delivery decisions",
+                        },
                         { id: "MEMBER" as const, label: "Member", desc: "Create and update tasks, move work items, comment, and upload files" },
                         { id: "VIEWER" as const, label: "Viewer", desc: "View project information and tasks without edit permissions" },
                     ]).map((v) => (
@@ -679,6 +685,144 @@ function ChangeRoleModal({ isOpen, onClose, member, onSubmit, isLoading }: {
     );
 }
 
+function MemberProfileModal({
+    isOpen,
+    onClose,
+    profile,
+    isLoading,
+    fallbackName,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    profile?: UserProfileResponse;
+    isLoading: boolean;
+    fallbackName?: string;
+}) {
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Member profile"
+            description="Review the member profile and delivery context before collaborating."
+            maxWidth="max-w-2xl"
+        >
+            {isLoading ? (
+                <div className="space-y-4">
+                    <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <div className="h-28 animate-pulse rounded-2xl bg-slate-100" />
+                        <div className="h-28 animate-pulse rounded-2xl bg-slate-100" />
+                    </div>
+                </div>
+            ) : profile ? (
+                <div className="space-y-5">
+                    <div className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <UserAvatar
+                            name={profile.fullName}
+                            src={profile.avatarUrl ?? undefined}
+                            size={64}
+                            className="h-16 w-16 rounded-full border border-white shadow-sm"
+                        />
+                        <div className="min-w-0 flex-1">
+                            <div className="text-lg font-bold text-slate-900">{profile.fullName}</div>
+                            <div className="mt-1 text-sm text-slate-600">{profile.email}</div>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                {profile.jobTitle ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 border border-slate-200">
+                                        <Briefcase size={12} />
+                                        {profile.jobTitle}
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 border border-slate-200">
+                                        No job title added yet
+                                    </span>
+                                )}
+                                <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 border border-slate-200">
+                                    Capacity: {profile.workCapacityHours}h/week
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">About</div>
+                            <p className="mt-3 text-sm leading-6 text-slate-600">
+                                {profile.bio?.trim() || "No professional summary has been added yet."}
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Skills</div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {profile.skillTags.length > 0 ? profile.skillTags.map((skill) => (
+                                    <span
+                                        key={skill}
+                                        className={cn(
+                                            "inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold",
+                                            SKILL_COLORS[skill] || "bg-slate-100 text-slate-700"
+                                        )}
+                                    >
+                                        {skill}
+                                    </span>
+                                )) : (
+                                    <span className="text-sm text-slate-500">No skills have been added yet.</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Project footprint</div>
+                            <div className="text-xs font-semibold text-slate-500">
+                                {profile.participatedProjects.length} projects
+                            </div>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                            {profile.participatedProjects.length > 0 ? profile.participatedProjects.slice(0, 6).map((project) => (
+                                <div
+                                    key={project.id}
+                                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2"
+                                >
+                                    <div className="min-w-0">
+                                        <div className="truncate text-sm font-semibold text-slate-900">{project.name}</div>
+                                        <div className="truncate text-xs text-slate-500">
+                                            {project.description?.trim() || "No project description available."}
+                                        </div>
+                                    </div>
+                                    <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 border border-slate-200">
+                                        {project.role?.replaceAll("_", " ") || "Member"}
+                                    </span>
+                                </div>
+                            )) : (
+                                <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                                    No project activity is available for this member yet.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                        <SecondaryButton onClick={onClose}>Close</SecondaryButton>
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5">
+                    <div className="text-sm font-semibold text-slate-900">
+                        Unable to load {fallbackName || "this member"}'s profile.
+                    </div>
+                    <div className="text-sm leading-6 text-slate-600">
+                        The profile may be unavailable right now, or this member no longer has access to the project.
+                    </div>
+                    <div className="flex justify-end">
+                        <SecondaryButton onClick={onClose}>Close</SecondaryButton>
+                    </div>
+                </div>
+            )}
+        </Modal>
+    );
+}
+
 const SKILL_COLORS: Record<string, string> = {
     "React": "bg-emerald-500 text-white",
     "Vue.js": "bg-blue-500 text-white",
@@ -701,7 +845,13 @@ function TabMembers({ project }: { project: Project }) {
     const router = useRouter();
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [inviteStatusFilter, setInviteStatusFilter] = useState<string>("PENDING");
+    const [selectedProfileMember, setSelectedProfileMember] = useState<{ userId: string; fullName: string } | null>(null);
     const [changeRoleTarget, setChangeRoleTarget] = useState<{ id: string; userId: string; fullName: string; currentRole: string } | null>(null);
+    const [confirmAction, setConfirmAction] = useState<
+        | { type: "remove-member"; userId: string; memberName: string }
+        | { type: "leave-project" }
+        | null
+    >(null);
     const queryClient = useQueryClient();
 
     // --- SKILL STATE ---
@@ -712,6 +862,13 @@ function TabMembers({ project }: { project: Project }) {
         queryKey: ["project-member-skills", project.id],
         queryFn: () => ProfileService.getProjectMemberSkills(project.id),
         enabled: !!project.id,
+    });
+
+    const { data: memberProfile, isLoading: isMemberProfileLoading } = useQuery({
+        queryKey: ["project-member-profile", project.id, selectedProfileMember?.userId],
+        queryFn: () => ProjectMemberService.getMemberProfile(project.id, selectedProfileMember!.userId),
+        enabled: !!project.id && !!selectedProfileMember?.userId,
+        staleTime: 60_000,
     });
 
     // Map userId → skillTags[]
@@ -747,6 +904,10 @@ function TabMembers({ project }: { project: Project }) {
 
     const currentUserId = useAuthStore((s) => String(s.user?.id ?? ""));
     const canManageMembers = canActAsProjectManager(project.myRole, project.isOwner);
+
+    const openMemberProfile = (userId: string, fullName: string) => {
+        setSelectedProfileMember({ userId, fullName });
+    };
 
     const { data: members, isLoading: isMembersLoading } = useQuery({
         queryKey: ["project-members", project.id],
@@ -832,6 +993,23 @@ function TabMembers({ project }: { project: Project }) {
         },
     });
 
+    const isConfirmingAction = removeMutation.isPending || leaveMutation.isPending;
+
+    const handleConfirmAction = () => {
+        if (!confirmAction) return;
+
+        if (confirmAction.type === "remove-member") {
+            removeMutation.mutate(confirmAction.userId, {
+                onSettled: () => setConfirmAction(null),
+            });
+            return;
+        }
+
+        leaveMutation.mutate(undefined, {
+            onSettled: () => setConfirmAction(null),
+        });
+    };
+
     if (isMembersLoading) return (
         <div className="py-40 flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
@@ -887,10 +1065,14 @@ function TabMembers({ project }: { project: Project }) {
                                         className="group hover:bg-slate-50/50 transition-colors"
                                     >
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => openMemberProfile(m.user.id, m.user.fullName)}
+                                                className="flex items-center gap-3 text-left transition-opacity hover:opacity-80"
+                                            >
                                                 <UserAvatar name={m.user.fullName} src={m.user.avatarUrl} size="md" className="h-10 w-10 rounded-full border border-slate-100 shadow-sm" />
                                                 <div className="text-sm font-bold text-slate-900">{m.user.fullName}</div>
-                                            </div>
+                                            </button>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="text-sm text-slate-600 font-medium">{m.user.email}</div>
@@ -961,7 +1143,10 @@ function TabMembers({ project }: { project: Project }) {
                                                     </button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="w-48 p-1 rounded-xl shadow-xl border-slate-200">
-                                                    <DropdownMenuItem className="text-sm font-semibold text-slate-700 py-2 rounded-lg cursor-pointer">
+                                                    <DropdownMenuItem
+                                                        onClick={() => openMemberProfile(m.user.id, m.user.fullName)}
+                                                        className="text-sm font-semibold text-slate-700 py-2 rounded-lg cursor-pointer"
+                                                    >
                                                         <Eye size={16} className="mr-2" /> View Profile
                                                     </DropdownMenuItem>
                                                     {canManageMembers && m.user.id !== project.ownerId && (
@@ -984,11 +1169,7 @@ function TabMembers({ project }: { project: Project }) {
                                                         <>
                                                             <div className="h-px bg-slate-100 my-1" />
                                                             <DropdownMenuItem
-                                                                onClick={() => {
-                                                                    if (confirm(`Bạn có chắc muốn rời dự án ${project.name}? Tất cả task đang được giao cho bạn sẽ chuyển sang chưa phân công.`)) {
-                                                                        leaveMutation.mutate();
-                                                                    }
-                                                                }}
+                                                                onClick={() => setConfirmAction({ type: "leave-project" })}
                                                                 className="text-sm font-semibold text-orange-600 py-2 rounded-lg cursor-pointer focus:bg-orange-50 focus:text-orange-600"
                                                             >
                                                                 <ArrowLeft size={16} className="mr-2" /> Rời dự án
@@ -999,11 +1180,11 @@ function TabMembers({ project }: { project: Project }) {
                                                         <>
                                                             <div className="h-px bg-slate-100 my-1" />
                                                             <DropdownMenuItem
-                                                                onClick={() => {
-                                                                    if (confirm(`Xóa ${m.user.fullName} khỏi dự án?`)) {
-                                                                        removeMutation.mutate(m.user.id);
-                                                                    }
-                                                                }}
+                                                                onClick={() => setConfirmAction({
+                                                                    type: "remove-member",
+                                                                    userId: m.user.id,
+                                                                    memberName: m.user.fullName,
+                                                                })}
                                                                 className="text-sm font-semibold text-red-600 py-2 rounded-lg cursor-pointer focus:bg-red-50 focus:text-red-600"
                                                             >
                                                                 <Trash2 size={16} className="mr-2" /> Xóa khỏi dự án
@@ -1089,7 +1270,60 @@ function TabMembers({ project }: { project: Project }) {
                 </div>
             )}
 
+            <Modal
+                isOpen={!!confirmAction}
+                onClose={() => !isConfirmingAction && setConfirmAction(null)}
+                title={confirmAction?.type === "remove-member" ? "Remove member from project" : "Leave this project"}
+                description={confirmAction?.type === "remove-member"
+                    ? "Review this action before updating project access."
+                    : "Review the impact before leaving the team workspace."}
+                maxWidth="max-w-lg"
+            >
+                <div className="space-y-5">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <p className="text-sm font-semibold text-slate-900">
+                            {confirmAction?.type === "remove-member"
+                                ? `Remove ${confirmAction.memberName} from ${project.name}?`
+                                : `Leave ${project.name}?`}
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                            {confirmAction?.type === "remove-member"
+                                ? `${confirmAction.memberName} will lose access to this project immediately. Any tasks currently assigned to this member will be returned to the unassigned queue for reassignment.`
+                                : "You will lose access to this project immediately. Any tasks currently assigned to you will be returned to the unassigned queue for reassignment."}
+                        </p>
+                    </div>
+                    <div className="flex items-center justify-end gap-3">
+                        <SecondaryButton
+                            type="button"
+                            onClick={() => setConfirmAction(null)}
+                            disabled={isConfirmingAction}
+                        >
+                            Cancel
+                        </SecondaryButton>
+                        <PrimaryButton
+                            type="button"
+                            onClick={handleConfirmAction}
+                            loading={isConfirmingAction}
+                            className={cn(
+                                confirmAction?.type === "remove-member"
+                                    ? "bg-red-600 hover:bg-red-700 shadow-[0_4px_15px_rgba(220,38,38,0.25)]"
+                                    : "bg-amber-600 hover:bg-amber-700 shadow-[0_4px_15px_rgba(217,119,6,0.25)]"
+                            )}
+                        >
+                            {confirmAction?.type === "remove-member" ? "Remove member" : "Leave project"}
+                        </PrimaryButton>
+                    </div>
+                </div>
+            </Modal>
+
             <InviteModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} projectId={project.id} />
+            <MemberProfileModal
+                isOpen={!!selectedProfileMember}
+                onClose={() => setSelectedProfileMember(null)}
+                profile={memberProfile}
+                isLoading={isMemberProfileLoading}
+                fallbackName={selectedProfileMember?.fullName}
+            />
             {changeRoleTarget && (
                 <ChangeRoleModal
                     key={changeRoleTarget.userId}
@@ -1207,6 +1441,7 @@ export default function ProjectDetailPage({ projectId: propProjectId, onBack }: 
     const params = useParams();
     const searchParams = useSearchParams();
     const router = useRouter();
+    const queryClient = useQueryClient();
     const projectId = propProjectId || (params.id as string);
     const [activeTab, setActiveTab] = useState<Tab>("overview");
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -1218,6 +1453,67 @@ export default function ProjectDetailPage({ projectId: propProjectId, onBack }: 
             setActiveTab(tab as Tab);
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        if (typeof window === "undefined" || !projectId) return;
+
+        let client: any = null;
+        let sub: any = null;
+
+        const connect = async () => {
+            try {
+                const token = getRealtimeAccessToken();
+                if (!token) return;
+
+                const [{ Client }, { default: SockJS }] = await Promise.all([
+                    import("@stomp/stompjs"),
+                    import("sockjs-client"),
+                ]);
+                const wsUrl = `${(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api").replace(/\/api\/?$/, "")}/ws`;
+
+                client = new Client({
+                    connectHeaders: getStompConnectHeaders(token),
+                    webSocketFactory: () => new SockJS(wsUrl),
+                    reconnectDelay: 5000,
+                    onConnect: () => {
+                        sub = client.subscribe(`/topic/project/${projectId}`, (msg: any) => {
+                            try {
+                                const event = JSON.parse(msg.body);
+                                const eventProjectId = String(event?.data?.projectId ?? "");
+                                if (eventProjectId && eventProjectId !== String(projectId)) {
+                                    return;
+                                }
+
+                                if ([
+                                    "project_member_joined",
+                                    "project_member_added",
+                                    "project_member_removed",
+                                    "project_member_left",
+                                    "project_member_role_updated",
+                                    "project_members_updated",
+                                    "project_invites_updated",
+                                ].includes(event?.type)) {
+                                    queryClient.invalidateQueries({ queryKey: ["project-detail", projectId] });
+                                    queryClient.invalidateQueries({ queryKey: ["project-members", projectId] });
+                                    queryClient.invalidateQueries({ queryKey: ["project-invites", projectId], exact: false });
+                                    queryClient.invalidateQueries({ queryKey: ["project-pending-invites", projectId], exact: false });
+                                }
+                            } catch {}
+                        });
+                    },
+                    onStompError: () => {},
+                });
+
+                client.activate();
+            } catch {}
+        };
+
+        connect();
+        return () => {
+            sub?.unsubscribe?.();
+            client?.deactivate?.();
+        };
+    }, [projectId, queryClient]);
 
     const { data: projectData, isLoading, error } = useQuery({ queryKey: ["project-detail", projectId], queryFn: () => ProjectService.getById(projectId), enabled: !!projectId, });
     const currentUser = useAuthStore((s) => s.user);

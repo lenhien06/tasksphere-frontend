@@ -11,6 +11,7 @@ import {
     ProjectInviteResponse,
 } from '@/app/types/member.schema';
 import { ApiResponse, PageResponse } from '@/app/types/common..schema';
+import { UserProfileResponse } from '@/app/services/profile.service';
 
 export { type ProjectRole };
 
@@ -29,6 +30,16 @@ export class ProjectMemberService {
     static async getMembers(projectId: string): Promise<ProjectMember[]> {
         const response = await apiJava.get<ApiResponse<ProjectMember[]>>(`${this.PREFIX}/${projectId}/members`);
         return response.data?.data ?? [];
+    }
+
+    static async getMemberProfile(projectId: string, userId: string): Promise<UserProfileResponse> {
+        const response = await apiJava.get<ApiResponse<UserProfileResponse>>(
+            `${this.PREFIX}/${projectId}/members/${userId}/profile`
+        );
+        if (!response.data?.data) {
+            throw new Error('Invalid member profile response');
+        }
+        return response.data.data;
     }
 
     /** A2 POST .../members */

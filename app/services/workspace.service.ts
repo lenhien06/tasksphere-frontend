@@ -6,6 +6,7 @@ import {
   WorkspaceMember,
   CreateWorkspaceRequest,
   InviteMemberRequest,
+  VerifyWorkspaceInviteResponse,
   WorkspaceInviteResponse,
   WorkspaceInviteListItem,
   WorkspaceHealthMetrics,
@@ -140,6 +141,30 @@ export const WorkspaceService = {
   resendInvite: async (wsId: string, inviteId: string) => {
     const response = await apiJava.post<ApiResponse<null>>(
       `/v1/workspaces/${wsId}/invites/${inviteId}/resend`
+    );
+    return { message: response.data.message };
+  },
+
+  verifyInviteToken: async (token: string) => {
+    const response = await apiJava.get<ApiResponse<VerifyWorkspaceInviteResponse>>(
+      `/v1/workspace-invites/${token}`
+    );
+    return response.data.data;
+  },
+
+  acceptInvite: async (token: string) => {
+    const response = await apiJava.post<ApiResponse<Workspace>>(
+      `/v1/workspace-invites/${token}/accept`
+    );
+    return {
+      workspace: response.data.data,
+      message: response.data.message,
+    };
+  },
+
+  declineInvite: async (token: string) => {
+    const response = await apiJava.post<ApiResponse<null>>(
+      `/v1/workspace-invites/${token}/decline`
     );
     return { message: response.data.message };
   },

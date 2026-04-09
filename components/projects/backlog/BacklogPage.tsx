@@ -107,6 +107,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     // AI Modal state
     const [showAiGenerator, setShowAiGenerator] = useState(false)
     const [showAiAssign,    setShowAiAssign]     = useState(false)
+    const [aiAssignTaskIds, setAiAssignTaskIds] = useState<string[] | undefined>(undefined)
     const canReorderBacklog = isPM || isMemberOnly
 
     const [filters, setFilters] = useState<TaskFilterState>(DEFAULT_TASK_FILTER_STATE)
@@ -347,9 +348,10 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     })
 
     const handleCreateTask = async (payload: unknown) => {
-        await TaskService.createTask(projectId, payload as any)
+        const createdTask = await TaskService.createTask(projectId, payload as any)
         queryClient.invalidateQueries({ queryKey: ["backlog", projectId] })
         toast.success(t("task.create") + " — " + t("common.success").toLowerCase())
+        return createdTask
     }
 
     const startSprintModalSprint = sprints.find(s => s.id === startTargetId) ?? null
@@ -659,7 +661,10 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                             canUseAi={isPM}
                             onCreateTask={() => setShowCreateModal(true)}
                             onAiGenerate={() => setShowAiGenerator(true)}
-                            onAiAssign={() => setShowAiAssign(true)}
+                            onAiAssign={() => {
+                                setAiAssignTaskIds(undefined)
+                                setShowAiAssign(true)
+                            }}
                         />
                     </div>
                 </div>
@@ -938,6 +943,11 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                         color: c.colorHex ?? "#94A3B8",
                     }))}
                     onConfirm={handleCreateTask}
+                    onReviewAssignment={(taskId) => {
+                        setAiAssignTaskIds([taskId])
+                        setShowCreateModal(false)
+                        setShowAiAssign(true)
+                    }}
                     onClose={() => setShowCreateModal(false)}
                 />
             )}
@@ -957,11 +967,15 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
             {showAiAssign && (
                 <AiAssignReview
                     projectId={projectId}
+                    preSelectedTaskIds={aiAssignTaskIds}
                     onSuccess={(result) => {
                         toast.success(`Đã phân công ${result.totalAssigned} task (${result.aiConfirmed} AI · ${result.pmOverridden} override)`)
                         queryClient.invalidateQueries({ queryKey: ['backlog', projectId] })
                     }}
-                    onClose={() => setShowAiAssign(false)}
+                    onClose={() => {
+                        setShowAiAssign(false)
+                        setAiAssignTaskIds(undefined)
+                    }}
                 />
             )}
             <DragOverlay zIndex={999}>

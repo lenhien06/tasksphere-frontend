@@ -337,13 +337,14 @@ interface FullCreateProps {
     columns: Column[]
     projectKey?: string
     onConfirm: (payload: CreateTaskPayload) => Promise<unknown>
+    onReviewAssignment?: (taskId: string) => void
     onClose: () => void
 }
 
 export function FullCreateTask({
     projectId, defaultColumnId, defaultTitle, parentTask,
     projectMembers, columns, projectKey,
-    onConfirm, onClose,
+    onConfirm, onReviewAssignment, onClose,
 }: FullCreateProps) {
     // Fetch sprints for the correct project (FIX: no hardcoding, do not use global store)
     const { data: sprints = [], isLoading: sprintsLoading } = useProjectSprints(projectId)
@@ -436,10 +437,19 @@ export function FullCreateTask({
         setShowActiveSprintWarning(false)
     }
 
-    const submitModernPayload = async (payload: CreateTaskPayload) => {
+    const submitModernPayload = async (payload: CreateTaskPayload, reviewAssignmentAfterCreate = false) => {
         setIsSubmitting(true)
         try {
-            await onConfirm(payload)
+            const createdTask = await onConfirm(payload) as { id?: string } | undefined
+            const createdTaskId = typeof createdTask?.id === "string" ? createdTask.id : null
+
+            if (reviewAssignmentAfterCreate && createdTaskId) {
+                setIsSubmitting(false)
+                onClose()
+                onReviewAssignment?.(createdTaskId)
+                return
+            }
+
             if (createAnother) {
                 resetModernForm()
                 setIsSubmitting(false)
@@ -476,7 +486,7 @@ export function FullCreateTask({
         }
     }
 
-    const handleCreateTask = async () => {
+    const handleCreateTask = async (reviewAssignmentAfterCreate = false) => {
         if (!title.trim() || isSubmitting) return
         setFieldErrors({})
 
@@ -523,7 +533,7 @@ export function FullCreateTask({
             return
         }
 
-        await submitModernPayload(payload)
+        await submitModernPayload(payload, reviewAssignmentAfterCreate)
     }
 
     const handleSubmit = async () => {
@@ -935,6 +945,15 @@ export function FullCreateTask({
                     </label>
 
                     <div className="flex gap-2">
+                        {!assigneeId && projectMembers.length > 0 && (
+                            <button
+                                onClick={() => handleCreateTask(true)}
+                                disabled={!title.trim() || isSubmitting}
+                                className="h-10 px-6 rounded-lg border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                            >
+                                Create and review assignment
+                            </button>
+                        )}
                         <button
                             onClick={onClose}
                             className="h-10 px-6 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors"
@@ -942,7 +961,7 @@ export function FullCreateTask({
                             Cancel
                         </button>
                         <button
-                            onClick={handleCreateTask}
+                            onClick={() => handleCreateTask(false)}
                             disabled={!title.trim() || isSubmitting}
                             className="h-10 px-8 rounded-lg bg-[#3B82F6] text-white text-sm font-bold shadow-md hover:bg-blue-600 disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2"
                         >
