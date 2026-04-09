@@ -8,11 +8,12 @@ import { Eye, EyeOff, Loader2, User, Mail, Lock, ShieldCheck, Sparkles } from "l
 import { toast } from "sonner";
 import Link from "next/link";
 import Image from "next/image";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 import { RegisterSchema, type RegisterFormValues } from "@/app/types/auth.schema";
 import { AuthService } from "@/app/services/auth.service";
 import { ProjectMemberService } from "@/app/services/project-member.service";
-import { VerifyInviteResponse } from "@/app/types/member.schema";
+import { WorkspaceService } from "@/app/services/workspace.service";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ function SignupFormInner() {
     const searchParams = useSearchParams();
     const inviteToken = searchParams.get("inviteToken");
     const callbackUrl = searchParams.get("callbackUrl");
+    const presetEmail = searchParams.get("email");
 
     const queryClient = useQueryClient();
     const [showPassword, setShowPassword] = useState(false);
@@ -45,9 +47,17 @@ function SignupFormInner() {
 
     const [isSendingOtp, setIsSendingOtp] = useState(false);
     const [countdown, setCountdown] = useState(0);
-    const [inviteData, setInviteData] = useState<VerifyInviteResponse | null>(null);
+    const [inviteData, setInviteData] = useState<{
+        kind: "project" | "workspace";
+        inviterName: string;
+        targetName: string;
+        inviteeEmail: string;
+        role: string;
+        expiresAt: string;
+    } | null>(null);
     const [isVerifying, setIsVerifying] = useState(!!inviteToken);
     const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
     const form = useForm<RegisterFormValues>({
         resolver: zodResolver(RegisterSchema),
@@ -62,23 +72,79 @@ function SignupFormInner() {
         },
     });
 
+    const resolvePostAuthRedirect = () => {
+        const rawRedirect =
+            callbackUrl ||
+            (typeof window !== "undefined" ? sessionStorage.getItem("redirectAfterLogin") : null) ||
+            "/dashboard";
+
+        if (!rawRedirect) {
+            return "/dashboard";
+        }
+
+        try {
+            const parsedUrl = rawRedirect.startsWith("/")
+                ? new URL(rawRedirect, window.location.origin)
+                : new URL(rawRedirect);
+            const nextPath = `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+
+            if (!nextPath.startsWith("/") || nextPath.startsWith("/signin") || nextPath.startsWith("/signup")) {
+                return "/dashboard";
+            }
+
+            return nextPath;
+        } catch {
+            return rawRedirect.startsWith("/") ? rawRedirect : "/dashboard";
+        }
+    };
+
+    useEffect(() => {
+        if (presetEmail && !form.getValues("email")) {
+            form.setValue("email", presetEmail);
+        }
+    }, [presetEmail, form]);
+
     useEffect(() => {
         async function verify() {
             if (inviteToken) {
                 try {
-                    const data = await ProjectMemberService.verifyInviteToken(inviteToken);
-                    setInviteData(data);
-                    form.setValue("email", data.inviteeEmail);
-                    form.setValue("inviteToken", inviteToken);
-                    toast.success(`👋 ${data.inviterName} invited you to join project ${data.projectName}`);
+                    try {
+                        const projectInvite = await ProjectMemberService.verifyInviteToken(inviteToken);
+                        setInviteData({
+                            kind: "project",
+                            inviterName: projectInvite.inviterName,
+                            targetName: projectInvite.projectName,
+                            inviteeEmail: projectInvite.inviteeEmail,
+                            role: projectInvite.role,
+                            expiresAt: projectInvite.expiresAt,
+                        });
+                        form.setValue("email", projectInvite.inviteeEmail);
+                        form.setValue("inviteToken", inviteToken);
+                        toast.success(`${projectInvite.inviterName} invited you to join project ${projectInvite.projectName}`);
+                    } catch {
+                        const workspaceInvite = await WorkspaceService.verifyInviteToken(inviteToken);
+                        setInviteData({
+                            kind: "workspace",
+                            inviterName: workspaceInvite.inviterName,
+                            targetName: workspaceInvite.workspaceName,
+                            inviteeEmail: workspaceInvite.inviteeEmail,
+                            role: workspaceInvite.role,
+                            expiresAt: workspaceInvite.expiresAt,
+                        });
+                        form.setValue("email", workspaceInvite.inviteeEmail);
+                        form.setValue("inviteToken", inviteToken);
+                        toast.success(`${workspaceInvite.inviterName} invited you to join workspace ${workspaceInvite.workspaceName}`);
+                    }
                 } catch (error: any) {
                     toast.error("Invalid or expired invite token");
                 } finally {
                     setIsVerifying(false);
                 }
+            } else {
+                setIsVerifying(false);
             }
         }
-        verify();
+        void verify();
     }, [inviteToken, form]);
 
     async function handleSendOTP() {
@@ -163,14 +229,10 @@ function SignupFormInner() {
                 queryClient.invalidateQueries({ queryKey: ["currentUser"] });
 
                 setTimeout(() => {
-                    const fallbackRedirect =
-                        callbackUrl ||
-                        (typeof window !== "undefined" ? sessionStorage.getItem("redirectAfterLogin") : null) ||
-                        "/dashboard";
                     if (typeof window !== "undefined") {
                         sessionStorage.removeItem("redirectAfterLogin");
                     }
-                    router.push(fallbackRedirect);
+                    router.push(resolvePostAuthRedirect());
                 }, 1000);
             } else {
                 toast.error(res.message || "Registration failed");
@@ -196,7 +258,52 @@ function SignupFormInner() {
         },
     });
 
-    const isLoading = mutation.isPending || isSendingOtp || isVerifying;
+    const googleMutation = useMutation({
+        mutationFn: (idToken: string) => AuthService.loginWithGoogleNext(idToken, turnstileToken),
+        onSuccess: async (res: any) => {
+            if (res.data) {
+                const authData = res.data;
+                toast.success(
+                    res.message ||
+                        (inviteData
+                            ? `Google sign-in successful. Redirecting you to the ${inviteData.kind === "workspace" ? "workspace" : "project"} invitation...`
+                            : "Google sign-in successful!")
+                );
+
+                setAccessAndRefreshToken(authData);
+                if (authData.userId || authData.email) {
+                    setUser({
+                        id: authData.userId,
+                        fullName: authData.fullName,
+                        email: authData.email,
+                        displayName: authData.fullName,
+                        avatarUrl: authData.avatarUrl,
+                        avatar: {
+                            imageUrl: authData.avatarUrl ?? null,
+                        },
+                    } as any);
+                }
+                queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+
+                setTimeout(() => {
+                    if (typeof window !== "undefined") {
+                        sessionStorage.removeItem("redirectAfterLogin");
+                    }
+                    router.push(resolvePostAuthRedirect());
+                }, 500);
+                return;
+            }
+
+            toast.error(res.message || "Google sign-in failed");
+        },
+        onError: (error: any) => {
+            setTurnstileToken(null);
+            setTurnstileResetSignal((current) => current + 1);
+            toast.error(getBeErrorMessage(error));
+        },
+    });
+
+    const isLoading = mutation.isPending || googleMutation.isPending || isSendingOtp || isVerifying;
 
     async function onSubmit(data: RegisterFormValues) {
         if (turnstileSiteKey && !turnstileToken) {
@@ -204,6 +311,18 @@ function SignupFormInner() {
             return;
         }
         mutation.mutate(data);
+    }
+
+    function handleGoogleSuccess(response: CredentialResponse) {
+        if (turnstileSiteKey && !turnstileToken) {
+            toast.error("Please complete the security verification before continuing with Google.");
+            return;
+        }
+        if (!response.credential) {
+            toast.error("Google sign-in was cancelled.");
+            return;
+        }
+        googleMutation.mutate(response.credential);
     }
 
     if (isVerifying) {
@@ -238,8 +357,9 @@ function SignupFormInner() {
                 <p className="text-gray-400 text-sm">
                     {inviteData ? (
                         <span>
-                            <b className="text-gray-700">{inviteData.inviterName}</b> invited you to collaborate on{" "}
-                            <b className="text-gray-700">{inviteData.projectName}</b>
+                            <b className="text-gray-700">{inviteData.inviterName}</b> invited you to{" "}
+                            <b className="text-gray-700">{inviteData.kind === "workspace" ? "join workspace" : "collaborate on"}</b>{" "}
+                            <b className="text-gray-700">{inviteData.targetName}</b>
                         </span>
                     ) : (
                         "Start your journey with TaskSphere"
@@ -429,6 +549,33 @@ function SignupFormInner() {
                         onTokenChange={setTurnstileToken}
                         resetSignal={turnstileResetSignal}
                     />
+
+                    {googleClientId ? (
+                        <>
+                            <div className="relative py-1">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-gray-200" />
+                                </div>
+                                <div className="relative flex justify-center">
+                                    <span className="bg-white px-3 text-xs font-medium uppercase tracking-wide text-gray-400">
+                                        Or create an account with
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
+                                <GoogleLogin
+                                    onSuccess={handleGoogleSuccess}
+                                    onError={() => toast.error("Google sign-in failed. Please try again.")}
+                                    theme="outline"
+                                    shape="rectangular"
+                                    size="large"
+                                    text="signup_with"
+                                    width="100%"
+                                />
+                            </div>
+                        </>
+                    ) : null}
 
                     <Button
                         type="submit"
