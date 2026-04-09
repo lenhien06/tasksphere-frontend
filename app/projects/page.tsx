@@ -316,7 +316,7 @@ export default function ProjectsPage() {
     
     // UI state
     const searchParams = useSearchParams();
-    const { selectedContext, selectedWorkspace, personalWorkspace, selectPersonal } = useWorkspace();
+    const { selectedContext, selectPersonal } = useWorkspace();
     const [activeProject, setActiveProject] = useState<any>(null);
     const [modalType, setModalType] = useState<"edit" | "archive" | "delete" | "restore" | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -329,8 +329,6 @@ export default function ProjectsPage() {
         workspaceMode && selectedContext.kind === "workspace"
             ? selectedContext.workspace
             : null;
-    const aiWorkspace = effectiveWorkspace ?? personalWorkspace;
-
     useEffect(() => {
         if (!workspaceMode && selectedContext.kind === "workspace") {
             selectPersonal();
@@ -504,6 +502,15 @@ export default function ProjectsPage() {
             params.set("workspaceId", effectiveWorkspace.id);
         }
         router.push(params.toString() ? `/projects/new?${params.toString()}` : "/projects/new");
+    }
+
+    function handleOpenCreateProjectWithAI() {
+        if (effectiveWorkspace?.slug) {
+            router.push(`/ws/${effectiveWorkspace.slug}/projects/new-with-ai`);
+            return;
+        }
+
+        router.push("/projects/new-with-ai");
     }
 
     function handleEdit(data: any) {
@@ -737,19 +744,13 @@ export default function ProjectsPage() {
                                 <List size={12} /> <span>Table</span>
                             </button>
                         </div>
-                        {aiWorkspace && (
-                            <button
-                                onClick={() => router.push(
-                                    effectiveWorkspace
-                                        ? `/ws/${effectiveWorkspace.slug}/projects/new-with-ai`
-                                        : `/projects/new-with-ai`
-                                )}
-                                className="flex h-10 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-semibold text-violet-700 transition-all hover:bg-violet-100"
-                            >
-                                <Sparkles className="h-4 w-4" />
-                                Create with AI
-                            </button>
-                        )}
+                        <button
+                            onClick={handleOpenCreateProjectWithAI}
+                            className="flex h-10 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-semibold text-violet-700 transition-all hover:bg-violet-100"
+                        >
+                            <Sparkles className="h-4 w-4" />
+                            Create with AI
+                        </button>
                         <button
                             onClick={handleOpenCreateProject}
                             className="flex h-10 items-center gap-2 rounded-xl bg-[#111827] px-4 text-sm font-semibold text-white transition-all hover:bg-gray-800 shadow-[0_4px_20px_rgba(0,0,0,0.18)]"
@@ -828,9 +829,22 @@ export default function ProjectsPage() {
                             <div className="text-center -mt-4 relative z-10 px-4">
                                 <h3 className="text-[22px] md:text-[26px] font-extrabold text-gray-800 group-hover:text-blue-600 transition-colors">Start your first project</h3>
                                 <p className="text-[14px] md:text-[15px] text-gray-500 mt-2 font-medium max-w-md mx-auto">Create a delivery workspace and begin tracking progress, risks, and execution health.</p>
-                                <div className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-white border-2 border-blue-100 text-blue-600 rounded-2xl font-bold text-sm shadow-sm group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
-                                    <Plus size={18} strokeWidth={3} />
-                                    Create project
+                                <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleOpenCreateProjectWithAI();
+                                        }}
+                                        className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-blue-700"
+                                    >
+                                        <Sparkles size={18} strokeWidth={2.6} />
+                                        Create with AI
+                                    </button>
+                                    <div className="inline-flex items-center gap-2 rounded-2xl border-2 border-blue-100 bg-white px-6 py-3 text-sm font-bold text-blue-600 shadow-sm transition-all group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600">
+                                        <Plus size={18} strokeWidth={3} />
+                                        Create project
+                                    </div>
                                 </div>
                             </div>
                         </div>
