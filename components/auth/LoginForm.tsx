@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2, Mail, Lock } from "lucide-react";
@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 import { LoginSchema, type LoginFormValues } from "@/app/types/auth.schema";
 import { AuthService } from "@/app/services/auth.service";
@@ -29,6 +30,8 @@ import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
 function LoginFormContent() {
     const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
+    const googleButtonContainerRef = useRef<HTMLDivElement>(null);
+    const [googleButtonWidth, setGoogleButtonWidth] = useState("360");
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const [turnstileResetSignal, setTurnstileResetSignal] = useState(0);
     const { setAccessAndRefreshToken, setUser } = useAuthStore();
@@ -39,7 +42,34 @@ function LoginFormContent() {
         searchParams.get("callbackUrl") ||
         (typeof window !== "undefined" ? sessionStorage.getItem("redirectAfterLogin") : null) ||
         "/dashboard";
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+    useEffect(() => {
+        if (!googleClientId) return;
+
+        const container = googleButtonContainerRef.current;
+        if (!container) return;
+
+        const updateWidth = () => {
+            const nextWidth = Math.max(Math.floor(container.clientWidth - 8), 240);
+            const nextWidthAsString = String(nextWidth);
+            setGoogleButtonWidth((currentWidth) =>
+                currentWidth === nextWidthAsString ? currentWidth : nextWidthAsString
+            );
+        };
+
+        updateWidth();
+
+        if (typeof ResizeObserver !== "undefined") {
+            const observer = new ResizeObserver(updateWidth);
+            observer.observe(container);
+            return () => observer.disconnect();
+        }
+
+        window.addEventListener("resize", updateWidth);
+        return () => window.removeEventListener("resize", updateWidth);
+    }, [googleClientId]);
 
     const form = useForm<LoginFormValues>({
         resolver: zodResolver(LoginSchema),
@@ -97,6 +127,28 @@ function LoginFormContent() {
             }
         },
     });
+
+    const googleMutation = useMutation({
+        mutationFn: (idToken: string) => AuthService.loginWithGoogleNext(idToken, turnstileToken),
+        onSuccess: async (res: any) => handleAuthSuccess(res, "Google sign-in successful!"),
+        onError: (error: any) => {
+            setTurnstileToken(null);
+            setTurnstileResetSignal((current) => current + 1);
+            toast.error(getBeErrorMessage(error));
+        },
+    });
+
+    function handleGoogleSuccess(response: CredentialResponse) {
+        if (turnstileSiteKey && !turnstileToken) {
+            toast.error("Please complete the security verification before continuing with Google.");
+            return;
+        }
+        if (!response.credential) {
+            toast.error("Google sign-in was cancelled.");
+            return;
+        }
+        googleMutation.mutate(response.credential);
+    }
 
     function onSubmit(data: LoginFormValues) {
         if (turnstileSiteKey && !turnstileToken) {
@@ -191,7 +243,7 @@ function LoginFormContent() {
 
                         <Button
                             type="submit"
-                            disabled={mutation.isPending || (!!turnstileSiteKey && !turnstileToken)}
+                            disabled={mutation.isPending || googleMutation.isPending || (!!turnstileSiteKey && !turnstileToken)}
                             className="w-full h-11 text-sm font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all border-0"
                         >
                             {mutation.isPending ? (
@@ -203,6 +255,39 @@ function LoginFormContent() {
                             )}
                         </Button>
                     </div>
+
+                    {googleClientId ? (
+                        <>
+                            <div className="relative py-1">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-gray-200" />
+                                </div>
+                                <div className="relative flex justify-center">
+                                    <span className="bg-white px-3 text-xs font-medium uppercase tracking-wide text-gray-400">
+                                        Or continue with
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div
+                                ref={googleButtonContainerRef}
+                                className="overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-sm"
+                            >
+                                <div className="flex justify-center">
+                                    <GoogleLogin
+                                        key={`google-login-${googleButtonWidth}`}
+                                        onSuccess={handleGoogleSuccess}
+                                        onError={() => toast.error("Google sign-in failed. Please try again.")}
+                                        theme="outline"
+                                        shape="rectangular"
+                                        size="large"
+                                        text="continue_with"
+                                        width={googleButtonWidth}
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    ) : null}
 
                     <p className="text-center text-sm text-gray-400 pt-1">
                         Don&apos;t have an account?{" "}
