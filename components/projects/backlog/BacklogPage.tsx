@@ -854,12 +854,12 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                             <ChevronDown size={14} className={cn(showBatchSprintMenu && "rotate-180")} />
                         </button>
                         {showBatchSprintMenu && (
-                            <div className="absolute bottom-[calc(100%+8px)] left-0 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white py-1 shadow-2xl">
-                                <p className="border-b px-3 py-2 text-[10px] font-bold uppercase text-gray-400">
+                            <div className="absolute bottom-[calc(100%+8px)] left-0 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white py-1 text-slate-900 shadow-2xl">
+                                <p className="border-b border-gray-100 px-3 py-2 text-[10px] font-bold uppercase text-slate-500">
                                     {t("backlog.selectTargetSprint")}
                                 </p>
                                 {assignableSprints.length === 0 ? (
-                                    <p className="px-3 py-4 text-center text-xs text-gray-400">
+                                    <p className="px-3 py-4 text-center text-xs text-slate-400">
                                         {t("backlog.noPlannedSprintsForAssign")}
                                     </p>
                                 ) : (
@@ -868,11 +868,11 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                             key={sp.id}
                                             type="button"
                                             onClick={() => handleBatchAssign(sp.id)}
-                                            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-gray-50"
+                                            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                                         >
                                             <span className={sp.status === "ACTIVE" ? "h-2 w-2 shrink-0 rounded-full bg-emerald-500" : "h-2 w-2 shrink-0 rounded-full bg-slate-400"} />
-                                            <span className="min-w-0 flex-1 truncate">{sp.name}</span>
-                                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{sp.status}</span>
+                                            <span className="min-w-0 flex-1 truncate font-semibold text-slate-900">{sp.name}</span>
+                                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{sp.status}</span>
                                         </button>
                                     ))
                                 )}
