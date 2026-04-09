@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Turnstile, { type BoundTurnstileObject } from "react-turnstile";
+import Turnstile from "react-turnstile";
 
 type TurnstileWidgetProps = {
     siteKey?: string;
@@ -18,14 +17,6 @@ export function TurnstileWidget({
     resetSignal = 0,
     className,
 }: TurnstileWidgetProps) {
-    const widgetRef = useRef<BoundTurnstileObject | null>(null);
-
-    useEffect(() => {
-        if (!resetSignal || !widgetRef.current) return;
-        widgetRef.current.reset();
-        onTokenChange(null);
-    }, [onTokenChange, resetSignal]);
-
     if (!siteKey) {
         return null;
     }
@@ -33,6 +24,7 @@ export function TurnstileWidget({
     return (
         <div className={className}>
             <Turnstile
+                key={resetSignal}
                 sitekey={siteKey}
                 theme="light"
                 size="flexible"
@@ -40,11 +32,7 @@ export function TurnstileWidget({
                 refreshExpired="auto"
                 retry="auto"
                 fixedSize={false}
-                onLoad={(_, bound) => {
-                    widgetRef.current = bound;
-                }}
-                onVerify={(nextToken, bound) => {
-                    widgetRef.current = bound;
+                onVerify={(nextToken) => {
                     onTokenChange(nextToken);
                 }}
                 onExpire={() => {
