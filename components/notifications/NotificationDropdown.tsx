@@ -46,6 +46,7 @@ function getNotificationIcon(type: string) {
     case "TASK_MENTIONED":
       return AtSign;
     case "PROJECT_INVITED":
+    case "WORKSPACE_INVITED":
     case "MEMBER_JOINED":
     case "PROJECT_ROLE_CHANGED":
       return Users;
