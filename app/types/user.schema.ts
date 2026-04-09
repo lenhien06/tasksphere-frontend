@@ -28,6 +28,7 @@ const BaseUserSchema = z.object({
       message: 'Bio must not exceed 160 characters.'
     })
     .optional(),
+  avatarUrl: z.string().url().nullable().optional(),
   avatar: AvatarImageSchema.optional(),
   onlineStatus: z.string().optional(),
   createdAt: z.coerce.date().optional(),

@@ -1035,16 +1035,20 @@
     "emptyState": {
       "title": "Chào mừng đến với TaskSphere, {{name}}",
       "desc": "Không gian làm việc của bạn đã sẵn sàng. Hãy bắt đầu với một dự án, thêm công việc đầu tiên và mời đội nhóm khi bạn sẵn sàng cộng tác.",
+      "aiBadge": "AI có thể dựng cấu trúc dự án đầu tiên cho bạn chỉ trong vài phút.",
+      "createProjectWithAI": "Tạo với AI",
+      "createProjectWithAIDesc": "Biến một brief thành phạm vi dự án, task, gợi ý tiến độ và phân công ban đầu.",
       "createProject": "Tạo dự án",
       "createProjectDesc": "Thiết lập không gian đầu tiên cho task, cột mốc và đội nhóm của bạn.",
       "joinProject": "Tham gia dự án",
       "joinProjectDesc": "Mở khu vực dự án để nhận lời mời hoặc vào một workspace đang có sẵn.",
       "createTask": "Tạo việc đầu tiên",
       "createTaskDesc": "Khi đã vào trong dự án, hãy tạo task đầu tiên và bắt đầu giao việc.",
-      "step1": "1. Tạo dự án",
-      "step2": "2. Thêm công việc",
-      "step3": "3. Giao cho nhóm",
-      "openWorkspace": "Mở workspace"
+      "step1": "1. Tạo với AI",
+      "step2": "2. Duyệt cấu trúc",
+      "step3": "3. Thêm thành viên",
+      "step4": "4. Bắt đầu triển khai",
+      "openWorkspace": "Mở khu vực dự án"
     },
     "error": {
       "title": "Không thể tải dashboard",

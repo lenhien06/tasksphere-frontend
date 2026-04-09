@@ -88,6 +88,15 @@ export default function DashboardPage() {
     router.push(params.toString() ? `/projects/new?${params.toString()}` : "/projects/new");
   };
 
+  const handleCreateProjectWithAI = () => {
+    if (selectedContext.kind === "workspace") {
+      router.push(`/ws/${selectedContext.workspace.slug}/projects/new-with-ai`);
+      return;
+    }
+
+    router.push("/projects/new-with-ai");
+  };
+
   if (dashboardQuery.isLoading) {
     return <DashboardPageSkeleton />;
   }
@@ -133,6 +142,7 @@ export default function DashboardPage() {
           <DashboardEmptyState
             userName={userName}
             onCreateProject={handleCreateProject}
+            onCreateProjectWithAI={handleCreateProjectWithAI}
             onOpenProjects={handleOpenProjects}
           />
         ) : (

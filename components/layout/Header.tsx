@@ -63,7 +63,7 @@ export default function Header({
   const debouncedSearchTerm = useDebounce(searchTerm, 400);
   const displayName = currentUser?.fullName || currentUser?.displayName || "User";
   const email = currentUser?.email || "";
-  const avatarUrl = currentUser?.avatar?.imageUrl;
+  const avatarUrl = currentUser?.avatar?.imageUrl || currentUser?.avatarUrl || null;
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);

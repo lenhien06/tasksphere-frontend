@@ -120,7 +120,7 @@ export default function WorkspaceHealthCard({
         <button
           type="button"
           onClick={onOpenHealth}
-          className="inline-flex min-w-[180px] items-center justify-center gap-2 whitespace-nowrap rounded-[12px] bg-slate-950 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-700"
+          className="inline-flex min-w-[180px] items-center justify-center gap-2 whitespace-nowrap rounded-[12px] bg-[#4f6bed] px-3.5 py-2 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(79,107,237,0.28)] transition hover:bg-[#4057d6]"
         >
           Open health view
           <ArrowRight className="h-4 w-4" />

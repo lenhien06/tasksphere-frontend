@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Camera, Pencil, Plus, X, Check, Loader2, Briefcase
 } from "lucide-react";
@@ -75,6 +75,7 @@ function SkillChip({ label, onRemove }: { label: string; onRemove: () => void })
 export default function UserProfilePage() {
   const { t } = useTranslation();
   const user = useAuthStore(s => s.user);
+  const setUser = useAuthStore(s => s.setUser);
   const queryClient = useQueryClient();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -156,6 +157,40 @@ export default function UserProfilePage() {
   // ── Derived values ──
   const skillTags = profile?.skillTags || [];
   const capacity  = capacityDraft ?? profile?.workCapacityHours ?? 40;
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    const nextDisplayName = profile.fullName || user?.displayName || user?.fullName;
+    const nextEmail = profile.email || user?.email || "";
+    const nextAvatarUrl = profile.avatarUrl ?? null;
+
+    if (
+      user?.fullName === profile.fullName &&
+      user?.displayName === nextDisplayName &&
+      user?.email === nextEmail &&
+      (user?.avatar?.imageUrl ?? user?.avatarUrl ?? null) === nextAvatarUrl &&
+      user?.bio === (profile.bio || user?.bio)
+    ) {
+      return;
+    }
+
+    setUser({
+      ...user,
+      id: user?.id,
+      fullName: profile.fullName || user?.fullName || user?.displayName,
+      displayName: nextDisplayName,
+      email: nextEmail,
+      avatarUrl: nextAvatarUrl,
+      avatar: {
+        ...user?.avatar,
+        imageUrl: nextAvatarUrl,
+      },
+      bio: profile.bio || user?.bio,
+    } as any);
+  }, [profile, setUser, user]);
 
   if (isLoading) {
     return (

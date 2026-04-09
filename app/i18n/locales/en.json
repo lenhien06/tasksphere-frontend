@@ -1035,16 +1035,20 @@
     "emptyState": {
       "title": "Welcome to TaskSphere, {{name}}",
       "desc": "Your workspace is ready. Start with a project, add your first tasks, and invite the team when you are ready to collaborate.",
+      "aiBadge": "AI planning can generate your first project structure in minutes.",
+      "createProjectWithAI": "Create with AI",
+      "createProjectWithAIDesc": "Turn a brief into project scope, tasks, schedule suggestions, and first-pass assignments.",
       "createProject": "Create Project",
       "createProjectDesc": "Set up the first space for your tasks, milestones, and team.",
       "joinProject": "Join Project",
       "joinProjectDesc": "Open the project area to accept invites or jump into an existing workspace.",
       "createTask": "Create First Task",
       "createTaskDesc": "Once you are inside a project, create your first task and start assigning work.",
-      "step1": "1. Create project",
-      "step2": "2. Add tasks",
-      "step3": "3. Assign team",
-      "openWorkspace": "Open workspace"
+      "step1": "1. Create with AI",
+      "step2": "2. Review structure",
+      "step3": "3. Add team",
+      "step4": "4. Start delivery",
+      "openWorkspace": "Open project area"
     },
     "error": {
       "title": "Unable to load your dashboard",

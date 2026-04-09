@@ -43,7 +43,7 @@ interface SidebarProps {
     email?: string;
     systemRole?: SystemRole;
     projectRole?: ProjectRole;
-    avatarUrl?: string;
+    avatarUrl?: string | null;
     avatar?: {
       imageUrl?: string | null;
     };

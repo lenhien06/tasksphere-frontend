@@ -125,7 +125,7 @@ export default function WorkspaceListPage() {
           <button
             type="button"
             onClick={() => router.push("/workspaces/new")}
-            className="inline-flex items-center gap-2 rounded-[14px] bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+            className="inline-flex items-center gap-2 rounded-[14px] bg-[#4f6bed] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(79,107,237,0.28)] transition hover:bg-[#4057d6]"
           >
             <Plus className="h-4 w-4" />
             Create workspace
@@ -160,7 +160,7 @@ export default function WorkspaceListPage() {
             <button
               type="button"
               onClick={() => router.push("/workspaces/new")}
-              className="mt-5 inline-flex items-center gap-2 rounded-[12px] bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              className="mt-5 inline-flex items-center gap-2 rounded-[12px] bg-[#4f6bed] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(79,107,237,0.28)] transition hover:bg-[#4057d6]"
             >
               <Plus className="h-4 w-4" />
               Create your first workspace

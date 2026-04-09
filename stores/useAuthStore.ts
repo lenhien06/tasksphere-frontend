@@ -12,6 +12,23 @@ interface AuthState {
     logout: () => void;
 }
 
+function normalizeUser(user: UserType | null): UserType | null {
+    if (!user) {
+        return null;
+    }
+
+    const resolvedAvatarUrl = user.avatar?.imageUrl ?? user.avatarUrl ?? null;
+
+    return {
+        ...user,
+        avatarUrl: resolvedAvatarUrl,
+        avatar: {
+            ...user.avatar,
+            imageUrl: resolvedAvatarUrl,
+        },
+    };
+}
+
 export const useAuthStore = create<AuthState>()(
     persist(
         (set) => ({
@@ -19,7 +36,7 @@ export const useAuthStore = create<AuthState>()(
             accessToken: null,
             refreshToken: null,
             isAuthenticated: false,
-            setUser: (user) => set({ user, isAuthenticated: !!user }),
+            setUser: (user) => set({ user: normalizeUser(user), isAuthenticated: !!user }),
             setAccessAndRefreshToken: (res) => {
                 set({ 
                     accessToken: res.accessToken, 
@@ -35,7 +52,7 @@ export const useAuthStore = create<AuthState>()(
             name: "auth-storage",
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({ 
-                user: state.user, 
+                user: normalizeUser(state.user), 
                 isAuthenticated: state.isAuthenticated,
                 accessToken: state.accessToken,
                 refreshToken: state.refreshToken

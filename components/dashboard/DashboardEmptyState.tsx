@@ -8,12 +8,14 @@ import { useTranslation } from "react-i18next";
 interface DashboardEmptyStateProps {
   userName: string;
   onCreateProject: () => void;
+  onCreateProjectWithAI: () => void;
   onOpenProjects: () => void;
 }
 
 export function DashboardEmptyState({
   userName,
   onCreateProject,
+  onCreateProjectWithAI,
   onOpenProjects,
 }: DashboardEmptyStateProps) {
   const { t } = useTranslation();
@@ -32,15 +34,32 @@ export function DashboardEmptyState({
             {t("dashboard.emptyState.desc")}
           </p>
 
-          <div className="mt-8 grid w-full gap-4 md:grid-cols-3">
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
+            <Sparkles className="h-4 w-4" />
+            {t("dashboard.emptyState.aiBadge")}
+          </div>
+
+          <div className="mt-8 grid w-full gap-4 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr]">
+            <button
+              type="button"
+              onClick={onCreateProjectWithAI}
+              className="rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-600 to-indigo-600 p-6 text-left text-white shadow-[0_16px_40px_rgba(59,130,246,0.22)] transition-transform hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700"
+            >
+              <Sparkles className="h-6 w-6" />
+              <div className="mt-6 text-xl font-semibold">{t("dashboard.emptyState.createProjectWithAI")}</div>
+              <p className="mt-2 text-sm text-blue-100">
+                {t("dashboard.emptyState.createProjectWithAIDesc")}
+              </p>
+            </button>
+
             <button
               type="button"
               onClick={onCreateProject}
-              className="rounded-3xl border border-sky-200 bg-sky-600 p-6 text-left text-white shadow-sm transition-transform hover:-translate-y-0.5 hover:bg-sky-700"
+              className="rounded-3xl border border-slate-200 bg-white p-6 text-left text-slate-950 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-slate-300"
             >
-              <FolderPlus className="h-6 w-6" />
+              <FolderPlus className="h-6 w-6 text-blue-600" />
               <div className="mt-6 text-xl font-semibold">{t("dashboard.emptyState.createProject")}</div>
-              <p className="mt-2 text-sm text-sky-100">
+              <p className="mt-2 text-sm text-slate-600">
                 {t("dashboard.emptyState.createProjectDesc")}
               </p>
             </button>
@@ -56,18 +75,6 @@ export function DashboardEmptyState({
                 {t("dashboard.emptyState.joinProjectDesc")}
               </p>
             </button>
-
-            <button
-              type="button"
-              onClick={onOpenProjects}
-              className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-left text-slate-950 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-slate-300"
-            >
-              <PlayCircle className="h-6 w-6 text-emerald-600" />
-              <div className="mt-6 text-xl font-semibold">{t("dashboard.emptyState.createTask")}</div>
-              <p className="mt-2 text-sm text-slate-600">
-                {t("dashboard.emptyState.createTaskDesc")}
-              </p>
-            </button>
           </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm text-slate-600 shadow-sm">
@@ -76,9 +83,20 @@ export function DashboardEmptyState({
             <span>{t("dashboard.emptyState.step2")}</span>
             <ArrowRight className="h-4 w-4 text-slate-300" />
             <span>{t("dashboard.emptyState.step3")}</span>
+            <ArrowRight className="h-4 w-4 text-slate-300" />
+            <span>{t("dashboard.emptyState.step4")}</span>
           </div>
 
-          <div className="mt-8">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Button
+              size="md"
+              radius="full"
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              onClick={onCreateProjectWithAI}
+            >
+              <Sparkles className="h-4 w-4" />
+              {t("dashboard.emptyState.createProjectWithAI")}
+            </Button>
             <Button
               variant="outline"
               size="md"
@@ -86,6 +104,7 @@ export function DashboardEmptyState({
               className="border-slate-200 bg-white"
               onClick={onOpenProjects}
             >
+              <PlayCircle className="h-4 w-4" />
               {t("dashboard.emptyState.openWorkspace")}
             </Button>
           </div>

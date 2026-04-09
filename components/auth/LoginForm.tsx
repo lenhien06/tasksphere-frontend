@@ -60,6 +60,9 @@ function LoginFormContent() {
                     email: authData.email,
                     displayName: authData.fullName,
                     avatarUrl: authData.avatarUrl,
+                    avatar: {
+                        imageUrl: authData.avatarUrl ?? null,
+                    },
                 } as any);
             }
             queryClient.invalidateQueries({ queryKey: ["currentUser"] });
