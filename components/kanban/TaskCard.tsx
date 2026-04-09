@@ -85,7 +85,7 @@ export default function TaskCard({
     const url = projectId
       ? `${window.location.origin}/projects/${projectId}/tasks/${task.id}`
       : window.location.href;
-    navigator.clipboard.writeText(url).then(() => toast.success("Đã sao chép link"));
+    navigator.clipboard.writeText(url).then(() => toast.success(t("common.linkCopied", { defaultValue: "Link copied to clipboard" })));
   };
 
   return (
@@ -124,11 +124,11 @@ export default function TaskCard({
               <DropdownMenuContent align="end" className="w-44 p-1.5 rounded-xl shadow-xl">
                 {canEdit && (
                   <DropdownMenuItem className="rounded-lg text-sm cursor-pointer" onClick={() => onClick(task.id)}>
-                    <Pencil size={14} className="mr-2" /> Chỉnh sửa
+                    <Pencil size={14} className="mr-2" /> {t("common.edit", { defaultValue: "Edit" })}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem className="rounded-lg text-sm cursor-pointer" onClick={handleCopyLink}>
-                  <LinkIcon size={14} className="mr-2" /> Sao chép link
+                  <LinkIcon size={14} className="mr-2" /> {t("common.copyLink", { defaultValue: "Copy link" })}
                 </DropdownMenuItem>
                 {canDelete && (
                   <>
@@ -137,7 +137,7 @@ export default function TaskCard({
                       className="rounded-lg text-sm text-rose-600 focus:text-rose-600 focus:bg-rose-50 cursor-pointer"
                       onClick={() => setShowDeleteConfirm(true)}
                     >
-                      <Trash2 size={14} className="mr-2" /> Xóa task
+                      <Trash2 size={14} className="mr-2" /> {t("task.delete", { defaultValue: "Delete task" })}
                     </DropdownMenuItem>
                   </>
                 )}
@@ -218,25 +218,25 @@ export default function TaskCard({
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent className="max-w-sm p-6 rounded-2xl bg-white">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Xóa task {task.taskId}?</DialogTitle>
+            <DialogTitle className="text-lg font-bold">{t("task.deleteConfirmTitle", { taskId: task.taskId, defaultValue: `Delete task ${task.taskId}?` })}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-500 mt-1">
             {task.subTaskCount > 0
-              ? `Task có ${task.subTaskCount} sub-task sẽ bị xóa theo.`
-              : "Thao tác không thể hoàn tác."}
+              ? t("task.deleteConfirmWithSubtasks", { count: task.subTaskCount, defaultValue: `This task has ${task.subTaskCount} sub-tasks which will also be deleted.` })
+              : t("task.deleteConfirmSimple", { defaultValue: "This action cannot be undone." })}
           </p>
           <DialogFooter className="mt-5 flex gap-3 sm:justify-end">
             <button
               onClick={() => setShowDeleteConfirm(false)}
               className="flex-1 px-4 py-2 text-sm font-bold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
             >
-              Hủy
+              {t("common.cancel", { defaultValue: "Cancel" })}
             </button>
             <button
               onClick={() => { onDeleteTask?.(task.id); setShowDeleteConfirm(false); }}
               className="flex-1 px-4 py-2 text-sm font-bold text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors"
             >
-              Xóa
+              {t("common.delete", { defaultValue: "Delete" })}
             </button>
           </DialogFooter>
         </DialogContent>

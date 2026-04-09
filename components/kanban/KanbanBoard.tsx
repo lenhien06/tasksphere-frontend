@@ -109,7 +109,7 @@ export default function KanbanBoard({
     if (!activeTask) {
       setLocalTasks(initialTasks);
     }
-  }, [initialTasks, activeTask]);
+  }, [initialTasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -193,6 +193,16 @@ export default function KanbanBoard({
         newTasks.splice(newIndex, 0, updatedTask);
         return newTasks;
       });
+    } else if (overData?.type === "task") {
+      // Intra-column movement
+      setLocalTasks((prev) => {
+        const oldIndex = prev.findIndex((t) => t.id === activeId);
+        const newIndex = prev.findIndex((t) => t.id === overId);
+        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+          return arrayMove(prev, oldIndex, newIndex);
+        }
+        return prev;
+      });
     }
   };
 
@@ -202,6 +212,7 @@ export default function KanbanBoard({
     
     if (!over || !activeData?.task) {
         setActiveTask(null);
+        setLocalTasks(initialTasks);
         return;
     }
 
@@ -214,6 +225,7 @@ export default function KanbanBoard({
 
     if (!targetColumnId) {
         setActiveTask(null);
+        setLocalTasks(initialTasks);
         return;
     }
 
@@ -292,10 +304,10 @@ export default function KanbanBoard({
           <div className="h-[360px] rounded-xl border border-dashed border-gray-200 grid place-items-center text-gray-500 bg-white">
             <div className="text-center">
               <Search className="mx-auto mb-2 h-6 w-6 text-gray-400" />
-              <div className="text-sm">{t("kanban.noTaskAfterFilter", { defaultValue: "Không tìm thấy task nào" })}</div>
-              <div className="mt-1 text-xs text-gray-400">{t("kanban.tryChangeFilter", { defaultValue: "Thử thay đổi bộ lọc" })}</div>
+              <div className="text-sm">{t("kanban.noTaskAfterFilter", { defaultValue: "No tasks found" })}</div>
+              <div className="mt-1 text-xs text-gray-400">{t("kanban.tryChangeFilter", { defaultValue: "Try changing the filters" })}</div>
               <button className="mt-2 text-xs text-blue-600 hover:text-blue-700" onClick={() => onFilterChange(DEFAULT_TASK_FILTER_STATE)}>
-                {t("kanban.clearFilters", { defaultValue: "Xoá bộ lọc" })}
+                {t("kanban.clearFilters", { defaultValue: "Clear filters" })}
               </button>
             </div>
           </div>

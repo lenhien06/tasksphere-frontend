@@ -72,7 +72,7 @@ export function ColumnMenu({ column, projectId, taskCount }: ColumnMenuProps) {
             setEditMode(null)
             setIsOpen(false)
         },
-        onError: () => toast.error(t('columns.updateError', { defaultValue: "Không thể cập nhật cột" })),
+        onError: () => toast.error(t('columns.updateError', { defaultValue: "Unable to update column" })),
     })
 
     const deleteMutation = useMutation({
@@ -82,17 +82,17 @@ export function ColumnMenu({ column, projectId, taskCount }: ColumnMenuProps) {
             toast.success(t('columns.deletedSuccess', { 
                 count: result.movedTaskCount, 
                 column: result.movedToColumn,
-                defaultValue: `Đã xóa cột. ${result.movedTaskCount} task đã được chuyển sang ${result.movedToColumn}`
+                defaultValue: `Column deleted. ${result.movedTaskCount} task(s) moved to ${result.movedToColumn}`
             }))
             setIsOpen(false)
         },
         onError: (error: any) => {
             if (error?.response?.status === 409) {
-                toast.error(t('columns.deleteConflict', { defaultValue: "Hãy chuyển hết task trước khi xóa cột này" }))
+                toast.error(t('columns.deleteConflict', { defaultValue: "Please move all tasks before deleting this column" }))
             } else if (error?.response?.status === 400) {
-                toast.error(t('columns.deleteMinError', { defaultValue: "Phải có ít nhất một cột DONE" }))
+                toast.error(t('columns.deleteMinError', { defaultValue: "There must be at least one DONE column" }))
             } else {
-                toast.error(t('columns.deleteError', { defaultValue: "Không thể xóa cột" }))
+                toast.error(t('columns.deleteError', { defaultValue: "Unable to delete column" }))
             }
         },
     })
@@ -108,10 +108,10 @@ export function ColumnMenu({ column, projectId, taskCount }: ColumnMenuProps) {
     }
 
     const handleHide = () => {
-        const title = t('columns.hide', { defaultValue: "Ẩn cột" })
+        const title = t('columns.hide', { defaultValue: "Hide Column" })
         const description = taskCount > 0 
-            ? t('columns.hideConfirmWithTasks', { count: taskCount, defaultValue: `${taskCount} công việc sẽ được chuyển về cột đầu tiên. Bạn có chắc chắn muốn ẩn?` })
-            : t('columns.hideConfirm', { defaultValue: "Bạn có chắc chắn muốn ẩn cột này?" })
+            ? t('columns.hideConfirmWithTasks', { count: taskCount, defaultValue: `${taskCount} task(s) will be moved to the first column. Are you sure you want to hide this column?` })
+            : t('columns.hideConfirm', { defaultValue: "Are you sure you want to hide this column?" })
         
         setConfirmConfig({
             open: true,
@@ -125,8 +125,8 @@ export function ColumnMenu({ column, projectId, taskCount }: ColumnMenuProps) {
     const handleDelete = () => {
         setConfirmConfig({
             open: true,
-            title: t('columns.delete', { defaultValue: "Xóa cột" }),
-            description: t('columns.confirmDeleteSimple', { name: column.name, defaultValue: `Xóa cột "${column.name}"?` }),
+            title: t('columns.delete', { defaultValue: "Delete Column" }),
+            description: t('columns.confirmDeleteSimple', { name: column.name, defaultValue: `Delete column "${column.name}"?` }),
             action: () => deleteMutation.mutate(),
             variant: 'danger'
         })
@@ -164,13 +164,13 @@ export function ColumnMenu({ column, projectId, taskCount }: ColumnMenuProps) {
                                     disabled={updateMutation.isPending}
                                     className="flex-1 h-7 bg-gray-900 text-white text-[11px] font-bold rounded-md hover:bg-gray-800 disabled:opacity-50"
                                 >
-                                    {updateMutation.isPending ? t('common.saving', { defaultValue: "Lưu..." }) : t('common.save', { defaultValue: "Lưu" })}
+                                    {updateMutation.isPending ? t('common.saving', { defaultValue: "Saving..." }) : t('common.save', { defaultValue: "Save" })}
                                 </button>
                                 <button 
                                     onClick={() => { setEditMode(null); setNameInput(column.name) }}
                                     className="flex-1 h-7 border border-gray-200 text-gray-600 text-[11px] font-bold rounded-md hover:bg-gray-50"
                                 >
-                                    {t('common.cancel', { defaultValue: "Hủy" })}
+                                    {t('common.cancel', { defaultValue: "Cancel" })}
                                 </button>
                             </div>
                         </div>
@@ -193,7 +193,7 @@ export function ColumnMenu({ column, projectId, taskCount }: ColumnMenuProps) {
                                 onClick={() => setEditMode(null)}
                                 className="w-full h-7 border border-gray-200 text-gray-600 text-[11px] font-bold rounded-md hover:bg-gray-50"
                             >
-                                {t('common.back', { defaultValue: "Quay lại" })}
+                                {t('common.back', { defaultValue: "Back" })}
                             </button>
                         </div>
                     ) : (
@@ -206,7 +206,7 @@ export function ColumnMenu({ column, projectId, taskCount }: ColumnMenuProps) {
                                 className="rounded-lg gap-2.5 py-2 cursor-pointer"
                             >
                                 <Pencil size={14} className="text-gray-400" />
-                                <span className="text-sm font-medium">{t('columns.rename', { defaultValue: "Đổi tên" })}</span>
+                                <span className="text-sm font-medium">{t('columns.rename', { defaultValue: "Rename" })}</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                                 onSelect={(e) => {
@@ -216,11 +216,11 @@ export function ColumnMenu({ column, projectId, taskCount }: ColumnMenuProps) {
                                 className="rounded-lg gap-2.5 py-2 cursor-pointer"
                             >
                                 <Palette size={14} className="text-gray-400" />
-                                <span className="text-sm font-medium">{t('columns.changeColor', { defaultValue: "Đổi màu" })}</span>
+                                <span className="text-sm font-medium">{t('columns.changeColor', { defaultValue: "Change Color" })}</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={handleHide} className="rounded-lg gap-2.5 py-2 cursor-pointer">
                                 <EyeOff size={14} className="text-gray-400" />
-                                <span className="text-sm font-medium">{t('columns.hide', { defaultValue: "Ẩn cột" })}</span>
+                                <span className="text-sm font-medium">{t('columns.hide', { defaultValue: "Hide" })}</span>
                             </DropdownMenuItem>
                             
                             {!column.isDefault && (
@@ -236,12 +236,12 @@ export function ColumnMenu({ column, projectId, taskCount }: ColumnMenuProps) {
                                     >
                                         <Trash2 size={14} className={taskCount > 0 ? "text-gray-300" : "text-red-500"} />
                                         <span className="text-sm font-bold">
-                                            {t('columns.delete', { defaultValue: "Xóa cột" })}
+                                            {t('columns.delete', { defaultValue: "Delete Column" })}
                                         </span>
                                     </DropdownMenuItem>
                                     {taskCount > 0 && (
                                         <div className="px-2 pb-1 text-[10px] text-gray-400 italic">
-                                            * {t('columns.deleteHint', { defaultValue: "Chuyển hết task để xóa" })}
+                                            * {t('columns.deleteHint', { defaultValue: "Move all tasks to delete" })}
                                         </div>
                                     )}
                                 </>
@@ -264,7 +264,7 @@ export function ColumnMenu({ column, projectId, taskCount }: ColumnMenuProps) {
                     </AlertDialogHeader>
                     <AlertDialogFooter className="gap-2">
                         <AlertDialogCancel className="rounded-xl border-gray-200">
-                            {t('common.cancel', { defaultValue: "Hủy bỏ" })}
+                            {t('common.cancel', { defaultValue: "Cancel" })}
                         </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={confirmConfig.action}
@@ -275,7 +275,7 @@ export function ColumnMenu({ column, projectId, taskCount }: ColumnMenuProps) {
                                     : "bg-gray-900 hover:bg-gray-800 text-white shadow-lg shadow-gray-200"
                             )}
                         >
-                            {t('common.confirm', { defaultValue: "Xác nhận" })}
+                            {t('common.confirm', { defaultValue: "Confirm" })}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

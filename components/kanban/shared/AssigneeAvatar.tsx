@@ -25,7 +25,7 @@ export default function AssigneeAvatar({ assignee }: AssigneeAvatarProps) {
   if (!assignee) {
     return (
       <div
-        title={t("task.unassigned", { defaultValue: "Chưa phân công" })}
+        title={t("task.unassigned", { defaultValue: "Unassigned" })}
         className="h-6 w-6 rounded-full border border-dashed border-gray-300 bg-white text-gray-400 grid place-items-center text-[10px] font-medium leading-none"
       >
         ?

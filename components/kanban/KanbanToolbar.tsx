@@ -67,7 +67,7 @@ export default function KanbanToolbar({
           <input
             value={value.search}
             onChange={(event) => onChange({ ...value, search: event.target.value })}
-            placeholder={t("filter.searchTasks", { defaultValue: "Tìm theo tên task, mã task..." })}
+            placeholder={t("filter.searchTasks", { defaultValue: "Search by task name, code..." })}
             className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-slate-400 focus:border-blue-400"
           />
           {value.search ? (
@@ -112,7 +112,7 @@ export default function KanbanToolbar({
             }
             className="h-10 rounded-xl px-3 text-sm font-medium text-slate-600 transition-colors hover:text-red-600"
           >
-            {t("project.clearFilters", { defaultValue: "Xóa bộ lọc" })}
+            {t("project.clearFilters", { defaultValue: "Clear filters" })}
           </button>
         ) : null}
 

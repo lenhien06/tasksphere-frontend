@@ -135,7 +135,7 @@ export default function KanbanColumn({
             className="w-full rounded-lg text-gray-500 hover:text-gray-700 hover:bg-white px-2.5 py-1.5 text-sm inline-flex items-center gap-2 justify-start transition-colors border border-transparent hover:border-gray-200"
           >
             <Plus size={14} />
-            {t("kanban.addTask", { defaultValue: "Thêm công việc" })}
+            {t("kanban.addTask", { defaultValue: "Add task" })}
           </button>
         </footer>
       )}
