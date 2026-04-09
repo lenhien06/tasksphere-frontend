@@ -298,30 +298,37 @@ export default function KanbanBoard({
     const list = activeSprint?.id
       ? (tasksData?.content ?? []).filter((t) => t.sprintId === activeSprint.id)
       : [];
-    return list.map((t) => ({
-      id: t.id,
-      taskId: t.taskCode,
-      title: t.title,
-      type: mapType(t.type),
-      priority: mapPriority(t.priority),
-      status: t.columnId,
-      assignee: t.assignee
-        ? { id: t.assignee.id, fullName: t.assignee.fullName, avatarUrl: t.assignee.avatarUrl }
-        : null,
-      dueDate: t.dueDate,
-      storyPoints: t.storyPoints,
-      commentCount: t.commentsCount,
-      attachmentCount: t.attachmentsCount,
-      blockedByDependency: Boolean(t.blockedByDependency),
-      blockingDependencyCount: t.blockingDependencyCount ?? 0,
-      blockedBy: t.blockedBy,
-      subTaskCount: t.subtaskCount,
-      subTaskDoneCount: t.subtaskDone,
-      position: t.taskPosition,
-      isOverdue: t.overdue,
-      isRecurring: t.recurring,
-    }));
-  }, [activeSprint?.id, tasksData]);
+    return list.map((t) => {
+      const fallbackColumnId =
+        t.columnId ??
+        columns.find((column) => column.status === t.taskStatus)?.id ??
+        "";
+
+      return {
+        id: t.id,
+        taskId: t.taskCode,
+        title: t.title,
+        type: mapType(t.type),
+        priority: mapPriority(t.priority),
+        status: fallbackColumnId,
+        assignee: t.assignee
+          ? { id: t.assignee.id, fullName: t.assignee.fullName, avatarUrl: t.assignee.avatarUrl }
+          : null,
+        dueDate: t.dueDate,
+        storyPoints: t.storyPoints,
+        commentCount: t.commentsCount,
+        attachmentCount: t.attachmentsCount,
+        blockedByDependency: Boolean(t.blockedByDependency),
+        blockingDependencyCount: t.blockingDependencyCount ?? 0,
+        blockedBy: t.blockedBy,
+        subTaskCount: t.subtaskCount,
+        subTaskDoneCount: t.subtaskDone,
+        position: t.taskPosition,
+        isOverdue: t.overdue,
+        isRecurring: t.recurring,
+      };
+    });
+  }, [activeSprint?.id, columns, tasksData]);
 
   const openTaskById = (taskId: string) => {
     setSelectedTaskId(taskId);
