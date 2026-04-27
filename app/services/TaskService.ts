@@ -46,6 +46,7 @@ import {
     CreateWebhookRequest,
     WebhookTestResult,
     NotificationPreferences,
+    TaskImportResult,
 } from "@/app/types/task.schema";
 
 const BASE = "/v1/projects";
@@ -365,6 +366,40 @@ export const TaskService = {
         });
         const d = res.data.data;
         return { ...d, failedIds: d.failedIds ?? [] };
+    },
+
+    // ── IMPORT / EXPORT ──────────────────────────────────────────
+
+    // GET /projects/{pId}/tasks/import-template
+    downloadImportTemplate: async (projectId: string): Promise<void> => {
+        const res = await apiJava.get(
+            `${BASE}/${projectId}/tasks/import-template`,
+            { responseType: "blob" }
+        );
+        const url = URL.createObjectURL(
+            new Blob([res.data], {
+                type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            })
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "task-import-template.xlsx";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    },
+
+    // POST /projects/{pId}/tasks/import
+    importTasks: async (projectId: string, file: File): Promise<TaskImportResult> => {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await apiJava.post<ApiResponse<TaskImportResult>>(
+            `${BASE}/${projectId}/tasks/import`,
+            formData,
+            { headers: { "Content-Type": "multipart/form-data" } }
+        );
+        return res.data.data;
     },
 
     // ── REPORTS ───────────────────────────────────────────────

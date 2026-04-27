@@ -17,6 +17,7 @@ import {
     Layers,
     ChevronDown,
     RefreshCw,
+    FileUp,
 } from "lucide-react"
 import {
     DndContext,
@@ -65,6 +66,7 @@ import { StartSprintModal } from "./StartSprintModal"
 import { CompleteSprintModal } from "./CompleteSprintModal"
 import { CreateSprintModal } from "./CreateSprintModal"
 import { BacklogTaskRow, SortableBacklogTaskRow } from "./BacklogTaskRow"
+import TaskImportModal from "@/components/projects/TaskImportModal"
 import { AiTaskGenerator } from "@/components/ai/AiTaskGenerator"
 import { AiAssignReview } from "@/components/ai/AiAssignReview"
 import { orderSprintsForBacklogUi } from "./utils"
@@ -118,6 +120,7 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
     const [showBatchSprintMenu, setShowBatchSprintMenu] = useState(false)
     const [showCreateModal, setShowCreateModal] = useState(false)
+    const [showImportModal, setShowImportModal] = useState(false)
     const [showCreateSprintModal, setShowCreateSprintModal] = useState(false)
     const [activeDraggedTask, setActiveDraggedTask] = useState<TaskResponse | null>(null)
     const [sprintOpen, setSprintOpen] = useState<Record<string, boolean>>({})
@@ -656,6 +659,16 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                 {t("sprint.create")}
                             </button>
                         )}
+                        {(isPM || isMemberOnly) && (
+                            <button
+                                type="button"
+                                onClick={() => setShowImportModal(true)}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:border-blue-400 hover:text-blue-600"
+                            >
+                                <FileUp size={16} />
+                                Import
+                            </button>
+                        )}
                         <TaskPrimaryActions
                             canCreateTask={isPM || isMemberOnly}
                             canUseAi={isPM}
@@ -978,6 +991,16 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                     }}
                 />
             )}
+            {showImportModal && (
+                <TaskImportModal
+                    projectId={projectId}
+                    onClose={() => setShowImportModal(false)}
+                    onSuccess={() => {
+                        queryClient.invalidateQueries({ queryKey: ["backlog", projectId] })
+                    }}
+                />
+            )}
+
             <DragOverlay zIndex={999}>
                 {activeDraggedTask ? (
                     <div className="w-[min(760px,88vw)] rounded-xl border border-blue-200 bg-white px-3 py-3 shadow-2xl ring-2 ring-blue-500/20">

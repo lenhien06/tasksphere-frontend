@@ -758,3 +758,16 @@ export interface NotificationPreferences {
     timezone:         string           // IANA timezone
     typePreferences:  Record<string, boolean>  // per-type toggle
 }
+
+// ── Import types ──────────────────────────────────────────────
+export interface TaskImportError {
+    row: number
+    column: string
+    message: string
+}
+
+export interface TaskImportResult {
+    totalRows: number
+    createdCount: number
+    errors: TaskImportError[]
+}
