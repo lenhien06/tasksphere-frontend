@@ -324,12 +324,28 @@ function BurndownChart({ data }: { data: BurndownData }) {
       ? null
       : Number(data.actualLine[index]?.remainingPoints),
   }));
+
+  // Only include actual points that have real data
+  const actualPoints = points
+    .map((point, index) => ({ ...point, index }))
+    .filter((point) => point.actual !== null);
+
   const values = points.flatMap((point) => [point.ideal, point.actual ?? 0]);
   const maxValue = Math.max(...values, 1);
   const plotWidth = width - padding * 2;
   const plotHeight = height - padding * 2;
   const idealPath = buildLinePath(points.map((point) => point.ideal), width, height, padding);
-  const actualPath = buildLinePath(points.map((point) => point.actual ?? point.ideal), width, height, padding);
+
+  // Build actual path only up to last known data point
+  const actualPath = actualPoints.length > 0
+    ? actualPoints
+        .map((point, i) => {
+          const x = padding + (point.index * plotWidth) / Math.max(points.length - 1, 1);
+          const y = padding + plotHeight - ((point.actual as number) / maxValue) * plotHeight;
+          return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+        })
+        .join(" ")
+    : "";
 
   return (
     <div className="w-full rounded-lg border border-slate-200 bg-white p-5">
@@ -337,7 +353,9 @@ function BurndownChart({ data }: { data: BurndownData }) {
         <h3 className="text-xl font-bold text-slate-950">Remaining work across the sprint</h3>
         <div className="flex items-center gap-5 text-sm text-slate-500">
           <span className="inline-flex items-center gap-2">
-            <span className="h-0.5 w-10 bg-slate-400" />
+            <svg width="40" height="3" aria-hidden="true">
+              <line x1="0" y1="1.5" x2="40" y2="1.5" stroke="#94A3B8" strokeWidth="3" strokeDasharray="8 5" />
+            </svg>
             Ideal
           </span>
           <span className="inline-flex items-center gap-2">
@@ -362,18 +380,31 @@ function BurndownChart({ data }: { data: BurndownData }) {
           })}
           <line x1={padding} x2={padding} y1={padding} y2={height - padding} stroke="#CBD5E1" />
           <line x1={padding} x2={width - padding} y1={height - padding} y2={height - padding} stroke="#CBD5E1" />
-          <path d={idealPath} fill="none" stroke="#94A3B8" strokeWidth="4" strokeDasharray="10 10" />
-          <path d={actualPath} fill="none" stroke="#4F46E5" strokeWidth="4" />
+
+          {/* Ideal line — dashed grey */}
+          <path d={idealPath} fill="none" stroke="#94A3B8" strokeWidth="3" strokeDasharray="10 6" />
+
+          {/* Actual line — solid indigo, only up to today */}
+          {actualPath && (
+            <path d={actualPath} fill="none" stroke="#4F46E5" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          )}
+
+          {/* X-axis labels for all days */}
           {points.map((point, index) => {
             const x = padding + (index * plotWidth) / Math.max(points.length - 1, 1);
-            const y = padding + plotHeight - ((point.actual ?? point.ideal) / maxValue) * plotHeight;
             return (
-              <g key={`${point.label}-${index}`}>
-                <circle cx={x} cy={y} r="5" fill="#4F46E5" />
-                <text x={x} y={height - 18} textAnchor="middle" fontSize="13" fill="#64748B">
-                  {point.label}
-                </text>
-              </g>
+              <text key={`label-${index}`} x={x} y={height - 10} textAnchor="middle" fontSize="13" fill="#64748B">
+                {point.label}
+              </text>
+            );
+          })}
+
+          {/* Dots only for actual data points */}
+          {actualPoints.map((point) => {
+            const x = padding + (point.index * plotWidth) / Math.max(points.length - 1, 1);
+            const y = padding + plotHeight - ((point.actual as number) / maxValue) * plotHeight;
+            return (
+              <circle key={`dot-${point.index}`} cx={x} cy={y} r="5" fill="#4F46E5" stroke="white" strokeWidth="2" />
             );
           })}
         </svg>
