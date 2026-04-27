@@ -97,6 +97,19 @@ export const WorkspaceInviteListItemSchema = z.object({
 
 export type WorkspaceInviteListItem = z.infer<typeof WorkspaceInviteListItemSchema>;
 
+export interface WorkspaceMyInviteItem {
+  id: string;
+  email: string;
+  role: WorkspaceRole;
+  status: string;
+  inviterName: string;
+  invitedAt: string;
+  expiresAt: string;
+  workspaceId: string;
+  workspaceName: string;
+  token: string;
+}
+
 export const VerifyWorkspaceInviteResponseSchema = z.object({
   workspaceId: z.string().uuid(),
   workspaceName: z.string(),

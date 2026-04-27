@@ -29,11 +29,22 @@ type InviteItem = {
   token: string;
 };
 
+type WorkspaceInviteItem = {
+  id: string;
+  inviterName: string;
+  workspaceName: string;
+  role: string;
+  token: string;
+};
+
 type NotificationDropdownProps = {
   invites: InviteItem[];
+  wsInvites: WorkspaceInviteItem[];
   isInvitesLoading: boolean;
   onAcceptInvite: (token: string) => void;
   onDeclineInvite: (token: string) => void;
+  onAcceptWsInvite: (token: string) => void;
+  onDeclineWsInvite: (token: string) => void;
   onClose: () => void;
 };
 
@@ -180,9 +191,12 @@ function NotificationRow({
 
 export function NotificationDropdown({
   invites,
+  wsInvites,
   isInvitesLoading,
   onAcceptInvite,
   onDeclineInvite,
+  onAcceptWsInvite,
+  onDeclineWsInvite,
   onClose,
 }: NotificationDropdownProps) {
   const { t } = useTranslation();
@@ -199,7 +213,7 @@ export function NotificationDropdown({
     return notifications;
   }, [notifications, tab]);
 
-  const hasContent = invites.length > 0 || filteredNotifications.length > 0;
+  const hasContent = invites.length > 0 || wsInvites.length > 0 || filteredNotifications.length > 0;
 
   return (
     <div className="absolute right-0 top-[52px] z-50 flex max-h-[560px] w-[min(420px,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border border-[#E8E8E8] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] animate-in fade-in slide-in-from-top-2">
@@ -299,7 +313,45 @@ export function NotificationDropdown({
           </div>
         ))}
 
-        {isInvitesLoading && tab === "all" && invites.length === 0 && (
+        {wsInvites.length > 0 && tab === "all" && (
+          <div className="border-b border-[#E8E8E8] bg-[#FAFAFA] px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#8C8C8C]">
+            Lời mời workspace
+          </div>
+        )}
+        {wsInvites.length > 0 && tab === "all" && wsInvites.map((invite) => (
+          <div key={invite.id} className="border-b border-[#F5F5F5] bg-purple-50/30 px-4 py-4">
+            <div className="flex gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
+                <Users size={18} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] leading-snug text-[#141414]">
+                  <span className="font-bold">{invite.inviterName}</span> mời bạn tham gia workspace{" "}
+                  <span className="font-bold text-purple-600">"{invite.workspaceName}"</span> với vai trò{" "}
+                  <span className="font-semibold">{invite.role}</span>
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onAcceptWsInvite(invite.token)}
+                    className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-purple-700"
+                  >
+                    Tham gia
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeclineWsInvite(invite.token)}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50"
+                  >
+                    Từ chối
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {isInvitesLoading && tab === "all" && invites.length === 0 && wsInvites.length === 0 && (
           <div className="px-4 py-3 text-sm text-[#8C8C8C]">Đang tải lời mời...</div>
         )}
 

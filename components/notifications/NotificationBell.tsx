@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { ProjectMemberService } from "@/app/services/project-member.service";
+import { WorkspaceService } from "@/app/services/workspace.service";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,14 @@ type InviteItem = {
   id: string;
   inviterName: string;
   projectName: string;
+  role: string;
+  token: string;
+};
+
+type WorkspaceInviteItem = {
+  id: string;
+  inviterName: string;
+  workspaceName: string;
   role: string;
   token: string;
 };
@@ -32,11 +41,13 @@ export function NotificationBell({ open, onOpenChange }: NotificationBellProps) 
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   const connectionState = useNotificationStore((state) => state.connectionState);
   const [invites, setInvites] = useState<InviteItem[]>([]);
+  const [wsInvites, setWsInvites] = useState<WorkspaceInviteItem[]>([]);
   const [isInvitesLoading, setIsInvitesLoading] = useState(false);
 
   useEffect(() => {
     if (!accessToken) {
       setInvites([]);
+      setWsInvites([]);
       return;
     }
 
@@ -44,16 +55,34 @@ export function NotificationBell({ open, onOpenChange }: NotificationBellProps) 
     const loadInvites = async () => {
       setIsInvitesLoading(true);
       try {
-        const result = await ProjectMemberService.getMyInvites(controller.signal);
-        setInvites(
-          (result || []).map((invite) => ({
-            id: invite.id,
-            inviterName: invite.inviterName,
-            projectName: invite.projectName ?? "Dự án",
-            role: invite.role,
-            token: invite.token ?? "",
-          }))
-        );
+        const [projectResult, wsResult] = await Promise.allSettled([
+          ProjectMemberService.getMyInvites(controller.signal),
+          WorkspaceService.getMyWorkspaceInvites(controller.signal),
+        ]);
+
+        if (projectResult.status === "fulfilled") {
+          setInvites(
+            (projectResult.value || []).map((invite) => ({
+              id: invite.id,
+              inviterName: invite.inviterName,
+              projectName: invite.projectName ?? "Dự án",
+              role: invite.role,
+              token: invite.token ?? "",
+            }))
+          );
+        }
+
+        if (wsResult.status === "fulfilled") {
+          setWsInvites(
+            (wsResult.value || []).map((invite) => ({
+              id: invite.id,
+              inviterName: invite.inviterName,
+              workspaceName: invite.workspaceName,
+              role: invite.role,
+              token: invite.token,
+            }))
+          );
+        }
       } catch (error: any) {
         if (error?.code !== "ERR_CANCELED" && error?.name !== "AbortError") {
           console.error("Error fetching invites:", error);
@@ -91,7 +120,31 @@ export function NotificationBell({ open, onOpenChange }: NotificationBellProps) 
     }
   };
 
-  const totalBadge = unreadCount + invites.length;
+  const handleAcceptWsInvite = async (token: string) => {
+    if (!token) return;
+    try {
+      const result = await WorkspaceService.acceptInvite(token);
+      toast.success("Đã tham gia workspace");
+      setWsInvites((prev) => prev.filter((i) => i.token !== token));
+      onOpenChange(false);
+      router.push(`/ws/${result.workspace.slug}`);
+    } catch (error: any) {
+      toast.error(getBeErrorMessage(error) || "Không thể tham gia workspace");
+    }
+  };
+
+  const handleDeclineWsInvite = async (token: string) => {
+    if (!token) return;
+    try {
+      await WorkspaceService.declineInvite(token);
+      toast.success("Đã từ chối lời mời workspace");
+      setWsInvites((prev) => prev.filter((i) => i.token !== token));
+    } catch (error: any) {
+      toast.error(getBeErrorMessage(error) || "Không thể từ chối lời mời");
+    }
+  };
+
+  const totalBadge = unreadCount + invites.length + wsInvites.length;
 
   return (
     <div className="relative">
@@ -118,9 +171,12 @@ export function NotificationBell({ open, onOpenChange }: NotificationBellProps) 
       {open && (
         <NotificationDropdown
           invites={invites}
+          wsInvites={wsInvites}
           isInvitesLoading={isInvitesLoading}
           onAcceptInvite={handleAcceptInvite}
           onDeclineInvite={handleDeclineInvite}
+          onAcceptWsInvite={handleAcceptWsInvite}
+          onDeclineWsInvite={handleDeclineWsInvite}
           onClose={() => onOpenChange(false)}
         />
       )}

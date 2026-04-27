@@ -10,6 +10,7 @@ import {
   WorkspaceInviteResponse,
   WorkspaceInviteListItem,
   WorkspaceHealthMetrics,
+  WorkspaceMyInviteItem,
 } from "@/app/types/workspace.schema";
 
 export const WorkspaceService = {
@@ -143,6 +144,14 @@ export const WorkspaceService = {
       `/v1/workspaces/${wsId}/invites/${inviteId}/resend`
     );
     return { message: response.data.message };
+  },
+
+  getMyWorkspaceInvites: async (signal?: AbortSignal): Promise<WorkspaceMyInviteItem[]> => {
+    const response = await apiJava.get<ApiResponse<WorkspaceMyInviteItem[]>>(
+      "/v1/users/me/workspace-invites",
+      { signal }
+    );
+    return response.data?.data ?? [];
   },
 
   verifyInviteToken: async (token: string) => {
