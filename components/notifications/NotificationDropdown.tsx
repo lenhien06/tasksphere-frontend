@@ -16,10 +16,13 @@ import {
   Users,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { NotificationItem } from "@/app/types/notification.schema";
+import { WorkspaceService } from "@/app/services/workspace.service";
 import { cn } from "@/lib/utils";
 import { useNotificationStore } from "@/stores/useNotificationStore";
+import { getBeErrorMessage } from "@/lib/axios";
 
 type InviteItem = {
   id: string;
@@ -80,13 +83,15 @@ function NotificationRow({
   const { i18n, t } = useTranslation();
   const markAsRead = useNotificationStore((state) => state.markAsRead);
   const deleteNotification = useNotificationStore((state) => state.deleteNotification);
+  const [wsActionDone, setWsActionDone] = useState(false);
   const Icon = getNotificationIcon(notification.type);
+
+  const isWsInvite = notification.type === "WORKSPACE_INVITED" && !!notification.entityId && !wsActionDone;
 
   const handleNavigate = async () => {
     if (!notification.isRead) {
       void markAsRead(notification.id);
     }
-
     onClose();
 
     if (notification.entityType === "TASK" && notification.entityId && notification.projectId) {
@@ -94,14 +99,9 @@ function NotificationRow({
         `/projects/${notification.projectId}/tasks/${notification.entityId}`,
         "https://tasksphere.local"
       );
-
-      if (
-        notification.type === "TASK_COMMENTED" ||
-        notification.type === "TASK_MENTIONED"
-      ) {
+      if (notification.type === "TASK_COMMENTED" || notification.type === "TASK_MENTIONED") {
         taskUrl.searchParams.set("tab", "comments");
       }
-
       router.push(`${taskUrl.pathname}${taskUrl.search}`);
       return;
     }
@@ -112,6 +112,32 @@ function NotificationRow({
     }
 
     router.push("/projects");
+  };
+
+  const handleJoinWs = async () => {
+    if (!notification.entityId) return;
+    try {
+      if (!notification.isRead) void markAsRead(notification.id);
+      const result = await WorkspaceService.acceptInvite(notification.entityId);
+      toast.success("Đã tham gia workspace");
+      setWsActionDone(true);
+      onClose();
+      router.push(`/ws/${result.workspace.slug}`);
+    } catch (error: any) {
+      toast.error(getBeErrorMessage(error) || "Không thể tham gia workspace");
+    }
+  };
+
+  const handleDeclineWs = async () => {
+    if (!notification.entityId) return;
+    try {
+      if (!notification.isRead) void markAsRead(notification.id);
+      await WorkspaceService.declineInvite(notification.entityId);
+      toast.success("Đã từ chối lời mời");
+      setWsActionDone(true);
+    } catch (error: any) {
+      toast.error(getBeErrorMessage(error) || "Không thể từ chối lời mời");
+    }
   };
 
   return (
@@ -135,34 +161,55 @@ function NotificationRow({
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={handleNavigate}
-          className="min-w-0 flex-1 text-left"
-        >
-          <div className="mb-1 flex items-start gap-2">
-            <span className="rounded-full bg-[#F5F5F5] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#595959]">
-              {t(`notif.type_${notification.type}`, { defaultValue: notification.type.replaceAll("_", " ") })}
-            </span>
-            {!notification.isRead && <span className="mt-1 h-2 w-2 rounded-full bg-[#1677FF]" />}
-          </div>
-
-          <div className="text-[13px] font-semibold leading-snug text-[#141414]">{notification.title}</div>
-          <div className="mt-1 text-[12px] leading-relaxed text-[#595959]">{notification.body}</div>
-          <div className="mt-2 flex items-center gap-2 text-[11px] text-[#8C8C8C]">
-            {notification.taskCode && (
-              <span className="rounded bg-[#F5F5F5] px-1.5 py-0.5 font-mono font-semibold text-[#1677FF]">
-                {notification.taskCode}
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={handleNavigate}
+            className="w-full text-left"
+          >
+            <div className="mb-1 flex items-start gap-2">
+              <span className="rounded-full bg-[#F5F5F5] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#595959]">
+                {t(`notif.type_${notification.type}`, { defaultValue: notification.type.replaceAll("_", " ") })}
               </span>
-            )}
-            <span>
-              {formatDistanceToNow(new Date(notification.createdAt), {
-                addSuffix: true,
-                locale: i18n.language === "vi" ? viLocale : enUS,
-              })}
-            </span>
-          </div>
-        </button>
+              {!notification.isRead && <span className="mt-1 h-2 w-2 rounded-full bg-[#1677FF]" />}
+            </div>
+
+            <div className="text-[13px] font-semibold leading-snug text-[#141414]">{notification.title}</div>
+            <div className="mt-1 text-[12px] leading-relaxed text-[#595959]">{notification.body}</div>
+            <div className="mt-2 flex items-center gap-2 text-[11px] text-[#8C8C8C]">
+              {notification.taskCode && (
+                <span className="rounded bg-[#F5F5F5] px-1.5 py-0.5 font-mono font-semibold text-[#1677FF]">
+                  {notification.taskCode}
+                </span>
+              )}
+              <span>
+                {formatDistanceToNow(new Date(notification.createdAt), {
+                  addSuffix: true,
+                  locale: i18n.language === "vi" ? viLocale : enUS,
+                })}
+              </span>
+            </div>
+          </button>
+
+          {isWsInvite && (
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleJoinWs()}
+                className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-purple-700"
+              >
+                Tham gia
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeclineWs()}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                Từ chối
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="flex shrink-0 flex-col items-end gap-1">
           {!notification.isRead && (
