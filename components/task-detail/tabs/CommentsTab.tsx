@@ -1014,7 +1014,7 @@ export default function CommentsTab({ projectId, taskId }: CommentsTabProps) {
             <div className="overflow-y-auto hide-scrollbar pr-1 pb-3" style={{ maxHeight: comments.length === 0 ? undefined : "55vh" }}>
                 {/* Comment list */}
                 {comments.length === 0 && (
-                    <p className="text-[13px] text-slate-400 italic py-2">Chưa có bình luận nào.</p>
+                    <p className="text-[13px] text-slate-400 italic py-2">No comments yet.</p>
                 )}
 
                 {comments.length > 0 && (

@@ -20,7 +20,6 @@ import { UserAvatar } from "@/components/common/UserAvatar";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { UserType } from "@/app/types/user.schema";
 import { toast } from "sonner";
-import { LanguageToggle } from "@/components/common/LanguageToggle";
 import { ProjectService } from "@/app/services/ProjectService";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -240,7 +239,6 @@ export default function Header({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-          <LanguageToggle className="hidden sm:flex" />
           <NotificationBell
             open={activeDropdown === "notif"}
             onOpenChange={(open) => setActiveDropdown(open ? "notif" : null)}

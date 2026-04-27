@@ -57,7 +57,7 @@ export default function TaskDetailTabs({ task, projectId, currentUserRole }: Tas
     const tabs: { key: TabKey; label: string; icon: React.ReactNode; badge?: number | string }[] = [
         {
             key: "comments",
-            label: "Bình luận",
+            label: "Comments",
             icon: <MessageSquare size={14} />,
             badge: task.commentsCount || undefined,
         },
@@ -71,7 +71,7 @@ export default function TaskDetailTabs({ task, projectId, currentUserRole }: Tas
         },
         {
             key: "attachments",
-            label: "Tệp đính kèm",
+            label: "Attachments",
             icon: <Paperclip size={14} />,
             badge: task.attachmentsCount || undefined,
         },
@@ -82,7 +82,7 @@ export default function TaskDetailTabs({ task, projectId, currentUserRole }: Tas
         },
         {
             key: "activity",
-            label: "Hoạt động",
+            label: "Activity",
             icon: <SlidersHorizontal size={14} />,
         },
     ]

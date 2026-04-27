@@ -117,10 +117,10 @@ function getInitials(name?: string | null) {
 }
 
 function formatDateLabel(value?: string | null) {
-  if (!value) return "Vừa cập nhật";
+  if (!value) return "Recently updated";
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "Vừa cập nhật";
-  return new Intl.DateTimeFormat("vi-VN", {
+  if (Number.isNaN(parsed.getTime())) return "Recently updated";
+  return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -192,7 +192,7 @@ function ProjectRow({
           </span>
           <span className="inline-flex items-center gap-1">
             <Users size={14} />
-            {project.memberCount} thành viên
+            {project.memberCount} members
           </span>
           <span className="inline-flex items-center gap-1">
             <FolderKanban size={14} />
@@ -200,7 +200,7 @@ function ProjectRow({
           </span>
           <span className="inline-flex items-center gap-1">
             <CalendarClock size={14} />
-            Cập nhật {formatDateLabel(project.updatedAt ?? project.createdAt)}
+            Updated {formatDateLabel(project.updatedAt ?? project.createdAt)}
           </span>
         </div>
       </div>
@@ -338,9 +338,9 @@ function InviteWorkspaceMemberModal({
       <div className="w-full max-w-3xl rounded-2xl border border-[#d0d7de] bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-[#d8dee4] px-6 py-5">
           <div>
-            <h3 className="text-lg font-semibold text-[#1f2328]">Thêm thành viên</h3>
+            <h3 className="text-lg font-semibold text-[#1f2328]">Add member</h3>
             <p className="mt-1 text-sm text-[#57606a]">
-              Mời thành viên mới vào workspace này.
+              Invite a new member to this workspace.
             </p>
           </div>
           <button
@@ -368,7 +368,7 @@ function InviteWorkspaceMemberModal({
 
             <div>
               <label className="mb-2 block text-sm font-medium text-[#1f2328]">
-                Vai trò
+                Role
               </label>
               <select
                 value={role}
@@ -545,7 +545,7 @@ function InviteWorkspaceMemberModal({
             onClick={onClose}
             className="rounded-xl border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] transition hover:bg-[#f6f8fa]"
           >
-            Hủy
+            Cancel
           </button>
           <button
             type="button"
@@ -554,7 +554,7 @@ function InviteWorkspaceMemberModal({
             className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {inviteMutation.isPending && <Loader2 size={14} className="animate-spin" />}
-            Thêm thành viên
+            Add member
           </button>
         </div>
       </div>
@@ -598,7 +598,7 @@ function MemberListRow({ member }: { member: WorkspaceMember }) {
               </span>
             ))
           ) : (
-            <span className="text-xs text-[#8c959f]">Chưa có skill</span>
+            <span className="text-xs text-[#8c959f]">No skills yet</span>
           )}
         </div>
       </div>
@@ -609,7 +609,7 @@ function MemberListRow({ member }: { member: WorkspaceMember }) {
 
       <div className="text-right text-[11px] text-[#57606a]">
         {member.joinedAt ? new Date(member.joinedAt).toISOString().split("T")[0] : "-"}
-        <div className="mt-1 text-[#8c959f]">{member.activeTaskCount} task mở</div>
+        <div className="mt-1 text-[#8c959f]">{member.activeTaskCount} open tasks</div>
       </div>
     </div>
   );
@@ -626,10 +626,10 @@ function WorkspaceRoleBadge({ role }: { role: WorkspaceRole }) {
 function MemberListHeader() {
   return (
     <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_120px_140px] gap-4 border-b border-[#d8dee4] bg-[#f6f8fa] px-5 py-3 text-[11px] font-bold uppercase tracking-wide text-[#57606a]">
-      <div>Thành viên</div>
+      <div>Members</div>
       <div>Skills</div>
       <div>Role</div>
-      <div className="text-right">Ngày tham gia</div>
+      <div className="text-right">Joined on</div>
     </div>
   );
 }
@@ -956,7 +956,7 @@ export default function WorkspaceDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["ws-members", workspace?.id] });
     },
     onError: () => {
-      toast.error("Không thể cập nhật skill của thành viên.");
+      toast.error("Unable to update member skills.");
     },
   });
 
@@ -966,17 +966,17 @@ export default function WorkspaceDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["ws-members", workspace?.id] });
       queryClient.invalidateQueries({ queryKey: ["workspace", slug] });
       if (userId === currentUserId) {
-        toast.success("Đã rời workspace.");
+        toast.success("You left the workspace.");
         router.push("/workspaces");
         return;
       }
-      toast.success("Đã xóa thành viên khỏi workspace.");
+      toast.success("Member removed from the workspace.");
     },
     onError: (error: any) => {
       const message =
         error?.response?.data?.meta?.message ||
         error?.response?.data?.message ||
-        "Không thể xóa thành viên khỏi workspace.";
+        "Unable to remove the member from the workspace.";
       toast.error(message);
     },
   });
@@ -984,22 +984,22 @@ export default function WorkspaceDetailPage() {
   const revokeInviteMutation = useMutation({
     mutationFn: (inviteId: string) => WorkspaceService.revokeInvite(workspace!.id, inviteId),
     onSuccess: (data) => {
-      toast.success(data.message || "Đã thu hồi lời mời.");
+      toast.success(data.message || "Invitation revoked.");
       queryClient.invalidateQueries({ queryKey: ["ws-invites", workspace?.id, inviteStatusFilter] });
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Không thể thu hồi lời mời.");
+      toast.error(error?.response?.data?.message || "Unable to revoke the invitation.");
     },
   });
 
   const resendInviteMutation = useMutation({
     mutationFn: (inviteId: string) => WorkspaceService.resendInvite(workspace!.id, inviteId),
     onSuccess: (data) => {
-      toast.success(data.message || "Đã gửi lại lời mời.");
+      toast.success(data.message || "Invitation resent.");
       queryClient.invalidateQueries({ queryKey: ["ws-invites", workspace?.id, inviteStatusFilter] });
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Không thể gửi lại lời mời.");
+      toast.error(error?.response?.data?.message || "Unable to resend the invitation.");
     },
   });
 
@@ -1039,17 +1039,17 @@ export default function WorkspaceDetailPage() {
       <div className="mx-auto max-w-xl px-6 py-20 text-center">
         <Building2 size={48} className="mx-auto mb-4 text-[#8c959f]" />
         <h2 className="text-xl font-semibold text-[#1f2328]">
-          Workspace không tồn tại
+          Workspace not found
         </h2>
         <p className="mt-2 text-sm text-[#57606a]">
-          Kiểm tra lại đường dẫn hoặc quay về danh sách workspaces để chọn lại.
+          Check the URL again or return to the workspace list to choose another one.
         </p>
         <button
           type="button"
           onClick={() => router.push("/workspaces")}
           className="mt-6 rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
         >
-          Quay về Workspaces
+          Back to Workspaces
         </button>
       </div>
     );
@@ -1057,8 +1057,8 @@ export default function WorkspaceDetailPage() {
 
   const initials = getInitials(workspace.name);
   const tabs: { id: WorkspaceTab; label: string; icon: ReactNode }[] = [
-    { id: "projects", label: "Tất cả dự án", icon: <FolderKanban size={14} /> },
-    { id: "members", label: "Thành viên", icon: <Users size={14} /> },
+    { id: "projects", label: "All projects", icon: <FolderKanban size={14} /> },
+    { id: "members", label: "Members", icon: <Users size={14} /> },
     { id: "settings", label: "Settings", icon: <Settings size={14} /> },
   ];
 
@@ -1143,7 +1143,7 @@ export default function WorkspaceDetailPage() {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Tìm dự án trong workspace..."
+                placeholder="Search projects in this workspace..."
                 className="h-10 w-full rounded-md border border-[#d0d7de] bg-white pl-11 pr-4 text-sm text-[#1f2328] outline-none transition placeholder:text-[#8c959f] focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
               />
             </div>
@@ -1158,7 +1158,7 @@ export default function WorkspaceDetailPage() {
                 }
                 className="h-10 rounded-md border border-[#d0d7de] bg-white px-3 text-sm text-[#24292f] outline-none transition focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
               >
-                <option value="all">Phạm vi</option>
+                <option value="all">Visibility</option>
                 <option value="private">Private</option>
                 <option value="internal">Internal</option>
                 <option value="public">Public</option>
@@ -1171,10 +1171,10 @@ export default function WorkspaceDetailPage() {
                 }
                 className="h-10 rounded-md border border-[#d0d7de] bg-white px-3 text-sm text-[#24292f] outline-none transition focus:border-[#0969da] focus:ring-2 focus:ring-[#0969da]/15"
               >
-                <option value="updated">Sắp xếp</option>
-                <option value="updated">Cập nhật gần nhất</option>
-                <option value="name">Tên A-Z</option>
-                <option value="progress">Tiến độ cao nhất</option>
+                <option value="updated">Sort by</option>
+                <option value="updated">Recently updated</option>
+                <option value="name">Name A-Z</option>
+                <option value="progress">Highest progress</option>
               </select>
 
               <button
@@ -1186,7 +1186,7 @@ export default function WorkspaceDetailPage() {
                 className="inline-flex h-10 items-center gap-2 rounded-md border border-[#1f883d] bg-[#2da44e] px-4 text-sm font-medium text-white shadow-sm transition hover:bg-[#2c974b]"
               >
                 <Plus size={15} />
-                Tạo dự án
+                Create project
               </button>
               <button
                 type="button"
@@ -1197,7 +1197,7 @@ export default function WorkspaceDetailPage() {
                 className="inline-flex h-10 items-center gap-2 rounded-md border border-[#d0d7de] bg-white px-4 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
               >
                 <Sparkles size={15} />
-                Tạo với AI
+                Create with AI
               </button>
             </div>
           </div>
@@ -1211,10 +1211,10 @@ export default function WorkspaceDetailPage() {
               <div className="px-6 py-16 text-center">
                 <FolderKanban size={38} className="mx-auto mb-3 text-[#8c959f]" />
                 <h3 className="text-lg font-semibold text-[#1f2328]">
-                  Chưa có dự án phù hợp
+                  No matching projects
                 </h3>
                 <p className="mt-2 text-sm text-[#57606a]">
-                  Thử đổi bộ lọc hoặc tạo dự án đầu tiên cho workspace này.
+                  Try changing the filters or create the first project for this workspace.
                 </p>
                 <div className="mt-5 flex justify-center gap-3">
                   <button
@@ -1225,7 +1225,7 @@ export default function WorkspaceDetailPage() {
                     }}
                     className="rounded-md border border-[#1f883d] bg-[#2da44e] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#2c974b]"
                   >
-                    Tạo dự án
+                    Create project
                   </button>
                   <button
                     type="button"
@@ -1235,7 +1235,7 @@ export default function WorkspaceDetailPage() {
                     }}
                     className="rounded-md border border-[#d0d7de] bg-white px-4 py-2 text-sm font-medium text-[#24292f] shadow-sm transition hover:bg-[#f6f8fa]"
                   >
-                    Tạo với AI
+                    Create with AI
                   </button>
                 </div>
               </div>
@@ -1252,10 +1252,10 @@ export default function WorkspaceDetailPage() {
         </main>
 
         <aside className="space-y-4">
-              <SidebarCard title="Thông tin workspace">
+              <SidebarCard title="Workspace details">
                 <div className="space-y-3 text-sm text-[#57606a]">
               <div className="flex items-center justify-between gap-4">
-                <span>Loại</span>
+                <span>Type</span>
                 <span className="font-medium text-[#1f2328]">
                   {workspace.type === "PERSONAL" ? "Personal" : "Organization"}
                 </span>
@@ -1267,13 +1267,13 @@ export default function WorkspaceDetailPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <span>Thành viên</span>
+                <span>Members</span>
                 <span className="font-medium text-[#1f2328]">
                   {workspace.memberCount}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <span>Dự án</span>
+                <span>Projects</span>
                 <span className="font-medium text-[#1f2328]">
                   {workspace.projectCount}
                 </span>
@@ -1282,7 +1282,7 @@ export default function WorkspaceDetailPage() {
               </SidebarCard>
 
               <SidebarCard
-                title="Thành viên"
+                title="Members"
                 action={
                   canManage ? (
                     <button
@@ -1291,7 +1291,7 @@ export default function WorkspaceDetailPage() {
                       className="inline-flex items-center gap-1 rounded-lg border border-[#d0d7de] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#24292f] transition hover:bg-[#f6f8fa]"
                     >
                       <Plus size={12} />
-                      Thêm
+                      Add
                     </button>
                   ) : undefined
                 }
@@ -1302,7 +1302,7 @@ export default function WorkspaceDetailPage() {
                   </div>
                 ) : members.length === 0 ? (
               <p className="text-sm text-[#57606a]">
-                Workspace này chưa có thành viên nào.
+                This workspace has no members yet.
               </p>
             ) : (
                   <CompactMemberList members={members} />
@@ -1334,7 +1334,7 @@ export default function WorkspaceDetailPage() {
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-100/80 px-6 py-3.5">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-slate-900">Thành viên workspace</h2>
+                  <h2 className="text-xl font-bold text-slate-900">Workspace members</h2>
                   <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-600 shadow-sm">
                     {members.length}
                   </span>
@@ -1346,7 +1346,7 @@ export default function WorkspaceDetailPage() {
                     className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition-all shadow-lg shadow-blue-500/20 hover:bg-blue-700 active:scale-95"
                   >
                     <Plus size={16} strokeWidth={3} />
-                    Thêm thành viên
+                    Add member
                   </button>
                 )}
               </div>
@@ -1356,18 +1356,18 @@ export default function WorkspaceDetailPage() {
                 </div>
               ) : members.length === 0 ? (
                 <div className="px-6 py-16 text-center text-sm text-[#57606a]">
-                  Workspace này chưa có thành viên nào.
+                  This workspace has no members yet.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50/30">
-                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Tên</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Name</th>
                         <th className="px-6 py-4 text-xs font-bold text-slate-900">Email</th>
                         <th className="px-6 py-4 text-xs font-bold text-slate-900">Role</th>
                         <th className="px-6 py-4 text-xs font-bold text-slate-900">Skill</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Ngày tham gia</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Joined on</th>
                         <th className="px-6 py-4 text-center text-xs font-bold text-slate-900">Action</th>
                       </tr>
                     </thead>
@@ -1444,7 +1444,7 @@ export default function WorkspaceDetailPage() {
                                     <Plus size={12} strokeWidth={3} />
                                   </button>
                                 ) : (member.skillTags ?? []).length === 0 ? (
-                                  <span className="text-xs text-slate-400">Chưa có skill</span>
+                                  <span className="text-xs text-slate-400">No skills yet</span>
                                 ) : null}
                               </div>
                             </td>
@@ -1452,7 +1452,7 @@ export default function WorkspaceDetailPage() {
                               <div className="text-sm text-slate-600">
                                 {member.joinedAt ? new Date(member.joinedAt).toISOString().split("T")[0] : "-"}
                               </div>
-                              <div className="mt-1 text-xs text-slate-400">{member.activeTaskCount} task mở</div>
+                              <div className="mt-1 text-xs text-slate-400">{member.activeTaskCount} open tasks</div>
                             </td>
                             <td className="px-6 py-4 text-center">
                               <DropdownMenu>
@@ -1547,11 +1547,11 @@ export default function WorkspaceDetailPage() {
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 bg-slate-100/80 px-6 py-3.5">
-                  <h3 className="font-bold text-slate-900">Tóm tắt đội ngũ</h3>
+                  <h3 className="font-bold text-slate-900">Team summary</h3>
                 </div>
                 <div className="space-y-3 px-6 py-5 text-sm text-[#57606a]">
                   <div className="flex items-center justify-between">
-                    <span>Tổng thành viên</span>
+                    <span>Total members</span>
                     <span className="font-medium text-[#1f2328]">{workspace.memberCount}</span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1577,7 +1577,7 @@ export default function WorkspaceDetailPage() {
 
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 bg-slate-100/80 px-6 py-3.5">
-                  <h3 className="font-bold text-slate-900">Phân bổ kỹ năng</h3>
+                  <h3 className="font-bold text-slate-900">Skill distribution</h3>
                 </div>
                 <div className="flex min-h-[92px] flex-wrap content-start items-start gap-2 px-6 py-5">
                   {Array.from(new Set(members.flatMap((member) => member.skillTags ?? [])))
@@ -1591,7 +1591,7 @@ export default function WorkspaceDetailPage() {
                       </span>
                     ))}
                   {members.every((member) => !(member.skillTags ?? []).length) && (
-                    <span className="text-sm text-[#8c959f]">Chưa có skill được khai báo.</span>
+                    <span className="text-sm text-[#8c959f]">No skills have been declared yet.</span>
                   )}
                 </div>
               </div>
@@ -1600,14 +1600,14 @@ export default function WorkspaceDetailPage() {
             {canManage && (
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-100 bg-slate-100/80 px-6 py-3.5">
-                  <h3 className="font-bold text-slate-900">Lời mời</h3>
+                  <h3 className="font-bold text-slate-900">Invitations</h3>
                   <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
                     {[
-                      { value: "PENDING", label: "Đang chờ" },
-                      { value: "ACCEPTED", label: "Đã chấp nhận" },
-                      { value: "DECLINED", label: "Đã từ chối" },
-                      { value: "EXPIRED", label: "Hết hạn" },
-                      { value: "REVOKED", label: "Đã thu hồi" },
+                      { value: "PENDING", label: "Pending" },
+                      { value: "ACCEPTED", label: "Accepted" },
+                      { value: "DECLINED", label: "Declined" },
+                      { value: "EXPIRED", label: "Expired" },
+                      { value: "REVOKED", label: "Revoked" },
                     ].map((tab) => (
                       <button
                         key={tab.value}
@@ -1630,10 +1630,10 @@ export default function WorkspaceDetailPage() {
                       <tr className="border-b border-slate-100 bg-slate-50/30">
                         <th className="px-6 py-4 text-xs font-bold text-slate-900">Email</th>
                         <th className="px-6 py-4 text-xs font-bold text-slate-900">Role</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Người mời</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Thời gian gửi</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Hết hạn lúc</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Trạng thái</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Invited by</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Sent at</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Expires at</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-900">Status</th>
                         <th className="px-6 py-4 text-center text-xs font-bold text-slate-900">Action</th>
                       </tr>
                     </thead>
@@ -1654,7 +1654,7 @@ export default function WorkspaceDetailPage() {
                       ) : (
                         <tr>
                           <td colSpan={7} className="px-6 py-10 text-center font-medium italic text-slate-400">
-                            Không có lời mời nào
+                            No invitations found
                           </td>
                         </tr>
                       )}
@@ -1673,7 +1673,7 @@ export default function WorkspaceDetailPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-[#d8dee4] p-4">
                     <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
-                      Tên workspace
+                      Workspace name
                     </div>
                     <div className="mt-2 text-base font-semibold text-[#1f2328]">
                       {workspace.name}
@@ -1689,7 +1689,7 @@ export default function WorkspaceDetailPage() {
                   </div>
                   <div className="rounded-xl border border-[#d8dee4] p-4">
                     <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
-                      Loại
+                      Type
                     </div>
                     <div className="mt-2 text-base font-semibold text-[#1f2328]">
                       {workspace.type === "PERSONAL" ? "Personal" : "Organization"}
@@ -1708,7 +1708,7 @@ export default function WorkspaceDetailPage() {
                 {workspace.description && (
                   <div className="mt-4 rounded-xl border border-[#d8dee4] p-4">
                     <div className="text-xs font-semibold uppercase tracking-wide text-[#57606a]">
-                      Mô tả
+                      Description
                     </div>
                     <p className="mt-2 text-sm leading-6 text-[#57606a]">
                       {workspace.description}
@@ -1719,13 +1719,13 @@ export default function WorkspaceDetailPage() {
             </main>
 
             <aside className="space-y-4">
-              <SidebarCard title="Quyền hiện tại">
+              <SidebarCard title="Current role">
                 <div className="text-sm text-[#57606a]">
-                  Bạn đang ở vai trò{" "}
+                  You are currently assigned the{" "}
                   <span className="font-semibold text-[#1f2328]">
                     {workspace.role ?? "MEMBER"}
                   </span>{" "}
-                  trong workspace này.
+                  role in this workspace.
                 </div>
               </SidebarCard>
             </aside>
