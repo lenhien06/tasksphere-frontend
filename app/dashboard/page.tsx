@@ -16,6 +16,7 @@ import { DashboardUpcomingDeadlinesSection } from "@/components/dashboard/Dashbo
 import { sortTasksByUrgency } from "@/components/dashboard/dashboard-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import TaskDetailPanel from "@/components/projects/TaskDetailPanel";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { useQuery } from "@tanstack/react-query";
@@ -33,6 +34,7 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
   const syncUnreadCount = useNotificationStore((state) => state.handleRealtimeUnreadCount);
   const [upcomingDays, setUpcomingDays] = useState(DEFAULT_UPCOMING_DAYS);
+  const [selectedTask, setSelectedTask] = useState<{ taskId: string; projectId: string } | null>(null);
   const { selectedContext } = useWorkspace();
 
   const dashboardQuery = useQuery({
@@ -58,7 +60,7 @@ export default function DashboardPage() {
     "there";
 
   const handleTaskClick = (task: DashboardTaskItem) => {
-    router.push(`/projects/${task.projectId}/tasks/${task.id}`);
+    setSelectedTask({ taskId: task.id, projectId: task.projectId });
   };
 
   const handleProjectClick = (projectId: string) => {
@@ -189,6 +191,14 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {selectedTask && (
+        <TaskDetailPanel
+          taskId={selectedTask.taskId}
+          projectId={selectedTask.projectId}
+          onClose={() => setSelectedTask(null)}
+          onTaskUpdated={() => dashboardQuery.refetch()}
+        />
+      )}
     </>
   );
 }
