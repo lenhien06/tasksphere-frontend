@@ -553,7 +553,7 @@ export default function ReportsPage({
 
   const velocityQuery = useQuery({
     queryKey: ["reports-velocity-forecast", projectId],
-    queryFn: () => TaskService.getVelocityForecast(projectId, 5),
+    queryFn: () => TaskService.getVelocityForecast(projectId, 100),
     enabled: selectedReport === "velocity" && !!projectId,
     staleTime: 5 * 60_000,
   });
@@ -627,7 +627,7 @@ export default function ReportsPage({
         <SelectControl value={selectedSprintId} onChange={setSelectedSprintId} options={sprints} placeholder="No sprint available yet" />
       ) : (
         <div className="inline-flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base font-medium text-slate-700">
-          Last 5 closed sprints
+          All sprints
         </div>
       )}
       {!isViewer ? (
@@ -705,7 +705,7 @@ export default function ReportsPage({
       {selectedReport === "velocity" ? (
         <ChartShell
           title="Velocity Report"
-          description="Compare committed work and completed work across the most recent closed sprints to plan the next sprint with more confidence."
+          description="Compare committed work and completed work across project sprints to plan the next sprint with more confidence."
           controls={commonControls}
         >
           {velocityQuery.isLoading ? (
@@ -719,7 +719,7 @@ export default function ReportsPage({
             </>
           ) : (
             <>
-              <ReportEmpty title="Closed sprint history is not available yet." description="The velocity report will become available after the team completes at least one sprint and records delivery history." />
+              <ReportEmpty title="Sprint history is not available yet." description="The velocity report will appear after the project has at least one sprint with planning data." />
               <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
             </>
           )}
