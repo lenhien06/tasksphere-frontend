@@ -58,11 +58,31 @@ export class ProjectMemberService {
 
     /** A4 GET .../members/search?q= */
     static async searchMembers(projectId: string, q: string): Promise<MemberSearchResponse[]> {
-        const response = await apiJava.get<ApiResponse<MemberSearchResponse[]>>(
-            `${this.PREFIX}/${projectId}/members/search`,
-            { params: { q: q ?? '' } }
-        );
-        return response.data?.data ?? [];
+        try {
+            const response = await apiJava.get<ApiResponse<MemberSearchResponse[]>>(
+                `${this.PREFIX}/${projectId}/members/search`,
+                { params: { q: q ?? '' } }
+            );
+            return response.data?.data ?? [];
+        } catch {
+            const keyword = (q ?? "").trim().toLowerCase();
+            const members = await this.getMembers(projectId);
+            return members
+                .filter((member) => {
+                    if (!keyword) return true;
+                    const fullName = (member.user?.fullName ?? "").toLowerCase();
+                    const email = (member.user?.email ?? "").toLowerCase();
+                    return fullName.includes(keyword) || email.includes(keyword);
+                })
+                .slice(0, 10)
+                .map((member) => ({
+                    id: member.user.id,
+                    fullName: member.user.fullName,
+                    email: member.user.email,
+                    avatarUrl: member.user.avatarUrl ?? null,
+                    projectRole: member.projectRole,
+                }));
+        }
     }
 
     /** A5 PATCH .../members/{userId}/role */
