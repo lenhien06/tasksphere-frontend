@@ -470,12 +470,13 @@ export const TaskService = {
         projectId: string,
         format: "EXCEL" | "PDF",
         scope: "ALL" | "FILTERED" | "SPRINT",
-        sprintId?: string
+        sprintId?: string,
+        reportType?: "burnup" | "burndown" | "velocity"
     ): Promise<{ status: number; data: Blob }> => {
         const res = await apiJava.post(
             `${BASE}/${projectId}/export`,
             null,
-            { params: { format, scope, sprintId }, responseType: "blob" }
+            { params: { format, scope, sprintId, reportType }, responseType: "blob" }
         );
         return { status: res.status, data: res.data };
     },

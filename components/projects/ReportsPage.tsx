@@ -586,7 +586,8 @@ export default function ReportsPage({
         projectId,
         exportFormat,
         scope,
-        scope === "SPRINT" ? selectedSprintId : undefined
+        scope === "SPRINT" ? selectedSprintId : undefined,
+        selectedReport ?? undefined
       );
       const url = URL.createObjectURL(response.data);
       const link = document.createElement("a");
