@@ -214,7 +214,7 @@ function InsightPanel({
   const badgeLabel = insight?.aiGenerated ? "Live AI analysis" : "System note";
 
   return (
-    <div className="mt-8 rounded-xl border border-indigo-100 bg-indigo-50/70 px-6 py-5">
+    <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 px-6 py-5 lg:sticky lg:top-6">
       <div className="flex flex-wrap items-center gap-3">
         <Lightbulb className="h-5 w-5 text-indigo-600" />
         <h3 className="text-xl font-bold text-slate-950">{insight?.title ?? "AI analysis"}</h3>
@@ -232,6 +232,21 @@ function InsightPanel({
           {insight?.analysis ?? "The system will show an explanation here as soon as enough report data is available."}
         </p>
       )}
+    </div>
+  );
+}
+
+function ReportSplitLayout({
+  primary,
+  insight,
+}: {
+  primary: React.ReactNode;
+  insight: React.ReactNode;
+}) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-10">
+      <div className="xl:col-span-7">{primary}</div>
+      <div className="xl:col-span-3">{insight}</div>
     </div>
   );
 }
@@ -663,15 +678,15 @@ export default function ReportsPage({
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
             </div>
           ) : burndownQuery.data ? (
-            <>
-              <BurndownChart data={burndownQuery.data} />
-              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
-            </>
+            <ReportSplitLayout
+              primary={<BurndownChart data={burndownQuery.data} />}
+              insight={<InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />}
+            />
           ) : (
-            <>
-              <ReportEmpty title="Burndown data is not available for this sprint yet." description="The chart will appear after sprint dates are configured and work starts moving to Done." />
-              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
-            </>
+            <ReportSplitLayout
+              primary={<ReportEmpty title="Burndown data is not available for this sprint yet." description="The chart will appear after sprint dates are configured and work starts moving to Done." />}
+              insight={<InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />}
+            />
           )}
         </ChartShell>
       ) : null}
@@ -689,15 +704,15 @@ export default function ReportsPage({
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
             </div>
           ) : burnupQuery.data ? (
-            <>
-              <BurnupChart data={burnupQuery.data} />
-              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
-            </>
+            <ReportSplitLayout
+              primary={<BurnupChart data={burnupQuery.data} />}
+              insight={<InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />}
+            />
           ) : (
-            <>
-              <ReportEmpty title="Burnup data is not available for this sprint yet." description="Once the sprint has active work and scope history, this report will show how scope and completed work evolve day by day." />
-              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
-            </>
+            <ReportSplitLayout
+              primary={<ReportEmpty title="Burnup data is not available for this sprint yet." description="Once the sprint has active work and scope history, this report will show how scope and completed work evolve day by day." />}
+              insight={<InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />}
+            />
           )}
         </ChartShell>
       ) : null}
@@ -713,15 +728,15 @@ export default function ReportsPage({
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
             </div>
           ) : velocityQuery.data && velocityQuery.data.sprints.length > 0 ? (
-            <>
-              <VelocityChart data={velocityQuery.data} />
-              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
-            </>
+            <ReportSplitLayout
+              primary={<VelocityChart data={velocityQuery.data} />}
+              insight={<InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />}
+            />
           ) : (
-            <>
-              <ReportEmpty title="Sprint history is not available yet." description="The velocity report will appear after the project has at least one sprint with planning data." />
-              <InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />
-            </>
+            <ReportSplitLayout
+              primary={<ReportEmpty title="Sprint history is not available yet." description="The velocity report will appear after the project has at least one sprint with planning data." />}
+              insight={<InsightPanel insight={insightQuery.data} isLoading={insightQuery.isLoading} />}
+            />
           )}
         </ChartShell>
       ) : null}
