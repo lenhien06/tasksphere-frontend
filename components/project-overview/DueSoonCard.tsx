@@ -25,8 +25,21 @@ export default function DueSoonCard({ dueSoon }: DueSoonCardProps) {
       </div>
 
       {dueSoon.length === 0 ? (
-        <div className="h-[240px] border border-dashed border-gray-200 rounded-xl grid place-items-center text-gray-400 text-sm">
-          {t("common.noData", { defaultValue: "Không có task sắp đến hạn" })}
+        <div className="h-[240px] flex flex-col items-center justify-center gap-3">
+          <svg width="90" height="90" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="45" cy="45" r="36" fill="#F0FDF4" />
+            <rect x="28" y="22" width="34" height="40" rx="5" fill="#DCFCE7" stroke="#86EFAC" strokeWidth="1.5" />
+            <rect x="33" y="30" width="14" height="2.5" rx="1.25" fill="#4ADE80" />
+            <rect x="33" y="36" width="24" height="2" rx="1" fill="#BBF7D0" />
+            <rect x="33" y="41" width="20" height="2" rx="1" fill="#BBF7D0" />
+            <rect x="33" y="46" width="22" height="2" rx="1" fill="#BBF7D0" />
+            <circle cx="62" cy="60" r="12" fill="#ECFDF5" stroke="#6EE7B7" strokeWidth="1.5" />
+            <path d="M62 54v6.5l4 2" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-gray-600">All caught up!</p>
+            <p className="text-xs text-gray-400 mt-1">No tasks due in the next 7 days</p>
+          </div>
         </div>
       ) : (
         <div className="space-y-1.5 overflow-x-auto">
