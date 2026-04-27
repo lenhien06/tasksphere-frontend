@@ -96,6 +96,9 @@ interface Project {
 
 const PAGE_SIZE = 12;
 
+const AI_BUTTON_CLASSNAME =
+    "relative isolate overflow-hidden rounded-2xl border border-cyan-200/70 bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_24%,#7c3aed_52%,#ec4899_78%,#f59e0b_100%)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.14)_inset,0_10px_30px_rgba(14,165,233,0.28),0_0_28px_rgba(168,85,247,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.22)_inset,0_16px_36px_rgba(14,165,233,0.34),0_0_38px_rgba(236,72,153,0.28)] before:absolute before:inset-[1px] before:rounded-[15px] before:bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.32),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.14),rgba(255,255,255,0.02))] before:content-[''] after:absolute after:-inset-x-10 after:top-0 after:h-full after:-skew-x-12 after:bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.26),transparent)] after:opacity-0 after:transition-opacity after:duration-300 after:content-[''] hover:after:opacity-100";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAPPINGS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -746,10 +749,13 @@ export default function ProjectsPage() {
                         </div>
                         <button
                             onClick={handleOpenCreateProjectWithAI}
-                            className="flex h-10 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-semibold text-violet-700 transition-all hover:bg-violet-100"
+                            className={cn(
+                                AI_BUTTON_CLASSNAME,
+                                "h-10 gap-2 px-3 font-semibold"
+                            )}
                         >
-                            <Sparkles className="h-4 w-4" />
-                            Create with AI
+                            <Sparkles className="relative z-10 h-4 w-4" />
+                            <span className="relative z-10">Create with AI</span>
                         </button>
                         <button
                             onClick={handleOpenCreateProject}
@@ -836,10 +842,13 @@ export default function ProjectsPage() {
                                             event.stopPropagation();
                                             handleOpenCreateProjectWithAI();
                                         }}
-                                        className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-blue-700"
+                                        className={cn(
+                                            AI_BUTTON_CLASSNAME,
+                                            "inline-flex items-center gap-2 px-6 py-3"
+                                        )}
                                     >
-                                        <Sparkles size={18} strokeWidth={2.6} />
-                                        Create with AI
+                                        <Sparkles className="relative z-10" size={18} strokeWidth={2.6} />
+                                        <span className="relative z-10">Create with AI</span>
                                     </button>
                                     <div className="inline-flex items-center gap-2 rounded-2xl border-2 border-blue-100 bg-white px-6 py-3 text-sm font-bold text-blue-600 shadow-sm transition-all group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600">
                                         <Plus size={18} strokeWidth={3} />

@@ -555,6 +555,16 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                         <option value="dueDate,asc">{t("backlog.sortNearestDue")}</option>
                         <option value="storyPoints,desc">{t("backlog.sortHighestPoints")}</option>
                     </select>
+                    {isPM && (
+                        <button
+                            type="button"
+                            onClick={() => setShowCreateSprintModal(true)}
+                            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                        >
+                            <Plus size={16} strokeWidth={3} />
+                            {t("sprint.create")}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -648,16 +658,6 @@ export default function BacklogPage({ projectId, myRole = "VIEWER" }: BacklogPag
                                 <Zap size={14} className="fill-blue-500" />
                                 {totalStoryPoints} pts
                             </div>
-                        )}
-                        {isPM && (
-                            <button
-                                type="button"
-                                onClick={() => setShowCreateSprintModal(true)}
-                                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-                            >
-                                <Plus size={16} strokeWidth={3} />
-                                {t("sprint.create")}
-                            </button>
                         )}
                         {(isPM || isMemberOnly) && (
                             <button
