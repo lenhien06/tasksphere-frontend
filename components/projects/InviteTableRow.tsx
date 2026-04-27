@@ -16,13 +16,13 @@ interface InviteTableRowProps {
 
 function RoleBadge({ role }: { role: string }) {
   const map: Record<string, { label: string }> = {
-    project_manager: { label: "Quản lý dự án" },
-    pm: { label: "Quản lý dự án" },
-    admin: { label: "Quản trị viên" },
-    member: { label: "Thành viên" },
-    viewer: { label: "Người xem" },
-    owner: { label: "Chủ sở hữu" },
-    system_admin: { label: "Quản trị hệ thống" },
+    project_manager: { label: "Project Manager" },
+    pm: { label: "Project Manager" },
+    admin: { label: "Admin" },
+    member: { label: "Member" },
+    viewer: { label: "Viewer" },
+    owner: { label: "Owner" },
+    system_admin: { label: "System Admin" },
   };
   const cfg = map[String(role || "").toLowerCase()] || map["viewer"];
   return (
@@ -37,35 +37,35 @@ function StatusBadge({ status }: { status: string }) {
   if (s === "PENDING") {
     return (
       <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-blue-100 text-blue-600 border border-blue-200 uppercase tracking-tight">
-        ĐANG CHỜ
+        PENDING
       </span>
     );
   }
   if (s === "DECLINED") {
     return (
       <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-orange-100 text-orange-600 border border-orange-200 uppercase tracking-tight">
-        ĐÃ TỪ CHỐI
+        DECLINED
       </span>
     );
   }
   if (s === "EXPIRED") {
     return (
       <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-slate-100 text-slate-400 border border-slate-200 uppercase tracking-tight">
-        HẾT HẠN
+        EXPIRED
       </span>
     );
   }
   if (s === "REVOKED") {
     return (
       <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-red-100 text-red-600 border border-red-200 uppercase tracking-tight">
-        ĐÃ HỦY
+        REVOKED
       </span>
     );
   }
   if (s === "ACCEPTED") {
     return (
       <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase tracking-tight">
-        ĐÃ CHẤP NHẬN
+        ACCEPTED
       </span>
     );
   }
@@ -139,14 +139,14 @@ export default function InviteTableRow({
                 disabled={isResending && resendingId === invite.id}
                 className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all disabled:opacity-50"
               >
-                {isResending && resendingId === invite.id ? "..." : "Gửi lại"}
+                {isResending && resendingId === invite.id ? "..." : "Resend"}
               </button>
               <button
                 onClick={() => onRevoke(invite.id)}
                 disabled={isRevoking && revokingId === invite.id}
                 className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all disabled:opacity-50"
               >
-                {isRevoking && revokingId === invite.id ? "..." : "Hủy"}
+                {isRevoking && revokingId === invite.id ? "..." : "Revoke"}
               </button>
             </>
           )}

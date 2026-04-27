@@ -102,8 +102,8 @@ function mapToUIProject(be: any): Project {
         status: be.status as any,
         ownerId: be.ownerId,
         ownerName: be.ownerName,
-        createdAt: be.createdAt ? new Date(be.createdAt).toLocaleDateString("vi-VN") : "Không có",
-        deadline: be.endDate ? new Date(be.endDate).toLocaleDateString("vi-VN") : "Chưa đặt",
+        createdAt: be.createdAt ? new Date(be.createdAt).toLocaleDateString("en-GB") : "Not available",
+        deadline: be.endDate ? new Date(be.endDate).toLocaleDateString("en-GB") : "Not set",
         progress: be.progress || 0,
         memberCount: Math.max(be.memberCount || 0, 1),
         myRole: be.myRole,
@@ -122,12 +122,12 @@ function mapToUIProject(be: any): Project {
 
 function RoleBadge({ role }: { role: string }) {
     const map: Record<string, { label: string }> = {
-        project_manager: { label: "Quản lý dự án" },
-        pm: { label: "Quản lý dự án" },
-        member: { label: "Thành viên" },
-        viewer: { label: "Người xem" },
-        owner: { label: "Chủ sở hữu" },
-        system_admin: { label: "Quản trị hệ thống" },
+        project_manager: { label: "Project Manager" },
+        pm: { label: "Project Manager" },
+        member: { label: "Member" },
+        viewer: { label: "Viewer" },
+        owner: { label: "Owner" },
+        system_admin: { label: "System Admin" },
     };
     const cfg = map[String(role || "").toLowerCase()] || map["viewer"];
     return (
@@ -142,35 +142,35 @@ function StatusBadge({ status, daysLeft }: { status: string; daysLeft?: number |
     if (s === "PENDING") {
         return (
             <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-blue-100 text-blue-600 border border-blue-200 uppercase tracking-tight">
-                ĐANG CHỜ
+                PENDING
             </span>
         );
     }
     if (s === "DECLINED") {
         return (
             <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-orange-100 text-orange-600 border border-orange-200 uppercase tracking-tight">
-                ĐÃ TỪ CHỐI
+                DECLINED
             </span>
         );
     }
     if (s === "EXPIRED") {
         return (
             <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-slate-100 text-slate-400 border border-slate-200 uppercase tracking-tight">
-                HẾT HẠN
+                EXPIRED
             </span>
         );
     }
     if (s === "REVOKED") {
         return (
             <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-red-100 text-red-600 border border-red-200 uppercase tracking-tight">
-                ĐÃ HỦY
+                REVOKED
             </span>
         );
     }
     if (s === "ACCEPTED") {
         return (
             <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase tracking-tight">
-                ĐÃ CHẤP NHẬN
+                ACCEPTED
             </span>
         );
     }
@@ -190,9 +190,9 @@ function ProjectHeader({ project, activeTab, onTabChange }: { project: Project; 
     const canManage = canActAsProjectManager(project.myRole, project.isOwner);
     const { data: members } = useQuery({ queryKey: ["project-members", project.id], queryFn: () => ProjectMemberService.getMembers(project.id), enabled: !!project.id });
     const visibilityLabel = {
-        private: "Riêng tư",
-        internal: "Nội bộ",
-        public: "Công khai",
+        private: "Private",
+        internal: "Internal",
+        public: "Public",
     }[project.visibility] || project.visibility;
 
     const statusMap: Record<Project["status"], { label: string; cls: string; dot: string }> = {
@@ -389,8 +389,8 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
             queryClient.invalidateQueries({ queryKey: ["project-members", projectId] });
             toast.success(
                 data.isNewUser
-                    ? `Đã gửi email mời đến ${normalizedEmail}`
-                    : `Đã gửi lời mời realtime và email đến ${normalizedEmail}`
+                    ? `Invitation email sent to ${normalizedEmail}`
+                    : `Real-time invitation and email sent to ${normalizedEmail}`
             );
             setEmail("");
             setRole("");
@@ -404,15 +404,15 @@ function InviteModal({ isOpen, onClose, projectId, initialEmail = "" }: { isOpen
             const status = error?.response?.status;
             const code = getStructuredErrorCode(error);
             if (status === 409 || code === "ALREADY_MEMBER") {
-                toast.error(getBeErrorMessage(error) || "Người dùng này đã là thành viên của dự án");
+                toast.error(getBeErrorMessage(error) || "This user is already a project member.");
                 return;
             }
             if (status === 403 || code === "FORBIDDEN") {
-                toast.error(getBeErrorMessage(error) || "Bạn không có quyền thực hiện thao tác này");
+                toast.error(getBeErrorMessage(error) || "You do not have permission to perform this action.");
                 return;
             }
             if (status === 400) {
-                setEmailError(getBeErrorMessage(error) || "Email hoặc role không hợp lệ");
+                setEmailError(getBeErrorMessage(error) || "Invalid email or role.");
                 return;
             }
             toast.error(getBeErrorMessage(error) || "Failed to send invitation.");
@@ -650,12 +650,12 @@ function ChangeRoleModal({ isOpen, onClose, member, onSubmit, isLoading }: {
 }) {
     const [selectedRole, setSelectedRole] = useState<string>(member.currentRole);
     const ROLES = [
-        { id: "PROJECT_MANAGER", label: "Quản lý dự án", desc: "Quản lý dự án, mời thành viên, đổi quyền" },
-        { id: "MEMBER", label: "Thành viên", desc: "Tạo/sửa task, kéo thả Kanban, bình luận" },
-        { id: "VIEWER", label: "Người xem", desc: "Chỉ xem dự án và task" },
+        { id: "PROJECT_MANAGER", label: "Project Manager", desc: "Manage the project, invite members, and update roles" },
+        { id: "MEMBER", label: "Member", desc: "Create and update tasks, move Kanban items, and comment" },
+        { id: "VIEWER", label: "Viewer", desc: "View the project and tasks only" },
     ];
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Đổi vai trò" description={`Đổi vai trò cho ${member.fullName}`} maxWidth="max-w-sm">
+        <Modal isOpen={isOpen} onClose={onClose} title="Change role" description={`Change role for ${member.fullName}`} maxWidth="max-w-sm">
             <div className="space-y-3">
                 {ROLES.map((r) => (
                     <button
@@ -671,13 +671,13 @@ function ChangeRoleModal({ isOpen, onClose, member, onSubmit, isLoading }: {
                     </button>
                 ))}
                 <div className="flex justify-end gap-3 pt-2">
-                    <SecondaryButton onClick={onClose} disabled={isLoading}>Hủy</SecondaryButton>
+                    <SecondaryButton onClick={onClose} disabled={isLoading}>Cancel</SecondaryButton>
                     <PrimaryButton
                         onClick={() => onSubmit(selectedRole)}
                         loading={isLoading}
                         disabled={selectedRole === member.currentRole || isLoading}
                     >
-                        Lưu thay đổi
+                        Save changes
                     </PrimaryButton>
                 </div>
             </div>
@@ -882,7 +882,7 @@ function TabMembers({ project }: { project: Project }) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["project-member-skills", project.id] });
         },
-        onError: () => toast.error("Không thể cập nhật skill"),
+        onError: () => toast.error("Unable to update skills."),
     });
 
     const handleRemoveSkill = (userId: string, skill: string) => {
@@ -924,23 +924,23 @@ function TabMembers({ project }: { project: Project }) {
     const removeMutation = useMutation({
         mutationFn: (userId: string) => ProjectMemberService.removeMember(project.id, userId),
         onSuccess: () => {
-            toast.success("Đã xóa thành viên khỏi dự án");
+            toast.success("Member removed from the project.");
             queryClient.invalidateQueries({ queryKey: ["project-members", project.id] });
         },
         onError: (error: any) => {
             const code = getStructuredErrorCode(error);
             if (code === "CANNOT_REMOVE_OWNER" || error?.response?.status === 403) {
-                toast.error(getBeErrorMessage(error) || "Không thể xóa Owner khỏi dự án.");
+                toast.error(getBeErrorMessage(error) || "The project owner cannot be removed.");
                 return;
             }
-            toast.error(getBeErrorMessage(error) || "Không thể xóa thành viên.");
+            toast.error(getBeErrorMessage(error) || "Unable to remove the member.");
         },
     });
 
     const revokeMutation = useMutation({
         mutationFn: (inviteId: string) => ProjectMemberService.revokeInvite(project.id, inviteId),
         onSuccess: () => {
-            toast.success("Đã thu hồi lời mời");
+            toast.success("Invitation revoked.");
             queryClient.invalidateQueries({ queryKey: ["project-invites", project.id, inviteStatusFilter] });
         }
     });
@@ -948,16 +948,16 @@ function TabMembers({ project }: { project: Project }) {
     const leaveMutation = useMutation({
         mutationFn: () => ProjectMemberService.leaveProject(project.id),
         onSuccess: () => {
-            toast.success("Đã rời dự án");
+            toast.success("You left the project.");
             queryClient.invalidateQueries({ queryKey: ["project-detail", project.id] });
             router.push('/projects');
         },
         onError: (error: any) => {
             const code = getStructuredErrorCode(error);
             if (code === "OWNER_CANNOT_LEAVE" || error.response?.status === 403) {
-                toast.error(getBeErrorMessage(error) || "Bạn là Owner của dự án. Hãy chuyển quyền sở hữu cho thành viên khác trước khi rời.");
+                toast.error(getBeErrorMessage(error) || "You are the project owner. Transfer ownership before leaving.");
             } else {
-                toast.error(getBeErrorMessage(error) || "Lỗi khi rời dự án");
+                toast.error(getBeErrorMessage(error) || "Unable to leave the project.");
             }
         }
     });
@@ -966,16 +966,16 @@ function TabMembers({ project }: { project: Project }) {
         mutationFn: (inviteId: string) => ProjectMemberService.resendInvite(project.id, inviteId),
         onSuccess: (data: any, inviteId: string) => {
             const invite = invitesData?.invites.find(i => i.id === inviteId);
-            toast.success(`Đã gửi lại lời mời đến ${invite?.email || 'người dùng'}`);
+            toast.success(`Invitation resent to ${invite?.email || "the user"}.`);
             queryClient.invalidateQueries({ queryKey: ["project-invites", project.id, inviteStatusFilter] });
         },
         onError: (error: any) => {
             const code = getStructuredErrorCode(error);
             if (error.response?.status === 422 || code === "INVITE_NOT_RESENDABLE") {
-                toast.error(getBeErrorMessage(error) || "Chỉ có thể gửi lại lời mời đang ở trạng thái PENDING.");
+                toast.error(getBeErrorMessage(error) || "Only invitations in PENDING status can be resent.");
                 queryClient.invalidateQueries({ queryKey: ["project-invites", project.id, inviteStatusFilter] });
             } else {
-                toast.error(getBeErrorMessage(error) || "Lỗi khi gửi lại lời mời");
+                toast.error(getBeErrorMessage(error) || "Unable to resend the invitation.");
             }
         }
     });
@@ -984,12 +984,12 @@ function TabMembers({ project }: { project: Project }) {
         mutationFn: ({ userId, role }: { userId: string; role: string }) =>
             ProjectMemberService.updateRole(project.id, userId, role as any),
         onSuccess: (data) => {
-            toast.success(data.message || "Đã cập nhật vai trò.");
+            toast.success(data.message || "Role updated.");
             queryClient.invalidateQueries({ queryKey: ["project-members", project.id] });
             setChangeRoleTarget(null);
         },
         onError: (error: any) => {
-            toast.error(getBeErrorMessage(error) || "Lỗi khi cập nhật vai trò.");
+            toast.error(getBeErrorMessage(error) || "Unable to update the role.");
         },
     });
 
@@ -1023,7 +1023,7 @@ function TabMembers({ project }: { project: Project }) {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-6 py-3.5 border-b border-slate-100 bg-slate-100/80 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <h2 className="text-xl font-bold text-slate-900">Thành viên dự án</h2>
+                        <h2 className="text-xl font-bold text-slate-900">Project members</h2>
                         <span className="bg-white text-slate-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-slate-200 shadow-sm">
                             {members?.length || 0}
                         </span>
@@ -1035,7 +1035,7 @@ function TabMembers({ project }: { project: Project }) {
                                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
                             >
                                 <Plus size={16} strokeWidth={3} />
-                                Mời thành viên
+                                Invite member
                             </button>
                         )}
                     </div>
@@ -1044,11 +1044,11 @@ function TabMembers({ project }: { project: Project }) {
                     <table className="w-full text-left">
                         <thead>
                             <tr className="border-b border-slate-100 bg-slate-50/30">
-                                <th className="px-6 py-4 text-xs font-bold text-slate-900">Tên</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-900">Name</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-900">Email</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-900">Role</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-900">Skill</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-900">Ngày tham gia</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-900">Joined on</th>
                                 <th className="px-6 py-4 text-center text-xs font-bold text-slate-900">Action</th>
                             </tr>
                         </thead>
@@ -1161,7 +1161,7 @@ function TabMembers({ project }: { project: Project }) {
                                                                 })}
                                                                 className="text-sm font-semibold text-slate-700 py-2 rounded-lg cursor-pointer"
                                                             >
-                                                                <Shield size={16} className="mr-2" /> Đổi vai trò
+                                                                <Shield size={16} className="mr-2" /> Change role
                                                             </DropdownMenuItem>
                                                         </>
                                                     )}
@@ -1172,7 +1172,7 @@ function TabMembers({ project }: { project: Project }) {
                                                                 onClick={() => setConfirmAction({ type: "leave-project" })}
                                                                 className="text-sm font-semibold text-orange-600 py-2 rounded-lg cursor-pointer focus:bg-orange-50 focus:text-orange-600"
                                                             >
-                                                                <ArrowLeft size={16} className="mr-2" /> Rời dự án
+                                                                <ArrowLeft size={16} className="mr-2" /> Leave project
                                                             </DropdownMenuItem>
                                                         </>
                                                     )}
@@ -1187,7 +1187,7 @@ function TabMembers({ project }: { project: Project }) {
                                                                 })}
                                                                 className="text-sm font-semibold text-red-600 py-2 rounded-lg cursor-pointer focus:bg-red-50 focus:text-red-600"
                                                             >
-                                                                <Trash2 size={16} className="mr-2" /> Xóa khỏi dự án
+                                                                <Trash2 size={16} className="mr-2" /> Remove from project
                                                             </DropdownMenuItem>
                                                         </>
                                                     )}
@@ -1206,14 +1206,14 @@ function TabMembers({ project }: { project: Project }) {
             {canManageMembers && (
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-8">
                     <div className="px-6 py-3.5 border-b border-slate-100 bg-slate-100/80 flex items-center justify-between">
-                        <h3 className="font-bold text-slate-900">Lời mời</h3>
+                        <h3 className="font-bold text-slate-900">Invitations</h3>
                         <div className="flex gap-1 bg-white rounded-xl p-1 border border-slate-200">
                             {[
-                                { value: 'PENDING', label: 'Đang chờ' },
-                                { value: 'ACCEPTED', label: 'Đã chấp nhận' },
-                                { value: 'DECLINED', label: 'Đã từ chối' },
-                                { value: 'EXPIRED', label: 'Hết hạn' },
-                                { value: 'REVOKED', label: 'Đã thu hồi' },
+                                { value: 'PENDING', label: 'Pending' },
+                                { value: 'ACCEPTED', label: 'Accepted' },
+                                { value: 'DECLINED', label: 'Declined' },
+                                { value: 'EXPIRED', label: 'Expired' },
+                                { value: 'REVOKED', label: 'Revoked' },
                             ].map((tab) => (
                                 <button
                                     key={tab.value}
@@ -1236,10 +1236,10 @@ function TabMembers({ project }: { project: Project }) {
                                 <tr className="border-b border-slate-100 bg-slate-50/30">
                                     <th className="px-6 py-4 text-xs font-bold text-slate-900">Email</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-900">Role</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Người mời</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Thời gian gửi</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Hết hạn lúc</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Trạng thái</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Invited by</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Sent at</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Expires at</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-900">Status</th>
                                     <th className="px-6 py-4 text-center text-xs font-bold text-slate-900">Action</th>
                                 </tr>
                             </thead>
@@ -1260,7 +1260,7 @@ function TabMembers({ project }: { project: Project }) {
                                 ) : (
                                     <tr>
                                         <td colSpan={7} className="px-6 py-10 text-center text-slate-400 font-medium italic">
-                                            Không có lời mời nào
+                                            No invitations found.
                                         </td>
                                     </tr>
                                 )}
@@ -1371,7 +1371,7 @@ function TabSettings({ project }: { project: Project; onBack?: () => void }) {
     const queryClient = useQueryClient()
     const updateMutation = useMutation({
         mutationFn: (data: any) => ProjectService.update(project.id, data),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["project-detail", project.id] }); toast.success("Đã lưu thay đổi") },
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["project-detail", project.id] }); toast.success("Changes saved.") },
     })
 
     const roleLower = toLegacyMyRoleLower(project.myRole, project.isOwner)
