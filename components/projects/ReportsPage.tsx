@@ -795,7 +795,7 @@ export default function ReportsPage({
       ) : null}
 
       {selectedReport === "burnout" ? (
-        <BurnoutDetector />
+        <BurnoutDetector projectId={projectId} />
       ) : null}
 
       {selectedReport === "velocity" ? (

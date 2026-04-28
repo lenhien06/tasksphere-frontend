@@ -1,6 +1,7 @@
 "use client";
 
 import { apiJava } from "@/lib/axios";
+import { ProjectMemberService } from "@/app/services/project-member.service";
 import { useEffect, useRef, useState } from "react";
 import {
   Bar,
@@ -14,9 +15,19 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Activity, AlertTriangle, Bot, Coffee, Loader2, RefreshCcw, Search, TrendingUp, User } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Bot,
+  Coffee,
+  Loader2,
+  RefreshCcw,
+  Search,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface DataPoint {
   day: number;
@@ -45,24 +56,68 @@ interface ChartRow {
   fill: string;
 }
 
-// ─── Linear Regression ───────────────────────────────────────────────────────
+interface Member {
+  id: string;
+  name: string;
+}
 
-function computeLinearRegression(points: { x: number; y: number }[]): {
-  slope: number;
-  intercept: number;
-} {
+// ─── Linear Regression ────────────────────────────────────────────────────────
+
+function computeSlope(points: { x: number; y: number }[]): number {
   const n = points.length;
-  if (n < 2) return { slope: 0, intercept: points[0]?.y ?? 0 };
+  if (n < 2) return 0;
   const sumX = points.reduce((s, p) => s + p.x, 0);
   const sumY = points.reduce((s, p) => s + p.y, 0);
   const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
   const sumXX = points.reduce((s, p) => s + p.x * p.x, 0);
-  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-  const intercept = (sumY - slope * sumX) / n;
-  return { slope, intercept };
+  return (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
 }
 
-// ─── API helpers ─────────────────────────────────────────────────────────────
+function computeIntercept(points: { x: number; y: number }[], slope: number): number {
+  const n = points.length;
+  const sumX = points.reduce((s, p) => s + p.x, 0);
+  const sumY = points.reduce((s, p) => s + p.y, 0);
+  return (sumY - slope * sumX) / n;
+}
+
+// ─── Build chart rows ─────────────────────────────────────────────────────────
+
+function buildRows(
+  data: DataPoint[],
+  highlight: { start: number; end: number } | null
+): { rows: ChartRow[]; slope: number } {
+  let slope = 0;
+  let intercept = 0;
+
+  if (highlight) {
+    const pts = data.slice(highlight.start, highlight.end + 1).map((p, i) => ({
+      x: highlight.start + i,
+      y: p.avgLeadTimeHours,
+    }));
+    slope = computeSlope(pts);
+    intercept = computeIntercept(pts, slope);
+  }
+
+  const rows: ChartRow[] = data.map((point, i) => {
+    const inBurnout = highlight && i >= highlight.start && i <= highlight.end;
+    const trendline =
+      inBurnout ? parseFloat((slope * i + intercept).toFixed(2)) : null;
+
+    return {
+      day: point.day,
+      date: point.date,
+      leadTime: point.avgLeadTimeHours,
+      trendline,
+      fill: inBurnout
+        ? point.avgLeadTimeHours >= 10 ? "#ef4444" : "#f97316"
+        : "#94a3b8",
+    };
+  });
+
+  return { rows, slope };
+}
+
+// ─── API calls ────────────────────────────────────────────────────────────────
 
 async function fetchDemoData(name: string): Promise<DataPoint[]> {
   const res = await apiJava.get<{ data: DataPoint[] }>(
@@ -96,22 +151,29 @@ async function fetchAiMessage(result: AnalyzeResult, coffeeTime: string): Promis
 
 // ─── Custom Tooltip ───────────────────────────────────────────────────────────
 
-function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payload: ChartRow }[] }) {
+function CustomTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { payload: ChartRow }[];
+}) {
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md text-xs">
-      <p className="font-bold text-slate-800">Ngày {row.day}</p>
-      <p className="text-slate-500">{row.date}</p>
-      <p className="mt-1 font-semibold text-slate-700">Lead Time: {row.leadTime}h</p>
+      <p className="font-bold text-slate-800">Ngày {row.day} · {row.date}</p>
+      <p className="mt-1 text-slate-700">
+        Thời gian hoàn thành: <strong>{row.leadTime}h</strong>
+      </p>
       {row.trendline !== null && (
-        <p className="text-red-500 font-semibold">Trend: {row.trendline.toFixed(2)}h</p>
+        <p className="text-red-500">Xu hướng: {row.trendline}h</p>
       )}
     </div>
   );
 }
 
-// ─── Slack Message UI ─────────────────────────────────────────────────────────
+// ─── Slack UI ─────────────────────────────────────────────────────────────────
 
 function SlackMessage({
   message,
@@ -127,7 +189,8 @@ function SlackMessage({
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center gap-3 border-b border-slate-100 bg-[#3f0e40] px-4 py-3">
+      {/* Header */}
+      <div className="flex items-center gap-3 bg-[#3f0e40] px-4 py-3">
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20">
           <svg width="16" height="16" viewBox="0 0 54 54" fill="none">
             <path d="M19.712.133a5.381 5.381 0 0 0-5.376 5.387 5.381 5.381 0 0 0 5.376 5.386h5.376V5.52A5.381 5.381 0 0 0 19.712.133m0 14.365H5.376A5.381 5.381 0 0 0 0 19.884a5.381 5.381 0 0 0 5.376 5.387h14.336a5.381 5.381 0 0 0 5.376-5.387 5.381 5.381 0 0 0-5.376-5.386" fill="#36C5F0"/>
@@ -136,16 +199,15 @@ function SlackMessage({
             <path d="M0 34.249a5.381 5.381 0 0 0 5.376 5.386 5.381 5.381 0 0 0 5.376-5.386v-5.387H5.376A5.381 5.381 0 0 0 0 34.249m14.336 0v14.364A5.381 5.381 0 0 0 19.712 54a5.381 5.381 0 0 0 5.376-5.387V34.249a5.381 5.381 0 0 0-5.376-5.387 5.381 5.381 0 0 0-5.376 5.387" fill="#E01E5A"/>
           </svg>
         </div>
-        <span className="text-sm font-semibold text-white">Slack — Direct Messages</span>
+        <span className="text-sm font-semibold text-white">Slack — Tin nhắn riêng</span>
         <span className="ml-auto text-xs text-white/60">@{developerName}</span>
       </div>
 
-      <div className="min-h-[160px] p-4">
+      {/* Message */}
+      <div className="min-h-[140px] p-4">
         {isLoading ? (
           <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white text-sm font-bold">
-              EM
-            </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white text-sm font-bold">EM</div>
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-slate-900">Engineering Manager</span>
@@ -154,10 +216,7 @@ function SlackMessage({
               <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-3">
                 <span className="flex gap-1">
                   {(["", "[animation-delay:0.2s]", "[animation-delay:0.4s]"] as const).map((delay, i) => (
-                    <span
-                      key={i}
-                      className={`inline-block h-2 w-2 animate-bounce rounded-full bg-slate-400 ${delay}`}
-                    />
+                    <span key={i} className={`inline-block h-2 w-2 animate-bounce rounded-full bg-slate-400 ${delay}`} />
                   ))}
                 </span>
                 <span className="text-xs text-slate-500">AI đang soạn tin nhắn...</span>
@@ -166,9 +225,7 @@ function SlackMessage({
           </div>
         ) : message ? (
           <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white text-sm font-bold">
-              EM
-            </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white text-sm font-bold">EM</div>
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-slate-900">Engineering Manager</span>
@@ -177,32 +234,33 @@ function SlackMessage({
               <div className="max-w-xl rounded-lg bg-slate-100 px-4 py-3 text-sm leading-6 text-slate-800 whitespace-pre-line">
                 {message}
               </div>
-              <div className="mt-1 flex items-center gap-3 text-xs text-slate-400">
+              <div className="mt-1 flex gap-3 text-xs text-slate-400">
                 <button type="button" className="hover:text-slate-600">👍</button>
                 <button type="button" className="hover:text-slate-600">💬 Trả lời</button>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex h-32 items-center justify-center text-sm text-slate-400">
-            Tin nhắn AI sẽ hiển thị sau khi phân tích xong
+          <div className="flex h-28 items-center justify-center text-sm text-slate-400">
+            Tin nhắn sẽ hiển thị sau khi phân tích
           </div>
         )}
       </div>
 
+      {/* Fake input */}
       <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
         <div className="flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-400">
-          Message {developerName}...
+          Nhắn tin {developerName}...
         </div>
       </div>
-
     </div>
   );
 }
 
-// ─── Result Badge ─────────────────────────────────────────────────────────────
+// ─── Result Banner ────────────────────────────────────────────────────────────
 
-function ResultBadge({ result, slope }: { result: AnalyzeResult; slope: number }) {
+function ResultBanner({ result, slope }: { result: AnalyzeResult; slope: number }) {
+  const increasePercent = ((result.endLeadTime / result.startLeadTime) * 100 - 100).toFixed(0);
   return (
     <div className="rounded-xl border border-orange-200 bg-orange-50 p-5">
       <div className="flex items-center gap-3 mb-4">
@@ -210,50 +268,43 @@ function ResultBadge({ result, slope }: { result: AnalyzeResult; slope: number }
           <AlertTriangle className="h-5 w-5 text-orange-600" />
         </div>
         <div>
-          <p className="text-sm font-bold text-orange-900">⚠ Phát hiện chuỗi Burnout!</p>
-          <p className="text-xs text-orange-700">
-            Longest Increasing Subarray O(N) + Linear Regression Trendline
-          </p>
+          <p className="text-sm font-bold text-orange-900">Phát hiện chuỗi sa sút!</p>
+          <p className="text-xs text-orange-600">{result.startDate} → {result.endDate}</p>
         </div>
+        {slope > 0 && (
+          <span className="ml-auto flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+            <TrendingUp className="h-3.5 w-3.5" />
+            Xu hướng tăng xác nhận
+          </span>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Bắt đầu", value: `Ngày ${result.startDay}` },
           { label: "Kết thúc", value: `Ngày ${result.endDay}` },
-          { label: "Kéo dài", value: `${result.length} ngày` },
-          { label: "Lead Time", value: `${result.startLeadTime}h → ${result.endLeadTime}h` },
-          {
-            label: "Hệ số góc (a)",
-            value: `${slope > 0 ? "+" : ""}${slope.toFixed(3)}h/ngày`,
-          },
+          { label: "Kéo dài", value: `${result.length} ngày liên tiếp` },
+          { label: "Thời gian xử lý", value: `${result.startLeadTime}h → ${result.endLeadTime}h (+${increasePercent}%)` },
         ].map((item) => (
-          <div
-            key={item.label}
-            className="rounded-lg bg-white px-3 py-2 text-center shadow-sm border border-orange-100"
-          >
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-600">{item.label}</p>
+          <div key={item.label} className="rounded-lg bg-white px-3 py-2 text-center shadow-sm border border-orange-100">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-500">{item.label}</p>
             <p className="mt-0.5 text-xs font-bold text-slate-900">{item.value}</p>
           </div>
         ))}
       </div>
-
-      <p className="mt-3 text-xs text-orange-700">
-        {result.startDate} → {result.endDate} &nbsp;·&nbsp; Tăng{" "}
-        <strong>{((result.endLeadTime / result.startLeadTime) * 100 - 100).toFixed(0)}%</strong>
-        {slope > 0 && (
-          <span className="ml-2 text-red-600 font-semibold">
-            · Trendline xác nhận xu hướng đi lên (a = {slope.toFixed(3)} &gt; 0)
-          </span>
-        )}
-      </p>
     </div>
   );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function BurnoutDetector() {
+interface BurnoutDetectorProps {
+  projectId: string;
+}
+
+export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
+  const [mounted, setMounted] = useState(false);
+  const [members, setMembers] = useState<Member[]>([]);
   const [developerName, setDeveloperName] = useState("Alex");
   const [coffeeTime, setCoffeeTime] = useState("15:00");
   const [rawData, setRawData] = useState<DataPoint[]>([]);
@@ -265,40 +316,22 @@ export default function BurnoutDetector() {
   const [aiMessage, setAiMessage] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const chartRef = useRef<HTMLDivElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
 
-  const buildChartData = (data: DataPoint[], highlight: { start: number; end: number } | null): ChartRow[] => {
-    let regression: { slope: number; intercept: number } | null = null;
+  // Mount check — Recharts cần client-side
+  useEffect(() => { setMounted(true); }, []);
 
-    if (highlight) {
-      const pts = data.slice(highlight.start, highlight.end + 1).map((p, i) => ({
-        x: highlight.start + i,
-        y: p.avgLeadTimeHours,
-      }));
-      regression = computeLinearRegression(pts);
-      setRegressionSlope(regression.slope);
-    }
-
-    return data.map((point, i) => {
-      const inBurnout = highlight && i >= highlight.start && i <= highlight.end;
-      const trendline =
-        inBurnout && regression
-          ? parseFloat((regression.slope * i + regression.intercept).toFixed(2))
-          : null;
-
-      return {
-        day: point.day,
-        date: point.date,
-        leadTime: point.avgLeadTimeHours,
-        trendline,
-        fill: inBurnout
-          ? point.avgLeadTimeHours >= 10
-            ? "#ef4444"
-            : "#f97316"
-          : "#94a3b8",
-      };
-    });
-  };
+  // Fetch thành viên dự án
+  useEffect(() => {
+    if (!projectId) return;
+    ProjectMemberService.getMembers(projectId)
+      .then((list) => {
+        const parsed = list.map((m) => ({ id: m.user.id, name: m.user.fullName || m.user.email }));
+        setMembers(parsed);
+        if (parsed.length > 0) setDeveloperName(parsed[0].name);
+      })
+      .catch(() => {/* dùng tên mặc định */});
+  }, [projectId]);
 
   const loadData = async (name: string) => {
     setLoadingData(true);
@@ -309,7 +342,8 @@ export default function BurnoutDetector() {
     try {
       const pts = await fetchDemoData(name);
       setRawData(pts);
-      setChartData(buildChartData(pts, null));
+      const { rows } = buildRows(pts, null);
+      setChartData(rows);
     } catch {
       setError("Không thể tải dữ liệu. Vui lòng thử lại.");
     } finally {
@@ -319,34 +353,36 @@ export default function BurnoutDetector() {
 
   useEffect(() => { void loadData(developerName); }, []); // eslint-disable-line
 
+  const handleMemberChange = (name: string) => {
+    setDeveloperName(name);
+    void loadData(name);
+  };
+
   const handleAnalyze = async () => {
     if (!rawData.length) return;
     setAnalyzing(true);
     setResult(null);
     setAiMessage(null);
     setError(null);
-    setRegressionSlope(0);
 
     try {
       const res = await runAnalyze(rawData, developerName);
+      const highlight = { start: res.startIndex, end: res.endIndex };
+      const { rows, slope } = buildRows(rawData, highlight);
+      setChartData(rows);
+      setRegressionSlope(slope);
       setResult(res);
 
-      // Bước 4: Highlight bars + vẽ Linear Regression Trendline
-      const highlight = { start: res.startIndex, end: res.endIndex };
-      setChartData(buildChartData(rawData, highlight));
-
-      // Scroll chart đến vùng burnout
       setTimeout(() => {
-        chartRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 300);
 
-      // Bước 5: Gọi AI
       setAiLoading(true);
       try {
         const msg = await fetchAiMessage(res, coffeeTime);
         setAiMessage(msg);
       } catch {
-        setError("Phân tích xong nhưng AI không thể tạo tin nhắn lúc này.");
+        setError("Phân tích xong nhưng AI tạm thời không phản hồi.");
       } finally {
         setAiLoading(false);
       }
@@ -358,50 +394,59 @@ export default function BurnoutDetector() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-5">
+      {/* ── Header ── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-orange-500" />
-            <h2 className="text-2xl font-black tracking-tight text-slate-950">
-              Team Health — Burnout Detector
+            <h2 className="text-xl font-black tracking-tight text-slate-950">
+              Phát hiện Burnout — Sức khỏe Đội ngũ
             </h2>
           </div>
-          <p className="mt-1 text-sm text-slate-600">
-            Biểu đồ Lead Time 180 ngày ·{" "}
-            <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-700">
-              Longest Increasing Subarray O(N)
-            </code>{" "}
-            · Linear Regression Trendline
+          <p className="mt-1 text-sm text-slate-500">
+            Phân tích thời gian hoàn thành task 180 ngày, phát hiện chuỗi sa sút và gợi ý can thiệp sớm
           </p>
         </div>
 
-        {/* Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Developer name */}
+          {/* Member selector */}
           <div className="relative">
-            <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={developerName}
-              onChange={(e) => setDeveloperName(e.target.value)}
-              onBlur={() => void loadData(developerName)}
-              placeholder="Tên developer"
-              className="h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-            />
+            <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            {members.length > 0 ? (
+              <select
+                value={developerName}
+                onChange={(e) => handleMemberChange(e.target.value)}
+                aria-label="Chọn thành viên"
+                className="h-10 appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-8 text-sm font-medium text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              >
+                {members.map((m) => (
+                  <option key={m.id} value={m.name}>{m.name}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={developerName}
+                onChange={(e) => setDeveloperName(e.target.value)}
+                onBlur={() => void loadData(developerName)}
+                placeholder="Tên thành viên"
+                aria-label="Tên thành viên"
+                className="h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 outline-none focus:border-violet-400"
+              />
+            )}
           </div>
 
-          {/* Coffee time picker */}
+          {/* Coffee time */}
           <div className="relative">
             <Coffee className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="time"
               value={coffeeTime}
               onChange={(e) => setCoffeeTime(e.target.value)}
-              aria-label="Giờ hẹn cafe"
-              title="Giờ hẹn cafe"
-              className="h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              aria-label="Giờ hẹn trao đổi"
+              title="Giờ hẹn trao đổi"
+              className="h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 outline-none focus:border-violet-400"
             />
           </div>
 
@@ -409,9 +454,9 @@ export default function BurnoutDetector() {
             type="button"
             onClick={() => void loadData(developerName)}
             disabled={loadingData}
-            aria-label="Tải lại dữ liệu"
-            title="Tải lại dữ liệu"
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            aria-label="Tải lại"
+            title="Tải lại"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             <RefreshCcw className="h-4 w-4" />
           </button>
@@ -436,33 +481,33 @@ export default function BurnoutDetector() {
         </div>
       )}
 
-      {/* ── Bước 1 & 4: Bar Chart + Trendline ── */}
-      <div ref={chartRef} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      {/* ── Chart ── */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-900">
-              Average Lead Time — {developerName}
+              Thời gian hoàn thành task trung bình — {developerName}
             </p>
-            <p className="text-xs text-slate-500">180 ngày gần nhất (giờ/task)</p>
+            <p className="text-xs text-slate-400">180 ngày gần nhất (giờ/task)</p>
           </div>
           {result && (
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-red-500" />
-              <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
-                Burnout: Ngày {result.startDay} → {result.endDay}
-              </span>
-            </div>
+            <span className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+              <AlertTriangle className="h-3 w-3" />
+              Ngày {result.startDay} → {result.endDay}
+            </span>
           )}
         </div>
 
         {loadingData ? (
           <div className="flex h-72 items-center justify-center rounded-lg bg-slate-50">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+            <Loader2 className="h-7 w-7 animate-spin text-slate-300" />
           </div>
+        ) : !mounted ? (
+          <div className="h-72 rounded-lg bg-slate-50" />
         ) : (
           <>
             <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+              <ComposedChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis
                   dataKey="day"
@@ -470,7 +515,7 @@ export default function BurnoutDetector() {
                   tickLine={false}
                   axisLine={false}
                   interval={29}
-                  tickFormatter={(v: number) => `D${v}`}
+                  tickFormatter={(v: number) => `N${v}`}
                 />
                 <YAxis
                   tick={{ fontSize: 10, fill: "#94a3b8" }}
@@ -481,7 +526,6 @@ export default function BurnoutDetector() {
                 />
                 <Tooltip content={<CustomTooltip />} />
 
-                {/* Reference lines for burnout zone */}
                 {result && (
                   <>
                     <ReferenceLine
@@ -489,34 +533,31 @@ export default function BurnoutDetector() {
                       stroke="#f97316"
                       strokeDasharray="4 3"
                       strokeWidth={1.5}
-                      label={{ value: `D${result.startDay}`, fontSize: 9, fill: "#f97316", position: "top" }}
+                      label={{ value: `N${result.startDay}`, fontSize: 9, fill: "#f97316", position: "top" }}
                     />
                     <ReferenceLine
                       x={result.endDay}
                       stroke="#ef4444"
                       strokeDasharray="4 3"
                       strokeWidth={1.5}
-                      label={{ value: `D${result.endDay}`, fontSize: 9, fill: "#ef4444", position: "top" }}
+                      label={{ value: `N${result.endDay}`, fontSize: 9, fill: "#ef4444", position: "top" }}
                     />
                   </>
                 )}
 
-                {/* Bars — màu động theo vùng burnout */}
-                <Bar dataKey="leadTime" maxBarSize={10} radius={[2, 2, 0, 0]}>
+                <Bar dataKey="leadTime" maxBarSize={9} radius={[2, 2, 0, 0]}>
                   {chartData.map((row, i) => (
-                    <Cell key={i} fill={row.fill} opacity={row.trendline !== null ? 1 : 0.55} />
+                    <Cell key={i} fill={row.fill} opacity={row.trendline !== null ? 1 : 0.5} />
                   ))}
                 </Bar>
 
-                {/* Linear Regression Trendline */}
                 <Line
                   dataKey="trendline"
                   stroke="#dc2626"
                   strokeWidth={2.5}
                   dot={false}
                   connectNulls={false}
-                  name="Trendline (Linear Regression)"
-                  strokeDasharray="0"
+                  name="Xu hướng"
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -524,78 +565,52 @@ export default function BurnoutDetector() {
             {/* Legend */}
             <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-4 rounded-sm bg-slate-400 opacity-55" />
+                <span className="inline-block h-2.5 w-4 rounded-sm bg-slate-400 opacity-50" />
                 Bình thường
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-4 rounded-sm bg-orange-400" />
-                Burnout nhẹ
+                Cảnh báo
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-4 rounded-sm bg-red-500" />
-                Burnout nặng
+                Nguy hiểm
               </span>
               <span className="flex items-center gap-1.5">
                 <svg width="24" height="8">
                   <line x1="0" y1="4" x2="24" y2="4" stroke="#dc2626" strokeWidth="2.5" />
                 </svg>
-                Trendline y = ax + b (a &gt; 0 → xu hướng tăng)
+                Đường xu hướng
               </span>
             </div>
           </>
         )}
       </div>
 
-      {/* ── Bước 3: Kết quả + Linear Regression ── */}
-      {result && <ResultBadge result={result} slope={regressionSlope} />}
+      {/* ── Result Banner ── */}
+      <div ref={resultRef}>
+        {result && <ResultBanner result={result} slope={regressionSlope} />}
+      </div>
 
-      {/* ── Bước 5: AI Slack message ── */}
+      {/* ── AI Slack ── */}
       {(result || aiLoading) && (
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Bot className="h-5 w-5 text-violet-500" />
-            <h3 className="text-sm font-bold text-slate-900">
-              Tin nhắn Slack từ Engineering Manager
-            </h3>
+            <h3 className="text-sm font-bold text-slate-900">Gợi ý can thiệp — Tin nhắn từ Quản lý</h3>
             <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
-              AI Generated · LLM
+              AI
             </span>
             {coffeeTime && result && (
-              <span className="ml-auto flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs text-amber-700 font-medium">
+              <span className="ml-auto flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
                 <Coffee className="h-3 w-3" />
-                Hẹn cafe {coffeeTime}
+                Hẹn {coffeeTime}
               </span>
             )}
           </div>
           <SlackMessage message={aiMessage} developerName={developerName} isLoading={aiLoading} />
         </div>
       )}
-
-      {/* ── Algorithm explanation ── */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-          Thuật toán lõi — O(N) — 1 vòng for duy nhất
-        </p>
-        <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs leading-6 text-green-400">
-{`// Longest Increasing Subarray — O(N)
-int bestStart = 0, bestLen = 1;
-int curStart = 0, curLen  = 1;
-
-for (int i = 1; i < N; i++) {           // duyệt 1 lần
-    if (leadTimes[i] > leadTimes[i-1])  curLen++;
-    else { curStart = i; curLen = 1; }  // reset
-
-    if (curLen > bestLen) {
-        bestLen  = curLen;
-        bestStart = curStart;            // cập nhật chuỗi dài nhất
-    }
-}
-// → Phát hiện: Ngày ${result?.startDay ?? 60}–${result?.endDay ?? 74} (${result?.length ?? 15} ngày)
-
-// Linear Regression Trendline — y = ax + b
-// a = ${regressionSlope > 0 ? "+" : ""}${regressionSlope.toFixed(3)} > 0  →  xu hướng Lead Time đang TĂNG  →  Burnout xác nhận`}
-        </pre>
-      </div>
     </div>
   );
 }
