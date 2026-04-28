@@ -5,7 +5,6 @@ import { ProjectMemberService } from "@/app/services/project-member.service";
 import { useEffect, useRef, useState } from "react";
 import {
   Bar,
-  Cell,
   CartesianGrid,
   ComposedChart,
   Line,
@@ -594,18 +593,33 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
 
                 <Bar
                   dataKey="leadTime"
-                  radius={[3, 3, 0, 0]}
                   maxBarSize={10}
                   isAnimationActive={false}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`bar-${entry.day}-${index}`}
-                      fill={entry.barColor}
-                      fillOpacity={entry.trendline != null ? 1 : 0.58}
-                    />
-                  ))}
-                </Bar>
+                  shape={(props: unknown) => {
+                    const p = props as {
+                      x: number;
+                      y: number;
+                      width: number;
+                      height: number;
+                      barColor?: string;
+                      trendline?: number | null;
+                    };
+
+                    if (p.height <= 0 || p.width <= 0) return <g />;
+
+                    return (
+                      <rect
+                        x={p.x}
+                        y={p.y}
+                        width={Math.max(1, p.width)}
+                        height={Math.max(1, p.height)}
+                        rx={3}
+                        fill={p.barColor ?? "#94a3b8"}
+                        fillOpacity={p.trendline != null ? 1 : 0.58}
+                      />
+                    );
+                  }}
+                />
 
                 <Line
                   dataKey="trendline"
