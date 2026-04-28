@@ -7,7 +7,9 @@ import {
   Download,
   Lightbulb,
   Loader2,
+  Activity,
 } from "lucide-react";
+import BurnoutDetector from "@/components/projects/BurnoutDetector";
 import { toast } from "sonner";
 import { TaskService } from "@/app/services/TaskService";
 import { usePermission } from "@/hooks/usePermission";
@@ -19,7 +21,7 @@ import type {
   VelocityForecastData,
 } from "@/app/types/task.schema";
 
-type ReportType = "burnup" | "burndown" | "velocity";
+type ReportType = "burnup" | "burndown" | "velocity" | "burnout";
 
 interface ReportsPageProps {
   projectId: string;
@@ -35,6 +37,7 @@ type ExportFormat = "PDF" | "EXCEL";
 function mapTabToReport(activeTab?: number): ReportType | null {
   if (activeTab === 1) return "burndown";
   if (activeTab === 2) return "velocity";
+  if (activeTab === 3) return "burnout";
   return null;
 }
 
@@ -160,6 +163,39 @@ function MiniVelocityIllustration() {
           </g>
         );
       })}
+    </svg>
+  );
+}
+
+function MiniBurnoutIllustration() {
+  const bars = [3, 2, 4, 3, 2, 4, 4.5, 5, 6, 7.5, 9, 11, 10, 3, 2];
+  const maxH = 11;
+  return (
+    <svg viewBox="0 0 280 150" className="h-36 w-full">
+      {bars.map((h, i) => {
+        const barH = (h / maxH) * 100;
+        const x = 16 + i * 16;
+        const burnout = i >= 6 && i <= 11;
+        return (
+          <rect
+            key={i}
+            x={x}
+            y={134 - barH}
+            width={10}
+            height={barH}
+            rx={2}
+            fill={burnout ? (h >= 9 ? "#ef4444" : "#f97316") : "#94a3b8"}
+            opacity={burnout ? 1 : 0.5}
+          />
+        );
+      })}
+      <polyline
+        points="112,82 128,68 144,55 160,40"
+        fill="none"
+        stroke="#dc2626"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -616,7 +652,11 @@ export default function ReportsPage({
 
   const handleSelectReport = (report: ReportType) => {
     setSelectedReport(report);
-    onTabChange?.(report === "burndown" ? 1 : report === "velocity" ? 2 : 0);
+    onTabChange?.(
+      report === "burndown" ? 1 :
+      report === "velocity" ? 2 :
+      report === "burnout" ? 3 : 0
+    );
   };
 
   const handleBack = () => {
@@ -658,10 +698,11 @@ export default function ReportsPage({
             Open a sprint execution report to review burn rate, scope growth, and delivery capacity with business-ready diagnostics.
           </p>
         </div>
-        <div className="grid gap-6 xl:grid-cols-3">
+        <div className="grid gap-6 xl:grid-cols-4">
           <ReportCard title="Burnup report" description="Visualize completed scope against total sprint scope to spot mid-sprint scope growth and completion risk." illustration={<MiniBurnupIllustration />} onClick={() => handleSelectReport("burnup")} />
           <ReportCard title="Sprint burndown chart" description="Track the remaining work in a sprint day by day and compare the actual burn rate with the planned ideal line." illustration={<MiniBurndownIllustration />} onClick={() => handleSelectReport("burndown")} />
           <ReportCard title="Velocity report" description="Compare committed points and completed points across the latest closed sprints to forecast future delivery capacity." illustration={<MiniVelocityIllustration />} onClick={() => handleSelectReport("velocity")} />
+          <ReportCard title="Team Health — Burnout Detector" description="Phát hiện chuỗi Lead Time tăng liên tục bằng Sliding Window và AI gợi ý can thiệp sớm qua Slack." illustration={<MiniBurnoutIllustration />} onClick={() => handleSelectReport("burnout")} />
         </div>
       </div>
     );
@@ -746,6 +787,10 @@ export default function ReportsPage({
             />
           )}
         </ChartShell>
+      ) : null}
+
+      {selectedReport === "burnout" ? (
+        <BurnoutDetector />
       ) : null}
 
       {selectedReport === "velocity" ? (
