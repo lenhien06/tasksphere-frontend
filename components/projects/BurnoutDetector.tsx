@@ -875,25 +875,6 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                   Tuỳ chỉnh
                 </span>
               </div>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Nhập trực tiếp `leadTimes`, dán JSON, hoặc tải file `.json/.csv/.txt`.
-                Sau khi bấm <span className="font-semibold text-slate-900">Áp dụng dữ liệu</span>,
-                biểu đồ sẽ đổi ngay trên giao diện và nút phân tích sẽ chạy theo bộ dữ liệu mới.
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                Hỗ trợ:
-                <code className="mx-1 rounded bg-white px-1.5 py-0.5 font-medium text-slate-700">
-                  4.2, 4.8, 5.1...
-                </code>
-                hoặc mỗi dòng
-                <code className="mx-1 rounded bg-white px-1.5 py-0.5 font-medium text-slate-700">
-                  2026-03-01, 4.2
-                </code>
-                hoặc JSON dạng
-                <code className="mx-1 rounded bg-white px-1.5 py-0.5 font-medium text-slate-700">
-                  {'{"leadTimes":[4.2,5.1]}'}
-                </code>.
-              </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
