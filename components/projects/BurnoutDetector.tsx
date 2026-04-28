@@ -52,7 +52,7 @@ interface ChartRow {
   date: string;
   leadTime: number;
   trendline: number | null;
-  fill: string;
+  barColor: string;
 }
 
 interface Member {
@@ -107,7 +107,7 @@ function buildRows(
       date: point.date,
       leadTime: point.avgLeadTimeHours,
       trendline,
-      fill: inBurnout
+      barColor: inBurnout
         ? point.avgLeadTimeHours >= 10 ? "#ef4444" : "#f97316"
         : "#94a3b8",
     };
@@ -550,11 +550,11 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                 <Bar
                   dataKey="leadTime"
                   maxBarSize={9}
-                  fill="#94a3b8"
                   shape={(props: unknown) => {
-                    const p = props as { x: number; y: number; width: number; height: number; index: number };
-                    const row = chartData[p.index];
-                    if (!row || p.height <= 0) return <g />;
+                    const p = props as {
+                      x: number; y: number; width: number; height: number;
+                      barColor?: string; trendline?: number | null;
+                    };
                     return (
                       <rect
                         x={p.x}
@@ -562,8 +562,8 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                         width={Math.max(1, p.width)}
                         height={Math.max(1, p.height)}
                         rx={2}
-                        fill={row.fill}
-                        fillOpacity={row.trendline !== null ? 1 : 0.55}
+                        fill={p.barColor ?? "#94a3b8"}
+                        fillOpacity={p.trendline != null ? 1 : 0.55}
                       />
                     );
                   }}
