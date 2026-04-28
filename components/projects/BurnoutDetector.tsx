@@ -18,12 +18,16 @@ import {
   Activity,
   AlertTriangle,
   Bot,
+  CheckCircle2,
   Coffee,
+  Link,
   Loader2,
   RefreshCcw,
   Search,
+  Send,
   TrendingUp,
   Users,
+  XCircle,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -130,6 +134,15 @@ async function runAnalyze(data: DataPoint[], developerName: string): Promise<Ana
     developerName,
     leadTimes: data.map((d) => d.avgLeadTimeHours),
     dates: data.map((d) => d.date),
+  });
+  return res.data.data;
+}
+
+async function sendSlack(webhookUrl: string, message: string, developerName: string): Promise<{ success: boolean; detail: string }> {
+  const res = await apiJava.post<{ data: { success: boolean; detail: string } }>("/v1/burnout/send-slack", {
+    webhookUrl,
+    message,
+    developerName,
   });
   return res.data.data;
 }
@@ -315,6 +328,9 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
   const [aiMessage, setAiMessage] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [slackSending, setSlackSending] = useState(false);
+  const [slackResult, setSlackResult] = useState<{ success: boolean; detail: string } | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
   // Mount check — Recharts cần client-side
@@ -392,6 +408,20 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       setError("Phân tích thất bại. Vui lòng thử lại.");
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleSendSlack = async () => {
+    if (!aiMessage || !webhookUrl.trim()) return;
+    setSlackSending(true);
+    setSlackResult(null);
+    try {
+      const res = await sendSlack(webhookUrl.trim(), aiMessage, developerName);
+      setSlackResult(res);
+    } catch {
+      setSlackResult({ success: false, detail: "Không thể kết nối tới server." });
+    } finally {
+      setSlackSending(false);
     }
   };
 
@@ -627,6 +657,56 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
             )}
           </div>
           <SlackMessage message={aiMessage} developerName={developerName} isLoading={aiLoading} />
+
+          {/* Slack Webhook sender */}
+          {aiMessage && (
+            <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="mb-2 text-xs font-semibold text-slate-600">Gửi tin nhắn qua Slack thật</p>
+              <p className="mb-3 text-[11px] text-slate-400">
+                Tạo Incoming Webhook tại{" "}
+                <span className="font-medium text-violet-600">api.slack.com/apps</span>{" "}
+                → chọn app → Incoming Webhooks → Add New Webhook, rồi dán URL vào đây.
+              </p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Link className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="url"
+                    value={webhookUrl}
+                    onChange={(e) => { setWebhookUrl(e.target.value); setSlackResult(null); }}
+                    placeholder="https://hooks.slack.com/services/..."
+                    aria-label="Slack Webhook URL"
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 text-xs text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleSendSlack()}
+                  disabled={slackSending || !webhookUrl.trim()}
+                  aria-label="Gửi qua Slack"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#4a154b] px-4 text-xs font-bold text-white hover:bg-[#611f69] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {slackSending
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <Send className="h-3.5 w-3.5" />}
+                  Gửi Slack
+                </button>
+              </div>
+
+              {slackResult && (
+                <div className={`mt-2 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
+                  slackResult.success
+                    ? "bg-green-50 text-green-700 border border-green-200"
+                    : "bg-red-50 text-red-700 border border-red-200"
+                }`}>
+                  {slackResult.success
+                    ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    : <XCircle className="h-3.5 w-3.5 shrink-0" />}
+                  {slackResult.detail}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
