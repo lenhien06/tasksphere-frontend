@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   Bar,
   CartesianGrid,
-  Cell,
   ComposedChart,
   Line,
   ReferenceLine,
@@ -328,7 +327,10 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       .then((list) => {
         const parsed = list.map((m) => ({ id: m.user.id, name: m.user.fullName || m.user.email }));
         setMembers(parsed);
-        if (parsed.length > 0) setDeveloperName(parsed[0].name);
+        if (parsed.length > 0) {
+          setDeveloperName(parsed[0].name);
+          void loadData(parsed[0].name);
+        }
       })
       .catch(() => {/* dùng tên mặc định */});
   }, [projectId]);
@@ -545,11 +547,27 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                   </>
                 )}
 
-                <Bar dataKey="leadTime" maxBarSize={9} radius={[2, 2, 0, 0]}>
-                  {chartData.map((row, i) => (
-                    <Cell key={i} fill={row.fill} opacity={row.trendline !== null ? 1 : 0.5} />
-                  ))}
-                </Bar>
+                <Bar
+                  dataKey="leadTime"
+                  maxBarSize={9}
+                  fill="#94a3b8"
+                  shape={(props: unknown) => {
+                    const p = props as { x: number; y: number; width: number; height: number; index: number };
+                    const row = chartData[p.index];
+                    if (!row || p.height <= 0) return <g />;
+                    return (
+                      <rect
+                        x={p.x}
+                        y={p.y}
+                        width={Math.max(1, p.width)}
+                        height={Math.max(1, p.height)}
+                        rx={2}
+                        fill={row.fill}
+                        fillOpacity={row.trendline !== null ? 1 : 0.55}
+                      />
+                    );
+                  }}
+                />
 
                 <Line
                   dataKey="trendline"
