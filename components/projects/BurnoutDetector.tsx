@@ -573,7 +573,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                   unit="h"
                   width={42}
                 />
-                <Tooltip content={(props: any) => <CustomTooltip active={props.active} payload={props.payload} />} />
+                <Tooltip content={CustomTooltip} />
                 <ReferenceLine
                   y={6}
                   stroke="#22c55e"
