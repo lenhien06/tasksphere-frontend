@@ -1255,16 +1255,11 @@ Or CSV:
             </span>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-lg border border-red-100 bg-white px-4 py-4 text-center shadow-sm">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Daily Increase</p>
               <p className="mt-1 text-xl font-black text-red-700">+{regressionSlope.toFixed(3)}h</p>
               <p className="text-[10px] text-slate-400">additional lead time per day</p>
-            </div>
-            <div className="rounded-lg border border-red-100 bg-white px-4 py-4 text-center shadow-sm">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Baseline Level</p>
-              <p className="mt-1 text-xl font-black text-slate-700">{regressionIntercept.toFixed(2)}h</p>
-              <p className="text-[10px] text-slate-400">intercept of the fitted trend</p>
             </div>
             <div className="rounded-lg border border-orange-200 bg-white px-4 py-4 text-center shadow-sm">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
