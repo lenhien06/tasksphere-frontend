@@ -642,10 +642,15 @@ export default function ReportsPage({
 
   const insightQuery = useQuery({
     queryKey: ["reports-ai-insight", projectId, selectedReport, selectedSprintId],
-    queryFn: () => TaskService.getReportInsight(projectId, selectedReport as ReportType, selectedSprintId || undefined),
+    queryFn: () => TaskService.getReportInsight(
+      projectId,
+      selectedReport as "burnup" | "burndown" | "velocity",
+      selectedSprintId || undefined
+    ),
     enabled:
       !!projectId &&
       !!selectedReport &&
+      selectedReport !== "burnout" &&
       (selectedReport === "velocity" || !!selectedSprintId),
     staleTime: 0,
   });
