@@ -2,19 +2,22 @@
 
 import { apiJava } from "@/lib/axios";
 import { ProjectMemberService } from "@/app/services/project-member.service";
-import { useEffect, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
   Bot,
   CheckCircle2,
   Coffee,
+  Database,
   Link,
   Loader2,
+  PencilLine,
   RefreshCcw,
   Search,
   Send,
   TrendingUp,
+  Upload,
   Users,
   XCircle,
 } from "lucide-react";
@@ -57,6 +60,11 @@ interface HoveredChartPoint {
   row: ChartRow;
   x: number;
   y: number;
+}
+
+interface ParsedMockInput {
+  data: DataPoint[];
+  suggestedName?: string | null;
 }
 
 // ─── Linear Regression ────────────────────────────────────────────────────────
@@ -126,6 +134,205 @@ function buildTrendPath(
 
   if (points.length === 0) return "";
   return `M ${points.join(" L ")}`;
+}
+
+function formatDateInput(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeLeadTime(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Number(value.toFixed(2));
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().replace(",", ".");
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    if (Number.isFinite(parsed)) {
+      return Number(parsed.toFixed(2));
+    }
+  }
+
+  return null;
+}
+
+function buildDataPoints(leadTimes: number[], dates?: string[]): DataPoint[] {
+  const resolvedDates =
+    dates && dates.length === leadTimes.length
+      ? dates
+      : leadTimes.map((_, index) => {
+          const date = new Date();
+          date.setDate(date.getDate() - (leadTimes.length - 1 - index));
+          return formatDateInput(date);
+        });
+
+  return leadTimes.map((leadTime, index) => ({
+    day: index + 1,
+    date: resolvedDates[index],
+    avgLeadTimeHours: Number(leadTime.toFixed(2)),
+  }));
+}
+
+function parseMockJson(input: unknown): ParsedMockInput {
+  if (Array.isArray(input)) {
+    const numericValues = input
+      .map((value) => normalizeLeadTime(value))
+      .filter((value): value is number => value !== null);
+
+    if (numericValues.length === input.length && numericValues.length > 0) {
+      return { data: buildDataPoints(numericValues) };
+    }
+
+    const objectRows = input
+      .map((item, index) => {
+        if (!item || typeof item !== "object") return null;
+        const row = item as Record<string, unknown>;
+        const leadTime =
+          normalizeLeadTime(row.avgLeadTimeHours) ??
+          normalizeLeadTime(row.leadTime) ??
+          normalizeLeadTime(row.value);
+
+        if (leadTime === null) return null;
+
+        return {
+          day: typeof row.day === "number" ? row.day : index + 1,
+          date: typeof row.date === "string" && row.date.trim() ? row.date.trim() : "",
+          avgLeadTimeHours: leadTime,
+        };
+      })
+      .filter(
+        (
+          item
+        ): item is { day: number; date: string; avgLeadTimeHours: number } => item !== null
+      );
+
+    if (objectRows.length === input.length && objectRows.length > 0) {
+      const fallbackDates = buildDataPoints(objectRows.map((row) => row.avgLeadTimeHours)).map(
+        (row) => row.date
+      );
+
+      return {
+        data: objectRows.map((row, index) => ({
+          day: index + 1,
+          date: row.date || fallbackDates[index],
+          avgLeadTimeHours: row.avgLeadTimeHours,
+        })),
+      };
+    }
+  }
+
+  if (input && typeof input === "object") {
+    const payload = input as Record<string, unknown>;
+
+    if (Array.isArray(payload.data)) {
+      return parseMockJson(payload.data);
+    }
+
+    if (Array.isArray(payload.leadTimes)) {
+      const leadTimes = payload.leadTimes
+        .map((value) => normalizeLeadTime(value))
+        .filter((value): value is number => value !== null);
+
+      if (leadTimes.length !== payload.leadTimes.length || leadTimes.length === 0) {
+        throw new Error("Mảng leadTimes chứa giá trị không hợp lệ.");
+      }
+
+      const dates = Array.isArray(payload.dates)
+        ? payload.dates.map((date) => String(date))
+        : undefined;
+
+      return {
+        data: buildDataPoints(leadTimes, dates),
+        suggestedName:
+          typeof payload.developerName === "string" ? payload.developerName.trim() : null,
+      };
+    }
+  }
+
+  throw new Error("JSON chưa đúng định dạng hỗ trợ.");
+}
+
+function parseMockDelimited(text: string): ParsedMockInput {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) {
+    throw new Error("Chưa có dữ liệu để phân tích.");
+  }
+
+  const tokenValues = text
+    .split(/[\s,;]+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .map((token) => normalizeLeadTime(token));
+
+  if (tokenValues.length > 1 && tokenValues.every((value) => value !== null)) {
+    return { data: buildDataPoints(tokenValues as number[]) };
+  }
+
+  const records: { date?: string; value: number }[] = [];
+
+  for (const line of lines) {
+    const cells = line
+      .split(/[,\t;]+/)
+      .map((cell) => cell.trim())
+      .filter(Boolean);
+
+    if (!cells.length) continue;
+
+    const singleValue = normalizeLeadTime(cells[0]);
+    if (cells.length === 1 && singleValue !== null) {
+      records.push({ value: singleValue });
+      continue;
+    }
+
+    if (/date|day|lead|time|value|avg/i.test(cells.join(" "))) {
+      continue;
+    }
+
+    const value = normalizeLeadTime(cells[cells.length - 1]);
+    if (value !== null) {
+      records.push({
+        date: cells.length > 1 ? cells[0] : undefined,
+        value,
+      });
+    }
+  }
+
+  if (!records.length) {
+    throw new Error("Không đọc được lead time từ nội dung đã nhập.");
+  }
+
+  const leadTimes = records.map((record) => record.value);
+  const dates = records.some((record) => record.date)
+    ? buildDataPoints(leadTimes).map((row, index) => records[index].date || row.date)
+    : undefined;
+
+  return { data: buildDataPoints(leadTimes, dates) };
+}
+
+function parseMockInput(text: string): ParsedMockInput {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    throw new Error("Vui lòng nhập hoặc tải lên dữ liệu mock.");
+  }
+
+  if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+    try {
+      return parseMockJson(JSON.parse(trimmed));
+    } catch (error) {
+      if (error instanceof Error) throw error;
+      throw new Error("Không đọc được file JSON.");
+    }
+  }
+
+  return parseMockDelimited(trimmed);
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
@@ -327,6 +534,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
   const [members, setMembers] = useState<Member[]>([]);
   const [developerName, setDeveloperName] = useState("Alex");
   const [coffeeTime, setCoffeeTime] = useState("15:00");
+  const [dataSource, setDataSource] = useState<"demo" | "mock">("demo");
   const [rawData, setRawData] = useState<DataPoint[]>([]);
   const [chartData, setChartData] = useState<ChartRow[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -339,6 +547,10 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [slackSending, setSlackSending] = useState(false);
   const [slackResult, setSlackResult] = useState<{ success: boolean; detail: string } | null>(null);
+  const [mockPanelOpen, setMockPanelOpen] = useState(false);
+  const [mockInputText, setMockInputText] = useState("");
+  const [mockInputError, setMockInputError] = useState<string | null>(null);
+  const [mockInputInfo, setMockInputInfo] = useState<string | null>(null);
   const [hoveredPoint, setHoveredPoint] = useState<HoveredChartPoint | null>(null);
   const [chartViewportWidth, setChartViewportWidth] = useState(0);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -372,7 +584,17 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
     return getCenterX(index) - scrollLeft;
   };
 
-  // Mount check — Recharts cần client-side
+  const resetInsightState = () => {
+    setResult(null);
+    setAiMessage(null);
+    setError(null);
+    setRegressionSlope(0);
+    setHoveredPoint(null);
+    setAiLoading(false);
+    setSlackResult(null);
+  };
+
+  // Mount check để chỉ render chart khi client-side đã sẵn sàng
   useEffect(() => { setMounted(true); }, []);
 
   // Đo bề ngang thực của chart host thay vì phụ thuộc ResponsiveContainer
@@ -414,16 +636,13 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
 
   const loadData = async (name: string) => {
     setLoadingData(true);
-    setResult(null);
-    setAiMessage(null);
-    setError(null);
-    setRegressionSlope(0);
-    setHoveredPoint(null);
+    resetInsightState();
     try {
       const pts = await fetchDemoData(name);
       setRawData(pts);
       const { rows } = buildRows(pts, null);
       setChartData(rows);
+      setDataSource("demo");
     } catch {
       setError("Không thể tải dữ liệu. Vui lòng thử lại.");
     } finally {
@@ -435,15 +654,67 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
 
   const handleMemberChange = (name: string) => {
     setDeveloperName(name);
+    if (dataSource === "mock" && rawData.length) {
+      resetInsightState();
+      return;
+    }
     void loadData(name);
+  };
+
+  const handleApplyMockData = () => {
+    try {
+      const parsed = parseMockInput(mockInputText);
+      resetInsightState();
+      setRawData(parsed.data);
+      setChartData(buildRows(parsed.data, null).rows);
+      setDataSource("mock");
+      setMockInputError(null);
+      setMockInputInfo(
+        `Đã áp dụng ${parsed.data.length} ngày dữ liệu tùy chỉnh cho ${developerName}.`
+      );
+    } catch (applyError) {
+      setMockInputInfo(null);
+      setMockInputError(
+        applyError instanceof Error ? applyError.message : "Không thể áp dụng dữ liệu mock."
+      );
+    }
+  };
+
+  const handleMockFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      setMockInputText(text);
+      setMockInputError(null);
+      setMockInputInfo(`Đã nạp file ${file.name}. Bấm "Áp dụng dữ liệu" để cập nhật biểu đồ.`);
+    } catch {
+      setMockInputInfo(null);
+      setMockInputError("Không đọc được file đã chọn.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const handleRefresh = () => {
+    if (dataSource === "mock") {
+      handleApplyMockData();
+      return;
+    }
+    void loadData(developerName);
+  };
+
+  const handleResetToDemo = () => {
+    setMockInputError(null);
+    setMockInputInfo("Đã quay về dữ liệu demo từ hệ thống.");
+    void loadData(developerName);
   };
 
   const handleAnalyze = async () => {
     if (!rawData.length) return;
     setAnalyzing(true);
-    setResult(null);
-    setAiMessage(null);
-    setError(null);
+    resetInsightState();
 
     try {
       const res = await runAnalyze(rawData, developerName);
@@ -544,6 +815,19 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
             )}
           </div>
 
+          <button
+            type="button"
+            onClick={() => setMockPanelOpen((open) => !open)}
+            className={`inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition ${
+              mockPanelOpen || dataSource === "mock"
+                ? "border-orange-200 bg-orange-50 text-orange-700"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <PencilLine className="h-4 w-4" />
+            Mock data
+          </button>
+
           {/* Coffee time */}
           <div className="relative">
             <Coffee className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -559,7 +843,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
 
           <button
             type="button"
-            onClick={() => void loadData(developerName)}
+            onClick={handleRefresh}
             disabled={loadingData}
             aria-label="Tải lại"
             title="Tải lại"
@@ -580,6 +864,118 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
         </div>
       </div>
 
+      {mockPanelOpen && (
+        <div className="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 via-white to-amber-50 p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-orange-500" />
+                <h3 className="text-sm font-bold text-slate-900">Mock data đầu vào</h3>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-600 shadow-sm">
+                  Tuỳ chỉnh
+                </span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Nhập trực tiếp `leadTimes`, dán JSON, hoặc tải file `.json/.csv/.txt`.
+                Sau khi bấm <span className="font-semibold text-slate-900">Áp dụng dữ liệu</span>,
+                biểu đồ sẽ đổi ngay trên giao diện và nút phân tích sẽ chạy theo bộ dữ liệu mới.
+              </p>
+              <p className="mt-2 text-xs text-slate-500">
+                Hỗ trợ:
+                <code className="mx-1 rounded bg-white px-1.5 py-0.5 font-medium text-slate-700">
+                  4.2, 4.8, 5.1...
+                </code>
+                hoặc mỗi dòng
+                <code className="mx-1 rounded bg-white px-1.5 py-0.5 font-medium text-slate-700">
+                  2026-03-01, 4.2
+                </code>
+                hoặc JSON dạng
+                <code className="mx-1 rounded bg-white px-1.5 py-0.5 font-medium text-slate-700">
+                  {'{"leadTimes":[4.2,5.1]}'}
+                </code>.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Upload className="h-4 w-4" />
+                Tải file
+                <input
+                  type="file"
+                  accept=".json,.csv,.txt"
+                  onChange={(e) => void handleMockFileChange(e)}
+                  className="hidden"
+                />
+              </label>
+              {dataSource === "mock" && (
+                <button
+                  type="button"
+                  onClick={handleResetToDemo}
+                  className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Quay về demo
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleApplyMockData}
+                className="inline-flex h-10 items-center rounded-xl bg-orange-500 px-4 text-sm font-bold text-white hover:bg-orange-600"
+              >
+                Áp dụng dữ liệu
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+            <div>
+              <textarea
+                value={mockInputText}
+                onChange={(e) => {
+                  setMockInputText(e.target.value);
+                  setMockInputError(null);
+                  setMockInputInfo(null);
+                }}
+                placeholder={`Ví dụ nhanh:
+4.1, 4.3, 4.8, 5.2, 5.9, 6.4
+
+Hoặc CSV:
+2026-03-01,4.1
+2026-03-02,4.3
+2026-03-03,4.8`}
+                className="min-h-[220px] w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 font-mono text-sm leading-6 text-slate-800 outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+              />
+              {mockInputError && (
+                <p className="mt-2 text-sm font-medium text-rose-600">{mockInputError}</p>
+              )}
+              {mockInputInfo && !mockInputError && (
+                <p className="mt-2 text-sm font-medium text-emerald-600">{mockInputInfo}</p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-orange-500">
+                Gợi ý dùng nhanh
+              </p>
+              <ul className="mt-3 space-y-3 text-sm leading-6 text-slate-600">
+                <li>
+                  Dán đúng 180 giá trị nếu bạn muốn bám sát kịch bản đề bài.
+                </li>
+                <li>
+                  Nếu chỉ nhập số, hệ thống sẽ tự sinh ngày liên tiếp để vẫn phân tích được.
+                </li>
+                <li>
+                  Khi đang dùng mock data, đổi thành viên sẽ chỉ đổi tên người được phân tích,
+                  không mất bộ dữ liệu đã áp dụng.
+                </li>
+                <li>
+                  Nút tải lại sẽ nạp lại bộ mock hiện tại; nút <span className="font-semibold">Quay về demo</span> sẽ lấy lại dữ liệu hệ thống.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error */}
       {error && (
         <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -595,14 +991,23 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
             <p className="text-sm font-semibold text-slate-900">
               Thời gian hoàn thành task trung bình — {developerName}
             </p>
-            <p className="text-xs text-slate-400">180 ngày gần nhất (giờ/task)</p>
+            <p className="text-xs text-slate-400">
+              {rawData.length} ngày dữ liệu {dataSource === "mock" ? "tuỳ chỉnh" : "gần nhất"} (giờ/task)
+            </p>
           </div>
-          {result && (
-            <span className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
-              <AlertTriangle className="h-3 w-3" />
-              Ngày {result.startDay} → {result.endDay}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {dataSource === "mock" && (
+              <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+                Mock data
+              </span>
+            )}
+            {result && (
+              <span className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+                <AlertTriangle className="h-3 w-3" />
+                Ngày {result.startDay} → {result.endDay}
+              </span>
+            )}
+          </div>
         </div>
 
         {loadingData ? (
