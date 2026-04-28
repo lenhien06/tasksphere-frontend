@@ -4,17 +4,6 @@ import { apiJava } from "@/lib/axios";
 import { ProjectMemberService } from "@/app/services/project-member.service";
 import { useEffect, useRef, useState } from "react";
 import {
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  Line,
-  ReferenceArea,
-  ReferenceLine,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
   Activity,
   AlertTriangle,
   Bot,
@@ -62,6 +51,12 @@ interface ChartRow {
 interface Member {
   id: string;
   name: string;
+}
+
+interface HoveredChartPoint {
+  row: ChartRow;
+  x: number;
+  y: number;
 }
 
 // ─── Linear Regression ────────────────────────────────────────────────────────
@@ -118,6 +113,19 @@ function buildRows(
   });
 
   return { rows, slope };
+}
+
+function buildTrendPath(
+  rows: ChartRow[],
+  getX: (index: number) => number,
+  getY: (value: number) => number
+): string {
+  const points = rows
+    .map((row, index) => (row.trendline != null ? `${getX(index)},${getY(row.trendline)}` : null))
+    .filter(Boolean);
+
+  if (points.length === 0) return "";
+  return `M ${points.join(" L ")}`;
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
@@ -331,12 +339,38 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [slackSending, setSlackSending] = useState(false);
   const [slackResult, setSlackResult] = useState<{ success: boolean; detail: string } | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<HoveredChartPoint | null>(null);
   const [chartViewportWidth, setChartViewportWidth] = useState(0);
   const chartRef = useRef<HTMLDivElement>(null);
   const chartHostRef = useRef<HTMLDivElement>(null);
   const chartScrollRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const chartWidth = Math.max(chartViewportWidth, chartData.length * 16, 960);
+  const chartHeight = 300;
+  const paddingTop = 18;
+  const paddingRight = 18;
+  const paddingBottom = 30;
+  const paddingLeft = 42;
+  const plotWidth = Math.max(1, chartWidth - paddingLeft - paddingRight);
+  const plotHeight = Math.max(1, chartHeight - paddingTop - paddingBottom);
+  const maxLeadTime = chartData.reduce((max, row) => {
+    const trend = row.trendline ?? 0;
+    return Math.max(max, row.leadTime, trend);
+  }, 0);
+  const yMax = Math.max(14, Math.ceil(maxLeadTime / 2) * 2);
+  const yTicks = Array.from({ length: 5 }, (_, idx) => Math.round((yMax / 4) * idx));
+  const stepX = chartData.length > 0 ? plotWidth / chartData.length : plotWidth;
+  const barWidth = Math.max(4, Math.min(10, stepX * 0.68));
+  const getBarX = (index: number) => paddingLeft + index * stepX + Math.max(0, (stepX - barWidth) / 2);
+  const getCenterX = (index: number) => paddingLeft + index * stepX + stepX / 2;
+  const getY = (value: number) => paddingTop + plotHeight - (value / yMax) * plotHeight;
+  const trendPath = buildTrendPath(chartData, getCenterX, getY);
+  const highlightedStartX = result ? getBarX(Math.max(0, result.startIndex)) : null;
+  const highlightedEndX = result ? getBarX(Math.max(0, result.endIndex)) + barWidth : null;
+  const resolveTooltipX = (index: number) => {
+    const scrollLeft = chartScrollRef.current?.scrollLeft ?? 0;
+    return getCenterX(index) - scrollLeft;
+  };
 
   // Mount check — Recharts cần client-side
   useEffect(() => { setMounted(true); }, []);
@@ -384,6 +418,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
     setAiMessage(null);
     setError(null);
     setRegressionSlope(0);
+    setHoveredPoint(null);
     try {
       const pts = await fetchDemoData(name);
       setRawData(pts);
@@ -578,92 +613,165 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
           <div className="h-72 rounded-lg bg-slate-50" />
         ) : (
           <>
-            <div ref={chartHostRef} className="w-full">
-              <div ref={chartScrollRef} className="overflow-x-auto">
-                <ComposedChart
-                  width={chartWidth}
-                  height={300}
-                  data={chartData}
-                  margin={{ top: 10, right: 12, left: 0, bottom: 0 }}
+            <div ref={chartHostRef} className="relative w-full">
+              {hoveredPoint && (
+                <div
+                  className="pointer-events-none absolute z-10 w-44 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-md"
+                  style={{
+                    left: hoveredPoint.x,
+                    top: Math.max(8, hoveredPoint.y - 62),
+                  }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis
-                    dataKey="day"
-                    tick={{ fontSize: 10, fill: "#94a3b8" }}
-                    tickLine={false}
-                    axisLine={false}
-                    interval={Math.max(0, Math.floor(chartData.length / 14))}
-                    tickFormatter={(v: number) => `N${v}`}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: "#94a3b8" }}
-                    tickLine={false}
-                    axisLine={false}
-                    unit="h"
-                    width={36}
-                  />
-                  <Tooltip content={(props: any) => <CustomTooltip active={props.active} payload={props.payload} />} />
+                  <p className="font-bold text-slate-800">
+                    Ngày {hoveredPoint.row.day} · {hoveredPoint.row.date}
+                  </p>
+                  <p className="mt-1 text-slate-700">
+                    Thời gian hoàn thành: <strong>{hoveredPoint.row.leadTime}h</strong>
+                  </p>
+                  {hoveredPoint.row.trendline !== null && (
+                    <p className="text-red-500">Xu hướng: {hoveredPoint.row.trendline}h</p>
+                  )}
+                </div>
+              )}
+              <div ref={chartScrollRef} className="overflow-x-auto">
+                <svg
+                  width={chartWidth}
+                  height={chartHeight}
+                  viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                  className="overflow-visible"
+                  role="img"
+                  aria-label={`Biểu đồ lead time 180 ngày của ${developerName}`}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                >
+                  {yTicks.map((tick) => {
+                    const y = getY(tick);
+                    return (
+                      <g key={`tick-${tick}`}>
+                        <line
+                          x1={paddingLeft}
+                          x2={chartWidth - paddingRight}
+                          y1={y}
+                          y2={y}
+                          stroke="#f1f5f9"
+                          strokeDasharray="3 3"
+                        />
+                        <text
+                          x={paddingLeft - 8}
+                          y={y + 3}
+                          textAnchor="end"
+                          fontSize="10"
+                          fill="#94a3b8"
+                        >
+                          {tick}h
+                        </text>
+                      </g>
+                    );
+                  })}
 
-                  {result && (
+                  {highlightedStartX !== null && highlightedEndX !== null && (
                     <>
-                      <ReferenceArea
-                        x1={result.startDay}
-                        x2={result.endDay}
+                      <rect
+                        x={highlightedStartX}
+                        y={paddingTop}
+                        width={Math.max(0, highlightedEndX - highlightedStartX)}
+                        height={plotHeight}
                         fill="#fb923c"
-                        fillOpacity={0.12}
+                        fillOpacity="0.12"
                       />
-                      <ReferenceLine
-                        x={result.startDay}
+                      <line
+                        x1={highlightedStartX}
+                        x2={highlightedStartX}
+                        y1={paddingTop}
+                        y2={paddingTop + plotHeight}
                         stroke="#f97316"
                         strokeDasharray="4 3"
-                        strokeWidth={1.5}
+                        strokeWidth="1.5"
                       />
-                      <ReferenceLine
-                        x={result.endDay}
+                      <line
+                        x1={highlightedEndX}
+                        x2={highlightedEndX}
+                        y1={paddingTop}
+                        y2={paddingTop + plotHeight}
                         stroke="#ef4444"
                         strokeDasharray="4 3"
-                        strokeWidth={1.5}
+                        strokeWidth="1.5"
                       />
                     </>
                   )}
 
-                  <Bar
-                    dataKey="leadTime"
-                    maxBarSize={10}
-                    isAnimationActive={false}
-                    shape={(props: unknown) => {
-                      const p = props as {
-                        x: number;
-                        y: number;
-                        width: number;
-                        height: number;
-                        payload?: ChartRow;
-                      };
-                      const row = p.payload;
-                      return (
-                        <rect
-                          x={p.x}
-                          y={p.y}
-                          width={Math.max(1, p.width)}
-                          height={Math.max(1, p.height)}
-                          rx={2}
-                          fill={row?.barColor ?? "#94a3b8"}
-                          fillOpacity={row?.trendline != null ? 1 : 0.58}
-                        />
-                      );
-                    }}
+                  <line
+                    x1={paddingLeft}
+                    x2={chartWidth - paddingRight}
+                    y1={paddingTop + plotHeight}
+                    y2={paddingTop + plotHeight}
+                    stroke="#cbd5e1"
                   />
 
-                  <Line
-                    dataKey="trendline"
-                    stroke="#dc2626"
-                    strokeWidth={2.5}
-                    dot={false}
-                    connectNulls={false}
-                    isAnimationActive={false}
-                    name="Xu hướng"
-                  />
-                </ComposedChart>
+                  {chartData.map((row, index) => {
+                    const x = getBarX(index);
+                    const y = getY(row.leadTime);
+                    const height = Math.max(1, paddingTop + plotHeight - y);
+                    const hitX = paddingLeft + index * stepX;
+                    return (
+                      <g key={`bar-${row.day}`}>
+                        <rect
+                          x={x}
+                          y={y}
+                          width={barWidth}
+                          height={height}
+                          rx="2"
+                          fill={row.barColor}
+                          fillOpacity={row.trendline != null ? 1 : 0.58}
+                        >
+                          <title>{`Ngày ${row.day} - ${row.date}: ${row.leadTime}h`}</title>
+                        </rect>
+                        <rect
+                          x={hitX}
+                          y={paddingTop}
+                          width={Math.max(stepX, 8)}
+                          height={plotHeight}
+                          fill="transparent"
+                          onMouseEnter={() => {
+                            setHoveredPoint({
+                              row,
+                              x: resolveTooltipX(index),
+                              y,
+                            });
+                          }}
+                          onMouseMove={() => {
+                            setHoveredPoint({
+                              row,
+                              x: resolveTooltipX(index),
+                              y,
+                            });
+                          }}
+                        />
+                        {index % Math.max(1, Math.floor(chartData.length / 14)) === 0 && (
+                          <text
+                            x={getCenterX(index)}
+                            y={chartHeight - 8}
+                            textAnchor="middle"
+                            fontSize="10"
+                            fill="#94a3b8"
+                          >
+                            {`N${row.day}`}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+
+                  {trendPath && (
+                    <path
+                      d={trendPath}
+                      fill="none"
+                      stroke="#dc2626"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  )}
+                </svg>
               </div>
             </div>
 
