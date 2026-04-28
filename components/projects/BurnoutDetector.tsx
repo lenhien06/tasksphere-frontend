@@ -575,24 +575,9 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                   width={42}
                 />
                 <Tooltip content={(props: any) => <CustomTooltip active={props.active} payload={props.payload} />} />
-                <ReferenceLine
-                  y={6}
-                  stroke="#22c55e"
-                  strokeDasharray="4 4"
-                  label={{ value: "Normal", fontSize: 10, fill: "#16a34a", position: "insideTopRight" }}
-                />
-                <ReferenceLine
-                  y={10}
-                  stroke="#f97316"
-                  strokeDasharray="4 4"
-                  label={{ value: "Warning", fontSize: 10, fill: "#ea580c", position: "insideTopRight" }}
-                />
-                <ReferenceLine
-                  y={14}
-                  stroke="#ef4444"
-                  strokeDasharray="4 4"
-                  label={{ value: "Danger", fontSize: 10, fill: "#dc2626", position: "insideTopRight" }}
-                />
+                <ReferenceLine y={6} stroke="#22c55e" strokeDasharray="4 4" />
+                <ReferenceLine y={10} stroke="#f97316" strokeDasharray="4 4" />
+                <ReferenceLine y={14} stroke="#ef4444" strokeDasharray="4 4" />
 
                 {result && (
                   <>
@@ -602,20 +587,8 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                       fill="#fb923c"
                       fillOpacity={0.12}
                     />
-                    <ReferenceLine
-                      x={result.startDay}
-                      stroke="#f97316"
-                      strokeDasharray="4 3"
-                      strokeWidth={1.5}
-                      label={{ value: `D${result.startDay}`, fontSize: 9, fill: "#f97316", position: "top" }}
-                    />
-                    <ReferenceLine
-                      x={result.endDay}
-                      stroke="#ef4444"
-                      strokeDasharray="4 3"
-                      strokeWidth={1.5}
-                      label={{ value: `D${result.endDay}`, fontSize: 9, fill: "#ef4444", position: "top" }}
-                    />
+                    <ReferenceLine x={result.startDay} stroke="#f97316" strokeDasharray="4 3" strokeWidth={1.5} />
+                    <ReferenceLine x={result.endDay} stroke="#ef4444" strokeDasharray="4 3" strokeWidth={1.5} />
                   </>
                 )}
 
