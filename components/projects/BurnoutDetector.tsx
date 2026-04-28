@@ -238,7 +238,7 @@ function parseMockJson(input: unknown): ParsedMockInput {
         .filter((value): value is number => value !== null);
 
       if (leadTimes.length !== payload.leadTimes.length || leadTimes.length === 0) {
-        throw new Error("Mảng leadTimes chứa giá trị không hợp lệ.");
+        throw new Error("The leadTimes array contains invalid values.");
       }
 
       const dates = Array.isArray(payload.dates)
@@ -253,7 +253,7 @@ function parseMockJson(input: unknown): ParsedMockInput {
     }
   }
 
-  throw new Error("JSON chưa đúng định dạng hỗ trợ.");
+  throw new Error("JSON does not match a supported format.");
 }
 
 function parseMockDelimited(text: string): ParsedMockInput {
@@ -263,7 +263,7 @@ function parseMockDelimited(text: string): ParsedMockInput {
     .filter(Boolean);
 
   if (!lines.length) {
-    throw new Error("Chưa có dữ liệu để phân tích.");
+    throw new Error("There is no data to analyze.");
   }
 
   const tokenValues = text
@@ -306,7 +306,7 @@ function parseMockDelimited(text: string): ParsedMockInput {
   }
 
   if (!records.length) {
-    throw new Error("Không đọc được lead time từ nội dung đã nhập.");
+    throw new Error("Unable to read lead-time values from the provided content.");
   }
 
   const leadTimes = records.map((record) => record.value);
@@ -320,7 +320,7 @@ function parseMockDelimited(text: string): ParsedMockInput {
 function parseMockInput(text: string): ParsedMockInput {
   const trimmed = text.trim();
   if (!trimmed) {
-    throw new Error("Vui lòng nhập hoặc tải lên dữ liệu mock.");
+    throw new Error("Please enter or upload mock data.");
   }
 
   if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
@@ -328,7 +328,7 @@ function parseMockInput(text: string): ParsedMockInput {
       return parseMockJson(JSON.parse(trimmed));
     } catch (error) {
       if (error instanceof Error) throw error;
-      throw new Error("Không đọc được file JSON.");
+      throw new Error("Unable to read the JSON file.");
     }
   }
 
@@ -389,12 +389,12 @@ function CustomTooltip({
   const row = payload[0].payload;
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md text-xs">
-      <p className="font-bold text-slate-800">Ngày {row.day} · {row.date}</p>
+      <p className="font-bold text-slate-800">Day {row.day} · {row.date}</p>
       <p className="mt-1 text-slate-700">
-        Thời gian hoàn thành: <strong>{row.leadTime}h</strong>
+        Lead time: <strong>{row.leadTime}h</strong>
       </p>
       {row.trendline !== null && (
-        <p className="text-red-500">Xu hướng: {row.trendline}h</p>
+        <p className="text-red-500">Trend: {row.trendline}h</p>
       )}
     </div>
   );
@@ -426,7 +426,7 @@ function SlackMessage({
             <path d="M0 34.249a5.381 5.381 0 0 0 5.376 5.386 5.381 5.381 0 0 0 5.376-5.386v-5.387H5.376A5.381 5.381 0 0 0 0 34.249m14.336 0v14.364A5.381 5.381 0 0 0 19.712 54a5.381 5.381 0 0 0 5.376-5.387V34.249a5.381 5.381 0 0 0-5.376-5.387 5.381 5.381 0 0 0-5.376 5.387" fill="#E01E5A"/>
           </svg>
         </div>
-        <span className="text-sm font-semibold text-white">Slack — Tin nhắn riêng</span>
+        <span className="text-sm font-semibold text-white">Slack — Direct message</span>
         <span className="ml-auto text-xs text-white/60">@{developerName}</span>
       </div>
 
@@ -446,7 +446,7 @@ function SlackMessage({
                     <span key={i} className={`inline-block h-2 w-2 animate-bounce rounded-full bg-slate-400 ${delay}`} />
                   ))}
                 </span>
-                <span className="text-xs text-slate-500">AI đang soạn tin nhắn...</span>
+                <span className="text-xs text-slate-500">AI is drafting the message...</span>
               </div>
             </div>
           </div>
@@ -461,24 +461,13 @@ function SlackMessage({
               <div className="max-w-xl rounded-lg bg-slate-100 px-4 py-3 text-sm leading-6 text-slate-800 whitespace-pre-line">
                 {message}
               </div>
-              <div className="mt-1 flex gap-3 text-xs text-slate-400">
-                <button type="button" className="hover:text-slate-600">👍</button>
-                <button type="button" className="hover:text-slate-600">💬 Trả lời</button>
-              </div>
             </div>
           </div>
         ) : (
           <div className="flex h-28 items-center justify-center text-sm text-slate-400">
-            Tin nhắn sẽ hiển thị sau khi phân tích
+            The message will appear after analysis
           </div>
         )}
-      </div>
-
-      {/* Fake input */}
-      <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
-        <div className="flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-400">
-          Nhắn tin {developerName}...
-        </div>
       </div>
     </div>
   );
@@ -495,23 +484,23 @@ function ResultBanner({ result, slope }: { result: AnalyzeResult; slope: number 
           <AlertTriangle className="h-5 w-5 text-orange-600" />
         </div>
         <div>
-          <p className="text-sm font-bold text-orange-900">Phát hiện chuỗi sa sút!</p>
+          <p className="text-sm font-bold text-orange-900">Burnout trend detected</p>
           <p className="text-xs text-orange-600">{result.startDate} → {result.endDate}</p>
         </div>
         {slope > 0 && (
           <span className="ml-auto flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
             <TrendingUp className="h-3.5 w-3.5" />
-            Xu hướng tăng xác nhận
+            Upward trend confirmed
           </span>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Bắt đầu", value: `Ngày ${result.startDay}` },
-          { label: "Kết thúc", value: `Ngày ${result.endDay}` },
-          { label: "Kéo dài", value: `${result.length} ngày liên tiếp` },
-          { label: "Thời gian xử lý", value: `${result.startLeadTime}h → ${result.endLeadTime}h (+${increasePercent}%)` },
+          { label: "Start", value: `Day ${result.startDay}` },
+          { label: "End", value: `Day ${result.endDay}` },
+          { label: "Duration", value: `${result.length} consecutive days` },
+          { label: "Lead Time", value: `${result.startLeadTime}h → ${result.endLeadTime}h (+${increasePercent}%)` },
         ].map((item) => (
           <div key={item.label} className="rounded-lg bg-white px-3 py-2 text-center shadow-sm border border-orange-100">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-500">{item.label}</p>
@@ -648,7 +637,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       setDataSource("demo");
       setMockDraftActive(false);
     } catch {
-      setError("Không thể tải dữ liệu. Vui lòng thử lại.");
+      setError("Unable to load data. Please try again.");
     } finally {
       setLoadingData(false);
     }
@@ -675,12 +664,12 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       setMockDraftActive(true);
       setMockInputError(null);
       setMockInputInfo(
-        `Đã áp dụng ${parsed.data.length} ngày dữ liệu tùy chỉnh cho ${developerName}.`
+        `Applied ${parsed.data.length} days of custom data for ${developerName}.`
       );
     } catch (applyError) {
       setMockInputInfo(null);
       setMockInputError(
-        applyError instanceof Error ? applyError.message : "Không thể áp dụng dữ liệu mock."
+        applyError instanceof Error ? applyError.message : "Unable to apply mock data."
       );
     }
   };
@@ -694,10 +683,10 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       setMockInputText(text);
       setMockDraftActive(true);
       setMockInputError(null);
-      setMockInputInfo(`Đã nạp file ${file.name}. Bấm "Áp dụng dữ liệu" để cập nhật biểu đồ.`);
+      setMockInputInfo(`Loaded ${file.name}. Click "Apply Data" to update the chart.`);
     } catch {
       setMockInputInfo(null);
-      setMockInputError("Không đọc được file đã chọn.");
+      setMockInputError("Unable to read the selected file.");
     } finally {
       event.target.value = "";
     }
@@ -715,7 +704,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
     setDataSource("demo");
     setMockDraftActive(false);
     setMockInputError(null);
-    setMockInputInfo("Đã quay về dữ liệu demo từ hệ thống.");
+    setMockInputInfo("Switched back to system demo data.");
     void loadData(developerName);
   };
 
@@ -731,11 +720,11 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
         setDataSource("mock");
         setMockInputError(null);
         setMockInputInfo(
-          `Đang phân tích ${parsed.data.length} ngày dữ liệu mock mới nhất cho ${developerName}.`
+          `Analyzing the latest ${parsed.data.length}-day mock dataset for ${developerName}.`
         );
       } catch (applyError) {
         const message =
-          applyError instanceof Error ? applyError.message : "Không thể đọc dữ liệu mock để phân tích.";
+          applyError instanceof Error ? applyError.message : "Unable to read mock data for analysis.";
         setMockInputInfo(null);
         setMockInputError(message);
         setError(message);
@@ -778,12 +767,12 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
         const msg = await fetchAiMessage(res, coffeeTime);
         setAiMessage(msg);
       } catch {
-        setError("Phân tích xong nhưng AI tạm thời không phản hồi.");
+        setError("Analysis completed, but AI is temporarily unavailable.");
       } finally {
         setAiLoading(false);
       }
     } catch {
-      setError("Phân tích thất bại. Vui lòng thử lại.");
+      setError("Analysis failed. Please try again.");
     } finally {
       setAnalyzing(false);
     }
@@ -797,7 +786,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       const res = await sendSlack(webhookUrl.trim(), aiMessage, developerName);
       setSlackResult(res);
     } catch {
-      setSlackResult({ success: false, detail: "Không thể kết nối tới server." });
+      setSlackResult({ success: false, detail: "Unable to connect to the server." });
     } finally {
       setSlackSending(false);
     }
@@ -811,11 +800,11 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-orange-500" />
             <h2 className="text-xl font-black tracking-tight text-slate-950">
-              Phát hiện Burnout — Sức khỏe Đội ngũ
+              Burnout Detection — Team Health
             </h2>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            Phân tích thời gian hoàn thành task 180 ngày, phát hiện chuỗi sa sút và gợi ý can thiệp sớm
+            Analyze 180 days of lead time, detect silent performance decline, and surface early intervention guidance.
           </p>
         </div>
 
@@ -827,7 +816,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
               <select
                 value={developerName}
                 onChange={(e) => handleMemberChange(e.target.value)}
-                aria-label="Chọn thành viên"
+                aria-label="Select member"
                 className="h-10 appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-8 text-sm font-medium text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
               >
                 {members.map((m) => (
@@ -840,8 +829,8 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                 value={developerName}
                 onChange={(e) => setDeveloperName(e.target.value)}
                 onBlur={() => void loadData(developerName)}
-                placeholder="Tên thành viên"
-                aria-label="Tên thành viên"
+                placeholder="Member name"
+                aria-label="Member name"
                 className="h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 outline-none focus:border-violet-400"
               />
             )}
@@ -857,7 +846,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
             }`}
           >
             <PencilLine className="h-4 w-4" />
-            Mock data
+            Mock Data
           </button>
 
           {/* Coffee time */}
@@ -867,8 +856,8 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
               type="time"
               value={coffeeTime}
               onChange={(e) => setCoffeeTime(e.target.value)}
-              aria-label="Giờ hẹn trao đổi"
-              title="Giờ hẹn trao đổi"
+              aria-label="Coffee chat time"
+              title="Coffee chat time"
               className="h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 outline-none focus:border-violet-400"
             />
           </div>
@@ -877,8 +866,8 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
             type="button"
             onClick={handleRefresh}
             disabled={loadingData}
-            aria-label="Tải lại"
-            title="Tải lại"
+            aria-label="Reload"
+            title="Reload"
             className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             <RefreshCcw className="h-4 w-4" />
@@ -891,7 +880,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-orange-500 px-5 text-sm font-bold text-white shadow-sm hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            Phân tích Sức khỏe Đội ngũ
+            Analyze Team Health
           </button>
         </div>
       </div>
@@ -902,9 +891,9 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
             <div className="max-w-2xl">
               <div className="flex items-center gap-2">
                 <Database className="h-4 w-4 text-orange-500" />
-                <h3 className="text-sm font-bold text-slate-900">Mock data đầu vào</h3>
+                <h3 className="text-sm font-bold text-slate-900">Mock Data Input</h3>
                 <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-600 shadow-sm">
-                  Tuỳ chỉnh
+                  Custom
                 </span>
               </div>
             </div>
@@ -912,7 +901,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
             <div className="flex flex-wrap items-center gap-2">
               <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">
                 <Upload className="h-4 w-4" />
-                Tải file
+                Upload File
                 <input
                   type="file"
                   accept=".json,.csv,.txt"
@@ -926,7 +915,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                   onClick={handleResetToDemo}
                   className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  Quay về demo
+                  Reset to Demo
                 </button>
               )}
               <button
@@ -934,7 +923,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                 onClick={handleApplyMockData}
                 className="inline-flex h-10 items-center rounded-xl bg-orange-500 px-4 text-sm font-bold text-white hover:bg-orange-600"
               >
-                Áp dụng dữ liệu
+                Apply Data
               </button>
             </div>
           </div>
@@ -949,10 +938,10 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                   setMockInputError(null);
                   setMockInputInfo(null);
                 }}
-                placeholder={`Ví dụ nhanh:
+                placeholder={`Quick sample:
 4.1, 4.3, 4.8, 5.2, 5.9, 6.4
 
-Hoặc CSV:
+Or CSV:
 2026-03-01,4.1
 2026-03-02,4.3
 2026-03-03,4.8`}
@@ -968,21 +957,20 @@ Hoặc CSV:
 
             <div className="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-orange-500">
-                Gợi ý dùng nhanh
+                Quick Tips
               </p>
               <ul className="mt-3 space-y-3 text-sm leading-6 text-slate-600">
                 <li>
-                  Dán đúng 180 giá trị nếu bạn muốn bám sát kịch bản đề bài.
+                  Paste exactly 180 values if you want to match the judging scenario closely.
                 </li>
                 <li>
-                  Nếu chỉ nhập số, hệ thống sẽ tự sinh ngày liên tiếp để vẫn phân tích được.
+                  If you only enter numbers, the system will auto-generate sequential dates.
                 </li>
                 <li>
-                  Khi đang dùng mock data, đổi thành viên sẽ chỉ đổi tên người được phân tích,
-                  không mất bộ dữ liệu đã áp dụng.
+                  When mock data is active, switching members only changes the target name, not the dataset.
                 </li>
                 <li>
-                  Nút tải lại sẽ nạp lại bộ mock hiện tại; nút <span className="font-semibold">Quay về demo</span> sẽ lấy lại dữ liệu hệ thống.
+                  Reload reapplies the current mock set; <span className="font-semibold">Reset to Demo</span> restores live demo data.
                 </li>
               </ul>
             </div>
@@ -1003,22 +991,22 @@ Hoặc CSV:
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-900">
-              Thời gian hoàn thành task trung bình — {developerName}
+              Average Task Lead Time — {developerName}
             </p>
             <p className="text-xs text-slate-400">
-              {rawData.length} ngày dữ liệu {dataSource === "mock" ? "tuỳ chỉnh" : "gần nhất"} (giờ/task)
+              {rawData.length} days of {dataSource === "mock" ? "custom" : "recent"} data (hours/task)
             </p>
           </div>
           <div className="flex items-center gap-2">
             {dataSource === "mock" && (
               <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
-                Mock data
+                Mock Data
               </span>
             )}
             {result && (
               <span className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
                 <AlertTriangle className="h-3 w-3" />
-                Ngày {result.startDay} → {result.endDay}
+                Day {result.startDay} → {result.endDay}
               </span>
             )}
           </div>
@@ -1042,13 +1030,13 @@ Hoặc CSV:
                   }}
                 >
                   <p className="font-bold text-slate-800">
-                    Ngày {hoveredPoint.row.day} · {hoveredPoint.row.date}
+                    Day {hoveredPoint.row.day} · {hoveredPoint.row.date}
                   </p>
                   <p className="mt-1 text-slate-700">
-                    Thời gian hoàn thành: <strong>{hoveredPoint.row.leadTime}h</strong>
+                    Lead time: <strong>{hoveredPoint.row.leadTime}h</strong>
                   </p>
                   {hoveredPoint.row.trendline !== null && (
-                    <p className="text-red-500">Xu hướng: {hoveredPoint.row.trendline}h</p>
+                    <p className="text-red-500">Trend: {hoveredPoint.row.trendline}h</p>
                   )}
                 </div>
               )}
@@ -1059,7 +1047,7 @@ Hoặc CSV:
                   viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                   className="overflow-visible"
                   role="img"
-                  aria-label={`Biểu đồ lead time 180 ngày của ${developerName}`}
+                  aria-label={`180-day lead time chart for ${developerName}`}
                   onMouseLeave={() => setHoveredPoint(null)}
                 >
                   {yTicks.map((tick) => {
@@ -1142,7 +1130,7 @@ Hoặc CSV:
                           fill={row.barColor}
                           fillOpacity={row.trendline != null ? 1 : 0.58}
                         >
-                          <title>{`Ngày ${row.day} - ${row.date}: ${row.leadTime}h`}</title>
+                          <title>{`Day ${row.day} - ${row.date}: ${row.leadTime}h`}</title>
                         </rect>
                         <rect
                           x={hitX}
@@ -1230,94 +1218,85 @@ Hoặc CSV:
             <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-4 rounded-sm bg-slate-400 opacity-50" />
-                Bình thường
+                Normal
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-4 rounded-sm bg-orange-400" />
-                Cảnh báo
+                Warning
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-4 rounded-sm bg-red-500" />
-                Nguy hiểm
+                Critical
               </span>
               <span className="flex items-center gap-1.5">
                 <svg width="24" height="8">
                   <line x1="0" y1="4" x2="24" y2="4" stroke="#dc2626" strokeWidth="2.5" />
                 </svg>
-                Đường xu hướng
+                Trendline
               </span>
             </div>
           </>
         )}
       </div>
 
-      {/* ── ML Equation Card ── */}
+      {/* ── Result Banner ── */}
+      <div ref={resultRef}>
+        {result && <ResultBanner result={result} slope={regressionSlope} />}
+      </div>
+
+      {/* ── Trend Projection ── */}
       {result && regressionSlope > 0 && (
         <div className="rounded-xl border border-red-200 bg-gradient-to-br from-red-50 to-orange-50 p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-red-600" />
-            <h3 className="text-sm font-bold text-red-900">Linear Regression — Phân tích xu hướng ML</h3>
+            <h3 className="text-sm font-bold text-red-900">Trend Projection</h3>
             <span className="ml-auto rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
               ML
             </span>
           </div>
 
-          {/* Equation display */}
-          <div className="mb-4 rounded-lg border border-red-200 bg-white px-5 py-3 text-center shadow-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Phương trình hồi quy</p>
-            <p className="font-mono text-xl font-bold text-red-700">
-              ŷ = {regressionSlope > 0 ? "+" : ""}{regressionSlope.toFixed(3)}x{" "}
-              {regressionIntercept >= 0 ? "+" : "−"}{" "}
-              {Math.abs(regressionIntercept).toFixed(2)}
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-lg bg-white px-4 py-4 text-center shadow-sm border border-red-100">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Daily Increase</p>
+              <p className="mt-1 text-xl font-black text-red-700">+{regressionSlope.toFixed(3)}h</p>
+              <p className="text-[10px] text-slate-400">additional lead time per day</p>
+            </div>
+            <div className="rounded-lg bg-white px-4 py-4 text-center shadow-sm border border-red-100">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Baseline Level</p>
+              <p className="mt-1 text-xl font-black text-slate-700">{regressionIntercept.toFixed(2)}h</p>
+              <p className="text-[10px] text-slate-400">intercept of the fitted trend</p>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-lg border border-orange-200 bg-white px-4 py-4 text-center shadow-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Projected Lead Time on Day {result.endDay + 7}
             </p>
+            <p className="mt-1 text-2xl font-black text-orange-700">
+              {(regressionSlope * (result.endIndex + 7) + regressionIntercept).toFixed(1)}h
+            </p>
+            <p className="text-[10px] text-slate-400">if no intervention happens</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-lg bg-white px-3 py-3 text-center shadow-sm border border-red-100">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Hệ số góc (m)</p>
-              <p className="mt-1 text-lg font-black text-red-700">+{regressionSlope.toFixed(3)}</p>
-              <p className="text-[10px] text-slate-400">giờ / ngày</p>
-            </div>
-            <div className="rounded-lg bg-white px-3 py-3 text-center shadow-sm border border-red-100">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Tung độ gốc (b)</p>
-              <p className="mt-1 text-lg font-black text-slate-700">{regressionIntercept.toFixed(2)}</p>
-              <p className="text-[10px] text-slate-400">giờ (baseline)</p>
-            </div>
-            <div className="rounded-lg bg-white px-3 py-3 text-center shadow-sm border border-orange-200">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                Dự đoán ngày {result.endDay + 7}
-              </p>
-              <p className="mt-1 text-lg font-black text-orange-700">
-                {(regressionSlope * (result.endIndex + 7) + regressionIntercept).toFixed(1)}h
-              </p>
-              <p className="text-[10px] text-slate-400">nếu không can thiệp</p>
-            </div>
-          </div>
-
-          <p className="mt-3 text-xs text-red-700 font-medium">
-            m &gt; 0 → Lead Time tăng đều {regressionSlope.toFixed(3)}h mỗi ngày. Cần can thiệp ngay để ngăn xu hướng tiếp tục.
+          <p className="mt-3 text-xs font-medium text-red-700">
+            Lead time is rising by about {regressionSlope.toFixed(3)} hours per day. Early intervention is recommended before the trend worsens.
           </p>
         </div>
       )}
-
-      {/* ── Result Banner ── */}
-      <div ref={resultRef}>
-        {result && <ResultBanner result={result} slope={regressionSlope} />}
-      </div>
 
       {/* ── AI Slack ── */}
       {(result || aiLoading) && (
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Bot className="h-5 w-5 text-violet-500" />
-            <h3 className="text-sm font-bold text-slate-900">Gợi ý can thiệp — Tin nhắn từ Quản lý</h3>
+            <h3 className="text-sm font-bold text-slate-900">Intervention Suggestion — Manager Message</h3>
             <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
               AI
             </span>
             {coffeeTime && result && (
               <span className="ml-auto flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
                 <Coffee className="h-3 w-3" />
-                Hẹn {coffeeTime}
+                Meet at {coffeeTime}
               </span>
             )}
           </div>
@@ -1326,11 +1305,11 @@ Hoặc CSV:
           {/* Slack Webhook sender */}
           {aiMessage && (
             <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
-              <p className="mb-2 text-xs font-semibold text-slate-600">Gửi tin nhắn qua Slack thật</p>
+              <p className="mb-2 text-xs font-semibold text-slate-600">Send through real Slack</p>
               <p className="mb-3 text-[11px] text-slate-400">
-                Tạo Incoming Webhook tại{" "}
+                Create an Incoming Webhook at{" "}
                 <span className="font-medium text-violet-600">api.slack.com/apps</span>{" "}
-                → chọn app → Incoming Webhooks → Add New Webhook, rồi dán URL vào đây.
+                → choose your app → Incoming Webhooks → Add New Webhook, then paste the URL here.
               </p>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -1348,13 +1327,13 @@ Hoặc CSV:
                   type="button"
                   onClick={() => void handleSendSlack()}
                   disabled={slackSending || !webhookUrl.trim()}
-                  aria-label="Gửi qua Slack"
+                  aria-label="Send to Slack"
                   className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#4a154b] px-4 text-xs font-bold text-white hover:bg-[#611f69] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {slackSending
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     : <Send className="h-3.5 w-3.5" />}
-                  Gửi Slack
+                  Send to Slack
                 </button>
               </div>
 
