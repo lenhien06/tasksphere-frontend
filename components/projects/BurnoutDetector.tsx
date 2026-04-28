@@ -574,7 +574,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                   unit="h"
                   width={42}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={CustomTooltip} />
                 <ReferenceLine
                   y={6}
                   stroke="#22c55e"
@@ -640,6 +640,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                   strokeWidth={2.5}
                   dot={false}
                   connectNulls={false}
+                  isAnimationActive={false}
                   name="Xu hướng"
                 />
               </ComposedChart>
