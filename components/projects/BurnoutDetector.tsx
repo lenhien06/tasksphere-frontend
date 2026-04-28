@@ -549,6 +549,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
   const [slackResult, setSlackResult] = useState<{ success: boolean; detail: string } | null>(null);
   const [mockPanelOpen, setMockPanelOpen] = useState(false);
   const [mockInputText, setMockInputText] = useState("");
+  const [mockDraftActive, setMockDraftActive] = useState(false);
   const [mockInputError, setMockInputError] = useState<string | null>(null);
   const [mockInputInfo, setMockInputInfo] = useState<string | null>(null);
   const [hoveredPoint, setHoveredPoint] = useState<HoveredChartPoint | null>(null);
@@ -643,6 +644,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       const { rows } = buildRows(pts, null);
       setChartData(rows);
       setDataSource("demo");
+      setMockDraftActive(false);
     } catch {
       setError("Không thể tải dữ liệu. Vui lòng thử lại.");
     } finally {
@@ -668,6 +670,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       setRawData(parsed.data);
       setChartData(buildRows(parsed.data, null).rows);
       setDataSource("mock");
+      setMockDraftActive(true);
       setMockInputError(null);
       setMockInputInfo(
         `Đã áp dụng ${parsed.data.length} ngày dữ liệu tùy chỉnh cho ${developerName}.`
@@ -687,6 +690,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
     try {
       const text = await file.text();
       setMockInputText(text);
+      setMockDraftActive(true);
       setMockInputError(null);
       setMockInputInfo(`Đã nạp file ${file.name}. Bấm "Áp dụng dữ liệu" để cập nhật biểu đồ.`);
     } catch {
@@ -706,20 +710,45 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
   };
 
   const handleResetToDemo = () => {
+    setDataSource("demo");
+    setMockDraftActive(false);
     setMockInputError(null);
     setMockInputInfo("Đã quay về dữ liệu demo từ hệ thống.");
     void loadData(developerName);
   };
 
   const handleAnalyze = async () => {
-    if (!rawData.length) return;
+    let dataToAnalyze = rawData;
+
+    if (mockDraftActive) {
+      try {
+        const parsed = parseMockInput(mockInputText);
+        dataToAnalyze = parsed.data;
+        setRawData(parsed.data);
+        setChartData(buildRows(parsed.data, null).rows);
+        setDataSource("mock");
+        setMockInputError(null);
+        setMockInputInfo(
+          `Đang phân tích ${parsed.data.length} ngày dữ liệu mock mới nhất cho ${developerName}.`
+        );
+      } catch (applyError) {
+        const message =
+          applyError instanceof Error ? applyError.message : "Không thể đọc dữ liệu mock để phân tích.";
+        setMockInputInfo(null);
+        setMockInputError(message);
+        setError(message);
+        return;
+      }
+    }
+
+    if (!dataToAnalyze.length) return;
     setAnalyzing(true);
     resetInsightState();
 
     try {
-      const res = await runAnalyze(rawData, developerName);
+      const res = await runAnalyze(dataToAnalyze, developerName);
       const highlight = { start: res.startIndex, end: res.endIndex };
-      const { rows, slope } = buildRows(rawData, highlight);
+      const { rows, slope } = buildRows(dataToAnalyze, highlight);
       setChartData(rows);
       setRegressionSlope(slope);
       setResult(res);
@@ -727,9 +756,9 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       setTimeout(() => {
         chartRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
         const scrollBox = chartScrollRef.current;
-        if (!scrollBox || !rawData.length) return;
+        if (!scrollBox || !dataToAnalyze.length) return;
 
-        const averageBarWidth = chartWidth / rawData.length;
+        const averageBarWidth = chartWidth / dataToAnalyze.length;
         const highlightCenter =
           ((res.startIndex + res.endIndex) / 2 + 0.5) * averageBarWidth;
         const targetLeft = Math.max(0, highlightCenter - scrollBox.clientWidth / 2);
@@ -819,7 +848,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
             type="button"
             onClick={() => setMockPanelOpen((open) => !open)}
             className={`inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition ${
-              mockPanelOpen || dataSource === "mock"
+              mockPanelOpen || dataSource === "mock" || mockDraftActive
                 ? "border-orange-200 bg-orange-50 text-orange-700"
                 : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
             }`}
@@ -913,6 +942,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                 value={mockInputText}
                 onChange={(e) => {
                   setMockInputText(e.target.value);
+                  setMockDraftActive(Boolean(e.target.value.trim()));
                   setMockInputError(null);
                   setMockInputInfo(null);
                 }}
