@@ -91,7 +91,7 @@ function computeIntercept(points: { x: number; y: number }[], slope: number): nu
 function buildRows(
   data: DataPoint[],
   highlight: { start: number; end: number } | null
-): { rows: ChartRow[]; slope: number } {
+): { rows: ChartRow[]; slope: number; intercept: number } {
   let slope = 0;
   let intercept = 0;
 
