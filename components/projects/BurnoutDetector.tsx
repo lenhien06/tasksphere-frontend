@@ -120,7 +120,7 @@ function buildRows(
     };
   });
 
-  return { rows, slope };
+  return { rows, slope, intercept };
 }
 
 function buildTrendPath(
@@ -541,6 +541,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalyzeResult | null>(null);
   const [regressionSlope, setRegressionSlope] = useState(0);
+  const [regressionIntercept, setRegressionIntercept] = useState(0);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -590,6 +591,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
     setAiMessage(null);
     setError(null);
     setRegressionSlope(0);
+    setRegressionIntercept(0);
     setHoveredPoint(null);
     setAiLoading(false);
     setSlackResult(null);
@@ -748,9 +750,10 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
     try {
       const res = await runAnalyze(dataToAnalyze, developerName);
       const highlight = { start: res.startIndex, end: res.endIndex };
-      const { rows, slope } = buildRows(dataToAnalyze, highlight);
+      const { rows, slope, intercept } = buildRows(dataToAnalyze, highlight);
       setChartData(rows);
       setRegressionSlope(slope);
+      setRegressionIntercept(intercept);
       setResult(res);
 
       setTimeout(() => {
@@ -1187,6 +1190,38 @@ Hoặc CSV:
                       strokeLinejoin="round"
                     />
                   )}
+
+                  {/* Projection: dashed line extending 10 days beyond burnout zone */}
+                  {result && regressionSlope > 0 && (() => {
+                    const projStart = result.endIndex;
+                    const projEnd = Math.min(chartData.length - 1, result.endIndex + 10);
+                    if (projStart >= chartData.length - 1) return null;
+                    const x1 = getCenterX(projStart);
+                    const y1 = getY(regressionSlope * projStart + regressionIntercept);
+                    const x2 = getCenterX(projEnd);
+                    const y2 = getY(regressionSlope * projEnd + regressionIntercept);
+                    return (
+                      <g>
+                        <line
+                          x1={x1} y1={y1} x2={x2} y2={y2}
+                          stroke="#dc2626"
+                          strokeWidth="2"
+                          strokeDasharray="5 4"
+                          strokeLinecap="round"
+                          opacity="0.55"
+                        />
+                        <text
+                          x={x2 + 4}
+                          y={y2 - 4}
+                          fontSize="9"
+                          fill="#dc2626"
+                          opacity="0.8"
+                        >
+                          {(regressionSlope * projEnd + regressionIntercept).toFixed(1)}h?
+                        </text>
+                      </g>
+                    );
+                  })()}
                 </svg>
               </div>
             </div>
@@ -1215,6 +1250,55 @@ Hoặc CSV:
           </>
         )}
       </div>
+
+      {/* ── ML Equation Card ── */}
+      {result && regressionSlope > 0 && (
+        <div className="rounded-xl border border-red-200 bg-gradient-to-br from-red-50 to-orange-50 p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-red-600" />
+            <h3 className="text-sm font-bold text-red-900">Linear Regression — Phân tích xu hướng ML</h3>
+            <span className="ml-auto rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
+              ML
+            </span>
+          </div>
+
+          {/* Equation display */}
+          <div className="mb-4 rounded-lg border border-red-200 bg-white px-5 py-3 text-center shadow-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Phương trình hồi quy</p>
+            <p className="font-mono text-xl font-bold text-red-700">
+              ŷ = {regressionSlope > 0 ? "+" : ""}{regressionSlope.toFixed(3)}x{" "}
+              {regressionIntercept >= 0 ? "+" : "−"}{" "}
+              {Math.abs(regressionIntercept).toFixed(2)}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg bg-white px-3 py-3 text-center shadow-sm border border-red-100">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Hệ số góc (m)</p>
+              <p className="mt-1 text-lg font-black text-red-700">+{regressionSlope.toFixed(3)}</p>
+              <p className="text-[10px] text-slate-400">giờ / ngày</p>
+            </div>
+            <div className="rounded-lg bg-white px-3 py-3 text-center shadow-sm border border-red-100">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Tung độ gốc (b)</p>
+              <p className="mt-1 text-lg font-black text-slate-700">{regressionIntercept.toFixed(2)}</p>
+              <p className="text-[10px] text-slate-400">giờ (baseline)</p>
+            </div>
+            <div className="rounded-lg bg-white px-3 py-3 text-center shadow-sm border border-orange-200">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Dự đoán ngày {result.endDay + 7}
+              </p>
+              <p className="mt-1 text-lg font-black text-orange-700">
+                {(regressionSlope * (result.endIndex + 7) + regressionIntercept).toFixed(1)}h
+              </p>
+              <p className="text-[10px] text-slate-400">nếu không can thiệp</p>
+            </div>
+          </div>
+
+          <p className="mt-3 text-xs text-red-700 font-medium">
+            m &gt; 0 → Lead Time tăng đều {regressionSlope.toFixed(3)}h mỗi ngày. Cần can thiệp ngay để ngăn xu hướng tiếp tục.
+          </p>
+        </div>
+      )}
 
       {/* ── Result Banner ── */}
       <div ref={resultRef}>
