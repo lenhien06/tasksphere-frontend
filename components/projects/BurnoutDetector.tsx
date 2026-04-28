@@ -8,8 +8,8 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  ReferenceArea,
   ReferenceLine,
+  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -331,9 +331,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [slackSending, setSlackSending] = useState(false);
   const [slackResult, setSlackResult] = useState<{ success: boolean; detail: string } | null>(null);
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartScrollRef = useRef<HTMLDivElement>(null);
-  const chartWidth = Math.max(1400, chartData.length * 14);
+  const resultRef = useRef<HTMLDivElement>(null);
 
   // Mount check — Recharts cần client-side
   useEffect(() => { setMounted(true); }, []);
@@ -394,22 +392,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       setResult(res);
 
       setTimeout(() => {
-        chartRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        const container = chartScrollRef.current;
-        if (!container || !rawData.length) return;
-
-        const averageBarWidth = chartWidth / rawData.length;
-        const highlightCenter =
-          ((res.startIndex + res.endIndex) / 2 + 0.5) * averageBarWidth;
-        const nextScrollLeft = Math.max(
-          0,
-          highlightCenter - container.clientWidth / 2
-        );
-
-        container.scrollTo({
-          left: nextScrollLeft,
-          behavior: "smooth",
-        });
+        resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 300);
 
       setAiLoading(true);
@@ -531,7 +514,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       )}
 
       {/* ── Chart ── */}
-      <div ref={chartRef} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-900">
@@ -555,94 +538,62 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
           <div className="h-72 rounded-lg bg-slate-50" />
         ) : (
           <>
-            <div ref={chartScrollRef} className="overflow-x-auto">
-              <ComposedChart width={chartWidth} height={320} data={chartData} margin={{ top: 16, right: 20, left: 8, bottom: 8 }}>
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis
                   dataKey="day"
                   tick={{ fontSize: 10, fill: "#94a3b8" }}
                   tickLine={false}
                   axisLine={false}
-                  interval={13}
-                  tickFormatter={(v: number) => `D${v}`}
+                  interval={29}
+                  tickFormatter={(v: number) => `N${v}`}
                 />
                 <YAxis
                   tick={{ fontSize: 10, fill: "#94a3b8" }}
                   tickLine={false}
                   axisLine={false}
                   unit="h"
-                  width={42}
+                  width={36}
                 />
                 <Tooltip content={<CustomTooltip />} />
-                <ReferenceLine
-                  y={6}
-                  stroke="#22c55e"
-                  strokeDasharray="4 4"
-                  label={{ value: "Normal", fontSize: 10, fill: "#16a34a", position: "insideTopRight" }}
-                />
-                <ReferenceLine
-                  y={10}
-                  stroke="#f97316"
-                  strokeDasharray="4 4"
-                  label={{ value: "Warning", fontSize: 10, fill: "#ea580c", position: "insideTopRight" }}
-                />
-                <ReferenceLine
-                  y={14}
-                  stroke="#ef4444"
-                  strokeDasharray="4 4"
-                  label={{ value: "Danger", fontSize: 10, fill: "#dc2626", position: "insideTopRight" }}
-                />
 
                 {result && (
                   <>
-                    <ReferenceArea
-                      x1={result.startDay}
-                      x2={result.endDay}
-                      fill="#fb923c"
-                      fillOpacity={0.12}
-                    />
                     <ReferenceLine
                       x={result.startDay}
                       stroke="#f97316"
                       strokeDasharray="4 3"
                       strokeWidth={1.5}
-                      label={{ value: `D${result.startDay}`, fontSize: 9, fill: "#f97316", position: "top" }}
+                      label={{ value: `N${result.startDay}`, fontSize: 9, fill: "#f97316", position: "top" }}
                     />
                     <ReferenceLine
                       x={result.endDay}
                       stroke="#ef4444"
                       strokeDasharray="4 3"
                       strokeWidth={1.5}
-                      label={{ value: `D${result.endDay}`, fontSize: 9, fill: "#ef4444", position: "top" }}
+                      label={{ value: `N${result.endDay}`, fontSize: 9, fill: "#ef4444", position: "top" }}
                     />
                   </>
                 )}
 
                 <Bar
                   dataKey="leadTime"
-                  maxBarSize={10}
-                  isAnimationActive={false}
+                  maxBarSize={9}
                   shape={(props: unknown) => {
                     const p = props as {
-                      x: number;
-                      y: number;
-                      width: number;
-                      height: number;
-                      barColor?: string;
-                      trendline?: number | null;
+                      x: number; y: number; width: number; height: number;
+                      barColor?: string; trendline?: number | null;
                     };
-
-                    if (p.height <= 0 || p.width <= 0) return <g />;
-
                     return (
                       <rect
                         x={p.x}
                         y={p.y}
                         width={Math.max(1, p.width)}
                         height={Math.max(1, p.height)}
-                        rx={3}
+                        rx={2}
                         fill={p.barColor ?? "#94a3b8"}
-                        fillOpacity={p.trendline != null ? 1 : 0.58}
+                        fillOpacity={p.trendline != null ? 1 : 0.55}
                       />
                     );
                   }}
@@ -657,7 +608,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
                   name="Xu hướng"
                 />
               </ComposedChart>
-            </div>
+            </ResponsiveContainer>
 
             {/* Legend */}
             <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
@@ -685,7 +636,7 @@ export default function BurnoutDetector({ projectId }: BurnoutDetectorProps) {
       </div>
 
       {/* ── Result Banner ── */}
-      <div>
+      <div ref={resultRef}>
         {result && <ResultBanner result={result} slope={regressionSlope} />}
       </div>
 
