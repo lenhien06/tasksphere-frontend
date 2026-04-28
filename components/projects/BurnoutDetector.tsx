@@ -2,7 +2,19 @@
 
 import { apiJava } from "@/lib/axios";
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Activity, AlertTriangle, Bot, RefreshCcw, Search, User } from "lucide-react";
+import {
+  Bar,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Line,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Activity, AlertTriangle, Bot, Coffee, Loader2, RefreshCcw, Search, TrendingUp, User } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -25,10 +37,37 @@ interface AnalyzeResult {
   developerName: string;
 }
 
+interface ChartRow {
+  day: number;
+  date: string;
+  leadTime: number;
+  trendline: number | null;
+  fill: string;
+}
+
+// ─── Linear Regression ───────────────────────────────────────────────────────
+
+function computeLinearRegression(points: { x: number; y: number }[]): {
+  slope: number;
+  intercept: number;
+} {
+  const n = points.length;
+  if (n < 2) return { slope: 0, intercept: points[0]?.y ?? 0 };
+  const sumX = points.reduce((s, p) => s + p.x, 0);
+  const sumY = points.reduce((s, p) => s + p.y, 0);
+  const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
+  const sumXX = points.reduce((s, p) => s + p.x * p.x, 0);
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+  return { slope, intercept };
+}
+
 // ─── API helpers ─────────────────────────────────────────────────────────────
 
 async function fetchDemoData(name: string): Promise<DataPoint[]> {
-  const res = await apiJava.get<{ data: DataPoint[] }>(`/v1/burnout/demo-data?developerName=${encodeURIComponent(name)}`);
+  const res = await apiJava.get<{ data: DataPoint[] }>(
+    `/v1/burnout/demo-data?developerName=${encodeURIComponent(name)}`
+  );
   return res.data.data;
 }
 
@@ -41,7 +80,7 @@ async function runAnalyze(data: DataPoint[], developerName: string): Promise<Ana
   return res.data.data;
 }
 
-async function fetchAiMessage(result: AnalyzeResult): Promise<string> {
+async function fetchAiMessage(result: AnalyzeResult, coffeeTime: string): Promise<string> {
   const res = await apiJava.post<{ data: { message: string } }>("/v1/burnout/ai-message", {
     developerName: result.developerName,
     startDay: result.startDay,
@@ -50,186 +89,24 @@ async function fetchAiMessage(result: AnalyzeResult): Promise<string> {
     endLeadTime: result.endLeadTime,
     startDate: result.startDate,
     endDate: result.endDate,
+    coffeeTime,
   });
   return res.data.data.message;
 }
 
-// ─── Bar Chart ───────────────────────────────────────────────────────────────
+// ─── Custom Tooltip ───────────────────────────────────────────────────────────
 
-const BAR_W = 7;
-const BAR_GAP = 2;
-const STEP = BAR_W + BAR_GAP;
-const CHART_H = 240;
-const LABEL_H = 28;
-const PAD_L = 48;
-const PAD_R = 12;
-
-function BurnoutBarChart({
-  data,
-  highlight,
-  highlightRef,
-}: {
-  data: DataPoint[];
-  highlight: { start: number; end: number } | null;
-  highlightRef: React.RefObject<HTMLDivElement>;
-}) {
-  const maxVal = Math.max(...data.map((d) => d.avgLeadTimeHours), 1);
-  const svgW = PAD_L + data.length * STEP + PAD_R;
-  const svgH = CHART_H + LABEL_H;
-
-  // Y-axis labels
-  const yTicks = [0, 3, 6, 9, 12, 15].filter((t) => t <= maxVal + 1);
-
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payload: ChartRow }[] }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
   return (
-    <div className="relative">
-      {/* Scroll container */}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-slate-50">
-        <div style={{ width: svgW + "px", position: "relative" }}>
-          {/* Highlight overlay (positioned absolutely) */}
-          {highlight && (
-            <div
-              ref={highlightRef}
-              style={{
-                position: "absolute",
-                left: PAD_L + highlight.start * STEP - 3,
-                top: 8,
-                width: (highlight.end - highlight.start + 1) * STEP + 4,
-                height: CHART_H - 16,
-                background: "rgba(239,68,68,0.08)",
-                border: "2px solid rgba(239,68,68,0.4)",
-                borderRadius: 8,
-                pointerEvents: "none",
-                zIndex: 2,
-              }}
-            />
-          )}
-
-          <svg width={svgW} height={svgH} style={{ display: "block" }}>
-            {/* Horizontal grid lines */}
-            {yTicks.map((tick) => {
-              const y = CHART_H - (tick / (maxVal + 1)) * (CHART_H - 20) - 4;
-              return (
-                <g key={tick}>
-                  <line
-                    x1={PAD_L}
-                    y1={y}
-                    x2={svgW - PAD_R}
-                    y2={y}
-                    stroke="#e2e8f0"
-                    strokeWidth={1}
-                    strokeDasharray="4 3"
-                  />
-                  <text x={PAD_L - 6} y={y + 4} textAnchor="end" fontSize={9} fill="#94a3b8">
-                    {tick}h
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Bars */}
-            {data.map((point, i) => {
-              const barH = Math.max(2, (point.avgLeadTimeHours / (maxVal + 1)) * (CHART_H - 20));
-              const x = PAD_L + i * STEP;
-              const y = CHART_H - barH - 4;
-
-              const inBurnout = highlight && i >= highlight.start && i <= highlight.end;
-              const fill = inBurnout
-                ? point.avgLeadTimeHours >= 10
-                  ? "#ef4444"   // red
-                  : "#f97316"   // orange
-                : "#94a3b8";    // slate normal
-
-              // Day labels every 30 days
-              const showLabel = (i + 1) % 30 === 0 || i === 0;
-
-              return (
-                <g key={i}>
-                  <rect
-                    x={x}
-                    y={y}
-                    width={BAR_W}
-                    height={barH}
-                    rx={2}
-                    fill={fill}
-                    opacity={inBurnout ? 1 : 0.6}
-                  >
-                    <title>
-                      Ngày {point.day} ({point.date}): {point.avgLeadTimeHours}h
-                    </title>
-                  </rect>
-
-                  {showLabel && (
-                    <text
-                      x={x + BAR_W / 2}
-                      y={CHART_H + LABEL_H - 6}
-                      textAnchor="middle"
-                      fontSize={9}
-                      fill="#64748b"
-                    >
-                      D{point.day}
-                    </text>
-                  )}
-
-                  {/* Trendline dot on burnout zone */}
-                  {inBurnout && (
-                    <circle
-                      cx={x + BAR_W / 2}
-                      cy={y}
-                      r={2.5}
-                      fill={fill}
-                      stroke="white"
-                      strokeWidth={1}
-                    />
-                  )}
-                </g>
-              );
-            })}
-
-            {/* Trendline on burnout zone */}
-            {highlight && (() => {
-              const pts = data
-                .slice(highlight.start, highlight.end + 1)
-                .map((p, i) => {
-                  const x = PAD_L + (highlight.start + i) * STEP + BAR_W / 2;
-                  const barH = Math.max(2, (p.avgLeadTimeHours / (maxVal + 1)) * (CHART_H - 20));
-                  const y = CHART_H - barH - 4;
-                  return `${x},${y}`;
-                })
-                .join(" ");
-              return (
-                <polyline
-                  points={pts}
-                  fill="none"
-                  stroke="#dc2626"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              );
-            })()}
-          </svg>
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-4 rounded-sm bg-slate-400 opacity-60" />
-          Bình thường
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-4 rounded-sm bg-orange-400" />
-          Burnout nhẹ
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-4 rounded-sm bg-red-500" />
-          Burnout nặng
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-px w-6 border-t-2 border-dashed border-red-500" />
-          Trendline tăng
-        </span>
-      </div>
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md text-xs">
+      <p className="font-bold text-slate-800">Ngày {row.day}</p>
+      <p className="text-slate-500">{row.date}</p>
+      <p className="mt-1 font-semibold text-slate-700">Lead Time: {row.leadTime}h</p>
+      {row.trendline !== null && (
+        <p className="text-red-500 font-semibold">Trend: {row.trendline.toFixed(2)}h</p>
+      )}
     </div>
   );
 }
@@ -250,7 +127,6 @@ function SlackMessage({
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      {/* Slack-style header */}
       <div className="flex items-center gap-3 border-b border-slate-100 bg-[#3f0e40] px-4 py-3">
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20">
           <svg width="16" height="16" viewBox="0 0 54 54" fill="none">
@@ -260,42 +136,31 @@ function SlackMessage({
             <path d="M0 34.249a5.381 5.381 0 0 0 5.376 5.386 5.381 5.381 0 0 0 5.376-5.386v-5.387H5.376A5.381 5.381 0 0 0 0 34.249m14.336 0v14.364A5.381 5.381 0 0 0 19.712 54a5.381 5.381 0 0 0 5.376-5.387V34.249a5.381 5.381 0 0 0-5.376-5.387 5.381 5.381 0 0 0-5.376 5.387" fill="#E01E5A"/>
           </svg>
         </div>
-        <span className="text-sm font-semibold text-white">Slack</span>
-        <span className="ml-auto text-xs text-white/60"># direct-messages</span>
+        <span className="text-sm font-semibold text-white">Slack — Direct Messages</span>
+        <span className="ml-auto text-xs text-white/60">@{developerName}</span>
       </div>
 
-      {/* Channel label */}
-      <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-500">
-        DM with {developerName}
-      </div>
-
-      {/* Message area */}
       <div className="min-h-[160px] p-4">
         {isLoading ? (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white text-sm font-bold">
-                EM
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white text-sm font-bold">
+              EM
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-900">Engineering Manager</span>
+                <span className="text-xs text-slate-400">{timeStr}</span>
               </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-slate-900">Engineering Manager</span>
-                  <span className="text-xs text-slate-400">{timeStr}</span>
-                </div>
-                <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-3">
-                  <span className="flex gap-1">
-                    {[0, 1, 2].map((i) => (
-                      <span
-                        key={i}
-                        className="inline-block h-2 w-2 rounded-full bg-slate-400"
-                        style={{
-                          animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
-                        }}
-                      />
-                    ))}
-                  </span>
-                  <span className="text-xs text-slate-500">AI đang soạn tin nhắn...</span>
-                </div>
+              <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-3">
+                <span className="flex gap-1">
+                  {(["", "[animation-delay:0.2s]", "[animation-delay:0.4s]"] as const).map((delay, i) => (
+                    <span
+                      key={i}
+                      className={`inline-block h-2 w-2 animate-bounce rounded-full bg-slate-400 ${delay}`}
+                    />
+                  ))}
+                </span>
+                <span className="text-xs text-slate-500">AI đang soạn tin nhắn...</span>
               </div>
             </div>
           </div>
@@ -313,9 +178,8 @@ function SlackMessage({
                 {message}
               </div>
               <div className="mt-1 flex items-center gap-3 text-xs text-slate-400">
-                <button className="hover:text-slate-600">👍 Thích</button>
-                <button className="hover:text-slate-600">💬 Trả lời</button>
-                <button className="hover:text-slate-600">📌 Ghim</button>
+                <button type="button" className="hover:text-slate-600">👍</button>
+                <button type="button" className="hover:text-slate-600">💬 Trả lời</button>
               </div>
             </div>
           </div>
@@ -326,55 +190,62 @@ function SlackMessage({
         )}
       </div>
 
-      {/* Fake input bar */}
       <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
         <div className="flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-400">
           Message {developerName}...
         </div>
       </div>
 
-      <style>{`
-        @keyframes bounce {
-          0%, 80%, 100% { transform: translateY(0); }
-          40% { transform: translateY(-6px); }
-        }
-      `}</style>
     </div>
   );
 }
 
-// ─── Burnout Result Badge ─────────────────────────────────────────────────────
+// ─── Result Badge ─────────────────────────────────────────────────────────────
 
-function ResultBadge({ result }: { result: AnalyzeResult }) {
+function ResultBadge({ result, slope }: { result: AnalyzeResult; slope: number }) {
   return (
     <div className="rounded-xl border border-orange-200 bg-orange-50 p-5">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 mb-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
           <AlertTriangle className="h-5 w-5 text-orange-600" />
         </div>
         <div>
-          <p className="text-sm font-bold text-orange-900">Phát hiện chuỗi Burnout!</p>
-          <p className="text-xs text-orange-700">Thuật toán Longest Increasing Subarray — O(n)</p>
+          <p className="text-sm font-bold text-orange-900">⚠ Phát hiện chuỗi Burnout!</p>
+          <p className="text-xs text-orange-700">
+            Longest Increasing Subarray O(N) + Linear Regression Trendline
+          </p>
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
           { label: "Bắt đầu", value: `Ngày ${result.startDay}` },
           { label: "Kết thúc", value: `Ngày ${result.endDay}` },
           { label: "Kéo dài", value: `${result.length} ngày` },
-          { label: "Lead Time tăng", value: `${result.startLeadTime}h → ${result.endLeadTime}h` },
+          { label: "Lead Time", value: `${result.startLeadTime}h → ${result.endLeadTime}h` },
+          {
+            label: "Hệ số góc (a)",
+            value: `${slope > 0 ? "+" : ""}${slope.toFixed(3)}h/ngày`,
+          },
         ].map((item) => (
-          <div key={item.label} className="rounded-lg bg-white px-3 py-2 text-center shadow-sm border border-orange-100">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-orange-600">{item.label}</p>
-            <p className="mt-0.5 text-sm font-bold text-slate-900">{item.value}</p>
+          <div
+            key={item.label}
+            className="rounded-lg bg-white px-3 py-2 text-center shadow-sm border border-orange-100"
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-600">{item.label}</p>
+            <p className="mt-0.5 text-xs font-bold text-slate-900">{item.value}</p>
           </div>
         ))}
       </div>
 
       <p className="mt-3 text-xs text-orange-700">
-        {result.startDate} → {result.endDate} &nbsp;·&nbsp; Lead Time tăng{" "}
-        <strong>{((result.endLeadTime / result.startLeadTime) * 100 - 100).toFixed(0)}%</strong> so với điểm khởi đầu
+        {result.startDate} → {result.endDate} &nbsp;·&nbsp; Tăng{" "}
+        <strong>{((result.endLeadTime / result.startLeadTime) * 100 - 100).toFixed(0)}%</strong>
+        {slope > 0 && (
+          <span className="ml-2 text-red-600 font-semibold">
+            · Trendline xác nhận xu hướng đi lên (a = {slope.toFixed(3)} &gt; 0)
+          </span>
+        )}
       </p>
     </div>
   );
@@ -384,63 +255,97 @@ function ResultBadge({ result }: { result: AnalyzeResult }) {
 
 export default function BurnoutDetector() {
   const [developerName, setDeveloperName] = useState("Alex");
-  const [data, setData] = useState<DataPoint[]>([]);
+  const [coffeeTime, setCoffeeTime] = useState("15:00");
+  const [rawData, setRawData] = useState<DataPoint[]>([]);
+  const [chartData, setChartData] = useState<ChartRow[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalyzeResult | null>(null);
+  const [regressionSlope, setRegressionSlope] = useState(0);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
 
-  const highlightRef = useRef<HTMLDivElement>(null);
-  const chartScrollRef = useRef<HTMLDivElement>(null);
+  const buildChartData = (data: DataPoint[], highlight: { start: number; end: number } | null): ChartRow[] => {
+    let regression: { slope: number; intercept: number } | null = null;
+
+    if (highlight) {
+      const pts = data.slice(highlight.start, highlight.end + 1).map((p, i) => ({
+        x: highlight.start + i,
+        y: p.avgLeadTimeHours,
+      }));
+      regression = computeLinearRegression(pts);
+      setRegressionSlope(regression.slope);
+    }
+
+    return data.map((point, i) => {
+      const inBurnout = highlight && i >= highlight.start && i <= highlight.end;
+      const trendline =
+        inBurnout && regression
+          ? parseFloat((regression.slope * i + regression.intercept).toFixed(2))
+          : null;
+
+      return {
+        day: point.day,
+        date: point.date,
+        leadTime: point.avgLeadTimeHours,
+        trendline,
+        fill: inBurnout
+          ? point.avgLeadTimeHours >= 10
+            ? "#ef4444"
+            : "#f97316"
+          : "#94a3b8",
+      };
+    });
+  };
 
   const loadData = async (name: string) => {
     setLoadingData(true);
     setResult(null);
     setAiMessage(null);
     setError(null);
+    setRegressionSlope(0);
     try {
       const pts = await fetchDemoData(name);
-      setData(pts);
+      setRawData(pts);
+      setChartData(buildChartData(pts, null));
     } catch {
-      setError("Không thể tải dữ liệu demo. Vui lòng thử lại.");
+      setError("Không thể tải dữ liệu. Vui lòng thử lại.");
     } finally {
       setLoadingData(false);
     }
   };
 
-  useEffect(() => {
-    void loadData(developerName);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { void loadData(developerName); }, []); // eslint-disable-line
 
   const handleAnalyze = async () => {
-    if (!data.length) return;
+    if (!rawData.length) return;
     setAnalyzing(true);
     setResult(null);
     setAiMessage(null);
     setError(null);
+    setRegressionSlope(0);
 
     try {
-      const res = await runAnalyze(data, developerName);
+      const res = await runAnalyze(rawData, developerName);
       setResult(res);
 
-      // Auto-scroll chart đến vùng burnout
-      setTimeout(() => {
-        if (chartScrollRef.current && highlightRef.current) {
-          const scrollX = Math.max(0, highlightRef.current.offsetLeft - 80);
-          chartScrollRef.current.scrollTo({ left: scrollX, behavior: "smooth" });
-        }
-      }, 200);
+      // Bước 4: Highlight bars + vẽ Linear Regression Trendline
+      const highlight = { start: res.startIndex, end: res.endIndex };
+      setChartData(buildChartData(rawData, highlight));
 
-      // Gọi AI sau khi có kết quả
+      // Scroll chart đến vùng burnout
+      setTimeout(() => {
+        chartRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+
+      // Bước 5: Gọi AI
       setAiLoading(true);
       try {
-        const msg = await fetchAiMessage(res);
+        const msg = await fetchAiMessage(res, coffeeTime);
         setAiMessage(msg);
       } catch {
-        setAiMessage(null);
         setError("Phân tích xong nhưng AI không thể tạo tin nhắn lúc này.");
       } finally {
         setAiLoading(false);
@@ -452,14 +357,6 @@ export default function BurnoutDetector() {
     }
   };
 
-  const handleReload = () => {
-    void loadData(developerName);
-  };
-
-  const highlight = result
-    ? { start: result.startIndex, end: result.endIndex }
-    : null;
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -467,19 +364,22 @@ export default function BurnoutDetector() {
         <div>
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-orange-500" />
-            <h2 className="text-2xl font-black tracking-tight text-slate-950">Team Health — Burnout Detector</h2>
+            <h2 className="text-2xl font-black tracking-tight text-slate-950">
+              Team Health — Burnout Detector
+            </h2>
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Biểu đồ Lead Time 180 ngày. Thuật toán{" "}
+            Biểu đồ Lead Time 180 ngày ·{" "}
             <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-700">
-              Longest Increasing Subarray O(n)
+              Longest Increasing Subarray O(N)
             </code>{" "}
-            tự động phát hiện chuỗi sa sút và AI viết tin nhắn can thiệp.
+            · Linear Regression Trendline
           </p>
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Developer name */}
           <div className="relative">
             <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -488,28 +388,41 @@ export default function BurnoutDetector() {
               onChange={(e) => setDeveloperName(e.target.value)}
               onBlur={() => void loadData(developerName)}
               placeholder="Tên developer"
-              className="h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              className="h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
             />
           </div>
+
+          {/* Coffee time picker */}
+          <div className="relative">
+            <Coffee className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="time"
+              value={coffeeTime}
+              onChange={(e) => setCoffeeTime(e.target.value)}
+              aria-label="Giờ hẹn cafe"
+              title="Giờ hẹn cafe"
+              className="h-10 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            />
+          </div>
+
           <button
             type="button"
-            onClick={handleReload}
+            onClick={() => void loadData(developerName)}
             disabled={loadingData}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+            aria-label="Tải lại dữ liệu"
+            title="Tải lại dữ liệu"
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             <RefreshCcw className="h-4 w-4" />
           </button>
+
           <button
             type="button"
             onClick={() => void handleAnalyze()}
-            disabled={loadingData || analyzing || !data.length}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-orange-500 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={loadingData || analyzing || !rawData.length}
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-orange-500 px-5 text-sm font-bold text-white shadow-sm hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {analyzing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
+            {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Phân tích Sức khỏe Đội ngũ
           </button>
         </div>
@@ -523,8 +436,8 @@ export default function BurnoutDetector() {
         </div>
       )}
 
-      {/* Chart */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      {/* ── Bước 1 & 4: Bar Chart + Trendline ── */}
+      <div ref={chartRef} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-900">
@@ -533,71 +446,154 @@ export default function BurnoutDetector() {
             <p className="text-xs text-slate-500">180 ngày gần nhất (giờ/task)</p>
           </div>
           {result && (
-            <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
-              Burnout: Ngày {result.startDay} → {result.endDay}
-            </span>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-red-500" />
+              <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+                Burnout: Ngày {result.startDay} → {result.endDay}
+              </span>
+            </div>
           )}
         </div>
 
         {loadingData ? (
-          <div className="flex h-64 items-center justify-center rounded-lg bg-slate-50">
+          <div className="flex h-72 items-center justify-center rounded-lg bg-slate-50">
             <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
           </div>
         ) : (
-          <div ref={chartScrollRef} className="overflow-x-auto">
-            <BurnoutBarChart
-              data={data}
-              highlight={highlight}
-              highlightRef={highlightRef as React.RefObject<HTMLDivElement>}
-            />
-          </div>
+          <>
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis
+                  dataKey="day"
+                  tick={{ fontSize: 10, fill: "#94a3b8" }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={29}
+                  tickFormatter={(v: number) => `D${v}`}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "#94a3b8" }}
+                  tickLine={false}
+                  axisLine={false}
+                  unit="h"
+                  width={36}
+                />
+                <Tooltip content={<CustomTooltip />} />
+
+                {/* Reference lines for burnout zone */}
+                {result && (
+                  <>
+                    <ReferenceLine
+                      x={result.startDay}
+                      stroke="#f97316"
+                      strokeDasharray="4 3"
+                      strokeWidth={1.5}
+                      label={{ value: `D${result.startDay}`, fontSize: 9, fill: "#f97316", position: "top" }}
+                    />
+                    <ReferenceLine
+                      x={result.endDay}
+                      stroke="#ef4444"
+                      strokeDasharray="4 3"
+                      strokeWidth={1.5}
+                      label={{ value: `D${result.endDay}`, fontSize: 9, fill: "#ef4444", position: "top" }}
+                    />
+                  </>
+                )}
+
+                {/* Bars — màu động theo vùng burnout */}
+                <Bar dataKey="leadTime" maxBarSize={10} radius={[2, 2, 0, 0]}>
+                  {chartData.map((row, i) => (
+                    <Cell key={i} fill={row.fill} opacity={row.trendline !== null ? 1 : 0.55} />
+                  ))}
+                </Bar>
+
+                {/* Linear Regression Trendline */}
+                <Line
+                  dataKey="trendline"
+                  stroke="#dc2626"
+                  strokeWidth={2.5}
+                  dot={false}
+                  connectNulls={false}
+                  name="Trendline (Linear Regression)"
+                  strokeDasharray="0"
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+
+            {/* Legend */}
+            <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-4 rounded-sm bg-slate-400 opacity-55" />
+                Bình thường
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-4 rounded-sm bg-orange-400" />
+                Burnout nhẹ
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-4 rounded-sm bg-red-500" />
+                Burnout nặng
+              </span>
+              <span className="flex items-center gap-1.5">
+                <svg width="24" height="8">
+                  <line x1="0" y1="4" x2="24" y2="4" stroke="#dc2626" strokeWidth="2.5" />
+                </svg>
+                Trendline y = ax + b (a &gt; 0 → xu hướng tăng)
+              </span>
+            </div>
+          </>
         )}
       </div>
 
-      {/* Result badge */}
-      {result && <ResultBadge result={result} />}
+      {/* ── Bước 3: Kết quả + Linear Regression ── */}
+      {result && <ResultBadge result={result} slope={regressionSlope} />}
 
-      {/* Slack message */}
+      {/* ── Bước 5: AI Slack message ── */}
       {(result || aiLoading) && (
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Bot className="h-5 w-5 text-violet-500" />
-            <h3 className="text-sm font-bold text-slate-900">Tin nhắn Slack từ Engineering Manager</h3>
+            <h3 className="text-sm font-bold text-slate-900">
+              Tin nhắn Slack từ Engineering Manager
+            </h3>
             <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
-              AI Generated
+              AI Generated · LLM
             </span>
+            {coffeeTime && result && (
+              <span className="ml-auto flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs text-amber-700 font-medium">
+                <Coffee className="h-3 w-3" />
+                Hẹn cafe {coffeeTime}
+              </span>
+            )}
           </div>
-          <SlackMessage
-            message={aiMessage}
-            developerName={developerName}
-            isLoading={aiLoading}
-          />
+          <SlackMessage message={aiMessage} developerName={developerName} isLoading={aiLoading} />
         </div>
       )}
 
-      {/* Algorithm explanation */}
+      {/* ── Algorithm explanation ── */}
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Thuật toán</p>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+          Thuật toán lõi — O(N) — 1 vòng for duy nhất
+        </p>
         <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs leading-6 text-green-400">
-{`// Longest Increasing Subarray — O(n)
-// Input: mảng 180 phần tử avgLeadTimeHours[]
-// Output: { startIndex, endIndex, length }
-
+{`// Longest Increasing Subarray — O(N)
 int bestStart = 0, bestLen = 1;
-int curStart = 0, curLen = 1;
+int curStart = 0, curLen  = 1;
 
-for (int i = 1; i < n; i++) {
-    if (leadTimes[i] > leadTimes[i - 1]) {
-        curLen++;                      // kéo dài chuỗi tăng
-    } else {
-        curStart = i; curLen = 1;     // reset nếu không tăng
-    }
+for (int i = 1; i < N; i++) {           // duyệt 1 lần
+    if (leadTimes[i] > leadTimes[i-1])  curLen++;
+    else { curStart = i; curLen = 1; }  // reset
+
     if (curLen > bestLen) {
-        bestLen = curLen;             // cập nhật kết quả tốt nhất
-        bestStart = curStart;
+        bestLen  = curLen;
+        bestStart = curStart;            // cập nhật chuỗi dài nhất
     }
 }
-// → Phát hiện Ngày ${result ? result.startDay : 60}–${result ? result.endDay : 74}: Lead Time tăng ${result ? result.startLeadTime : 4.0}h → ${result ? result.endLeadTime : 12.0}h`}
+// → Phát hiện: Ngày ${result?.startDay ?? 60}–${result?.endDay ?? 74} (${result?.length ?? 15} ngày)
+
+// Linear Regression Trendline — y = ax + b
+// a = ${regressionSlope > 0 ? "+" : ""}${regressionSlope.toFixed(3)} > 0  →  xu hướng Lead Time đang TĂNG  →  Burnout xác nhận`}
         </pre>
       </div>
     </div>
