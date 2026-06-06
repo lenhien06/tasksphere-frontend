@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
-  Camera, Pencil, Plus, X, Check, Loader2, Briefcase
+  Camera, Pencil, Plus, X, Check, Loader2, Briefcase, Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/common/UserAvatar";
@@ -245,13 +245,34 @@ export default function UserProfilePage() {
               </div>
             </div>
 
-            <button
-              onClick={openEditBasic}
-              className="flex items-center gap-2 h-9 px-4 rounded-xl border border-slate-200 bg-white text-[13px] font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm shrink-0"
-            >
-              <Pencil size={13} />
-              {t("profile.editBasicInfo", { defaultValue: "Chỉnh sửa thông tin cơ bản" })}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  if (!profile) return;
+                  ProfileService.exportUserCsv(profile.id).then((blob) => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `employee_performance_${profile.id}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                  }).catch(console.error);
+                }}
+                className="flex items-center gap-2 h-9 px-4 rounded-xl border border-slate-200 bg-white text-[13px] font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+              >
+                <Download size={13} />
+                Export CSV
+              </button>
+              <button
+                onClick={openEditBasic}
+                className="flex items-center gap-2 h-9 px-4 rounded-xl border border-slate-200 bg-white text-[13px] font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+              >
+                <Pencil size={13} />
+                {t("profile.editBasicInfo", { defaultValue: "Chỉnh sửa thông tin cơ bản" })}
+              </button>
+            </div>
           </div>
           </div>
 

@@ -37,3 +37,4 @@ dist/
 .idea/
 .claude/
 build-final.log
+.env.development

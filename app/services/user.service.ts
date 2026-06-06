@@ -24,6 +24,11 @@ export class UserService {
     return response.data
   }
 
+  static async getPerformancePrediction(userId: string): Promise<{ employeeId: string, predictedPerformanceScore: number, trend: string, errorMessage?: string }> {
+    const response = await apiJava.get(`/v1/users/${userId}/performance-prediction`)
+    return response.data
+  }
+
   static async uploadAvatar(body: FormData): Promise<AvatarImage> {
     const response = await apiJava.post<AvatarImage>(`${this.PREFIX}/upload-avatar`, body, {
       headers: { 'Content-Type': undefined }

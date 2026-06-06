@@ -88,4 +88,11 @@ export const ProfileService = {
     );
     return data.data;
   },
+
+  async exportUserCsv(userId: string): Promise<Blob> {
+    const response = await apiJava.get(`/v1/users/${userId}/export-csv`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };

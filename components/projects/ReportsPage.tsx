@@ -10,6 +10,7 @@ import {
   Activity,
 } from "lucide-react";
 import BurnoutDetector from "@/components/projects/BurnoutDetector";
+import PerformancePredictor from "@/components/projects/PerformancePredictor";
 import { toast } from "sonner";
 import { TaskService } from "@/app/services/TaskService";
 import { usePermission } from "@/hooks/usePermission";
@@ -21,7 +22,7 @@ import type {
   VelocityForecastData,
 } from "@/app/types/task.schema";
 
-type ReportType = "burnup" | "burndown" | "velocity" | "burnout";
+type ReportType = "burnup" | "burndown" | "velocity" | "burnout" | "aipredictor";
 
 interface ReportsPageProps {
   projectId: string;
@@ -38,6 +39,7 @@ function mapTabToReport(activeTab?: number): ReportType | null {
   if (activeTab === 1) return "burndown";
   if (activeTab === 2) return "velocity";
   if (activeTab === 3) return "burnout";
+  if (activeTab === 4) return "aipredictor";
   return null;
 }
 
@@ -196,6 +198,19 @@ function MiniBurnoutIllustration() {
         strokeWidth="2.5"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function MiniPredictorIllustration() {
+  return (
+    <svg viewBox="0 0 280 150" className="h-36 w-full">
+      <circle cx="140" cy="75" r="40" fill="none" stroke="#4F46E5" strokeWidth="6" strokeDasharray="12 8" />
+      <path d="M 120 75 L 135 90 L 165 60" fill="none" stroke="#22C55E" strokeWidth="4" />
+      <line x1="140" y1="35" x2="140" y2="15" stroke="#4F46E5" strokeWidth="3" />
+      <line x1="140" y1="115" x2="140" y2="135" stroke="#4F46E5" strokeWidth="3" />
+      <line x1="100" y1="75" x2="80" y2="75" stroke="#4F46E5" strokeWidth="3" />
+      <line x1="180" y1="75" x2="200" y2="75" stroke="#4F46E5" strokeWidth="3" />
     </svg>
   );
 }
@@ -660,7 +675,8 @@ export default function ReportsPage({
     onTabChange?.(
       report === "burndown" ? 1 :
       report === "velocity" ? 2 :
-      report === "burnout" ? 3 : 0
+      report === "burnout" ? 3 :
+      report === "aipredictor" ? 4 : 0
     );
   };
 
@@ -708,6 +724,7 @@ export default function ReportsPage({
           <ReportCard title="Sprint burndown chart" description="Track the remaining work in a sprint day by day and compare the actual burn rate with the planned ideal line." illustration={<MiniBurndownIllustration />} onClick={() => handleSelectReport("burndown")} />
           <ReportCard title="Velocity report" description="Compare committed points and completed points across the latest closed sprints to forecast future delivery capacity." illustration={<MiniVelocityIllustration />} onClick={() => handleSelectReport("velocity")} />
           <ReportCard title="Team Health — Burnout Detector" description="Phát hiện chuỗi Lead Time tăng liên tục bằng Sliding Window và AI gợi ý can thiệp sớm qua Slack." illustration={<MiniBurnoutIllustration />} onClick={() => handleSelectReport("burnout")} />
+          <ReportCard title="AI Performance Predictor" description="Dự đoán điểm hiệu suất và xu hướng của nhân viên dựa trên khối lượng công việc, tỷ lệ trễ hạn và các yếu tố khác bằng Random Forest." illustration={<MiniPredictorIllustration />} onClick={() => handleSelectReport("aipredictor")} />
         </div>
       </div>
     );
@@ -796,6 +813,10 @@ export default function ReportsPage({
 
       {selectedReport === "burnout" ? (
         <BurnoutDetector projectId={projectId} />
+      ) : null}
+
+      {selectedReport === "aipredictor" ? (
+        <PerformancePredictor projectId={projectId} />
       ) : null}
 
       {selectedReport === "velocity" ? (
