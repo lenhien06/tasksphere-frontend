@@ -694,7 +694,7 @@ export default function ReportsPage({
         exportFormat,
         scope,
         scope === "SPRINT" ? selectedSprintId : undefined,
-        selectedReport !== "burnout" ? selectedReport ?? undefined : undefined
+        selectedReport !== "burnout" && selectedReport !== "aipredictor" ? selectedReport ?? undefined : undefined
       );
       const url = URL.createObjectURL(response.data);
       const link = document.createElement("a");
