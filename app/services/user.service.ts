@@ -32,6 +32,19 @@ export class UserService {
 
   static async getPerformancePrediction(userId: string): Promise<PerformancePredictionResult> {
     const response = await apiJava.get(`/v1/users/${userId}/performance-prediction`);
-    return response.data?.data || {};
+    const raw = response.data?.data || response.data || {};
+    return {
+      employeeId: raw.employeeId ?? raw.employee_id ?? "",
+      predictedPerformanceScore: raw.predictedPerformanceScore ?? raw.predicted_performance_score ?? 0,
+      healthScore: raw.healthScore ?? raw.health_score ?? 0,
+      trend: raw.trend || "Stable",
+      history: raw.history || [],
+      attritionProbability: raw.attritionProbability ?? raw.attrition_probability ?? 0,
+      topContributingFactors: raw.topContributingFactors ?? raw.top_contributing_factors ?? [],
+      rootCauses: raw.rootCauses ?? raw.root_causes ?? [],
+      recommendations: raw.recommendations || [],
+      confidence: raw.confidence ?? 0,
+      errorMessage: raw.errorMessage || raw.error_message,
+    };
   }
 }
