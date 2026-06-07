@@ -16,22 +16,22 @@ export interface PerformancePredictionResult {
 
 export class UserService {
   static async searchUsers(keyword: string) {
-    const response = await apiJava.get(`/users/search?keyword=${encodeURIComponent(keyword)}`);
+    const response = await apiJava.get(`/v1/users/search?keyword=${encodeURIComponent(keyword)}`);
     return response.data?.data || [];
   }
 
   static async getRoleCounts() {
-    const response = await apiJava.get('/users/roles/counts');
+    const response = await apiJava.get('/v1/users/roles/counts');
     return response.data?.data || [];
   }
 
   static async getOverallPerformance(userId: string) {
-    const response = await apiJava.get(`/users/${userId}/overall-performance`);
+    const response = await apiJava.get(`/v1/users/${userId}/overall-performance`);
     return response.data?.data;
   }
 
   static async getPerformancePrediction(userId: string): Promise<PerformancePredictionResult> {
-    const response = await apiJava.get(`/users/${userId}/performance-prediction`);
+    const response = await apiJava.get(`/v1/users/${userId}/performance-prediction`);
     return response.data?.data || {};
   }
 }
