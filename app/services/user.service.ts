@@ -1,56 +1,37 @@
-import { apiJava } from '@/lib/axios'
-import { UserType, SignupFormValues, ProfileFormValues, AvatarImage } from '@/app/types/user.schema'
-import { Client } from '@stomp/stompjs'
+import { apiJava } from '../lib/axios';
+
+export interface PerformancePredictionResult {
+  employeeId: string;
+  predictedPerformanceScore: number;
+  healthScore: number;
+  trend: string;
+  history: number[];
+  attritionProbability: number;
+  topContributingFactors: string[];
+  rootCauses: string[];
+  recommendations: string[];
+  confidence: number;
+  errorMessage?: string;
+}
 
 export class UserService {
-  private static readonly PREFIX = '/user'
-  static async signup(userData: SignupFormValues): Promise<UserType> {
-    const response = await apiJava.post<UserType>(`${this.PREFIX}/signup`, userData)
-    return response.data
+  static async searchUsers(keyword: string) {
+    const response = await apiJava.get(`/users/search?keyword=${encodeURIComponent(keyword)}`);
+    return response.data?.data || [];
   }
 
-  static async getProfile(userId: number): Promise<UserType> {
-    const response = await apiJava.get<UserType>(`${this.PREFIX}/profile/${userId}`)
-    return response.data
+  static async getRoleCounts() {
+    const response = await apiJava.get('/users/roles/counts');
+    return response.data?.data || [];
   }
 
-  static async saveEdit(userData: ProfileFormValues): Promise<UserType> {
-    const response = await apiJava.post<UserType>(`${this.PREFIX}/saveEdit`, userData)
-    return response.data
+  static async getOverallPerformance(userId: string) {
+    const response = await apiJava.get(`/users/${userId}/overall-performance`);
+    return response.data?.data;
   }
 
-  static async getAll(): Promise<UserType[]> {
-    const response = await apiJava.get<UserType[]>(`${this.PREFIX}/getAll`)
-    return response.data
-  }
-
-  static async getPerformancePrediction(userId: string): Promise<{ employeeId: string, predictedPerformanceScore: number, trend: string, errorMessage?: string }> {
-    const response = await apiJava.get(`/v1/users/${userId}/performance-prediction`)
-    return response.data
-  }
-
-  static async uploadAvatar(body: FormData): Promise<AvatarImage> {
-    const response = await apiJava.post<AvatarImage>(`${this.PREFIX}/upload-avatar`, body, {
-      headers: { 'Content-Type': undefined }
-    })
-    return response.data
-  }
-
-  static connectUser = (stompClient: Client, user: UserType) => {
-    if (stompClient.connected) {
-      stompClient.publish({
-        destination: '/app/user.connectUser',
-        body: JSON.stringify(user)
-      })
-    }
-  }
-
-  static disconnectUser = (stompClient: Client, user: UserType) => {
-    if (stompClient.connected) {
-      stompClient.publish({
-        destination: '/app/user.disconnectUser',
-        body: JSON.stringify(user)
-      })
-    }
+  static async getPerformancePrediction(userId: string): Promise<PerformancePredictionResult> {
+    const response = await apiJava.get(`/users/${userId}/performance-prediction`);
+    return response.data?.data || {};
   }
 }
