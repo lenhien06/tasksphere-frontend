@@ -1,4 +1,4 @@
-import { apiJava } from '../lib/axios';
+import { apiJava } from '@/lib/axios';
 
 export interface PerformancePredictionResult {
   employeeId: string;
