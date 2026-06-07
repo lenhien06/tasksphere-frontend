@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Users, Search, Loader2, TrendingUp, AlertTriangle, ShieldAlert, Activity, Cpu, AlertCircle, CheckCircle2, Info } from "lucide-react";
 import { ProjectMemberService } from "@/app/services/project-member.service";
 import { UserService, PerformancePredictionResult } from "@/app/services/user.service";
@@ -22,10 +22,28 @@ export default function PerformancePredictor({ projectId }: PerformancePredictor
   const [result, setResult] = useState<PerformancePredictionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [chartWidth, setChartWidth] = useState<number>(500);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted || !containerRef.current) return;
+    const updateWidth = () => {
+      const w = containerRef.current?.getBoundingClientRect().width || 500;
+      if (w > 0) setChartWidth(w);
+    };
+    updateWidth();
+    const observer = new ResizeObserver(() => updateWidth());
+    observer.observe(containerRef.current);
+    window.addEventListener("resize", updateWidth);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
+  }, [mounted]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -219,10 +237,9 @@ export default function PerformancePredictor({ projectId }: PerformancePredictor
                         </div>
                         <span className="text-sm font-medium text-slate-500">Mô hình AI Random Forest</span>
                     </div>
-                    <div className="h-[200px] w-full">
-                       {mounted ? (
-                        <ResponsiveContainer key={chartData.length} width="100%" height="100%">
-                          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <div ref={containerRef} className="h-[200px] w-full">
+                       {mounted && chartData.length > 0 ? (
+                          <AreaChart width={chartWidth} height={200} data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <defs>
                               <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
@@ -238,7 +255,6 @@ export default function PerformancePredictor({ projectId }: PerformancePredictor
                             />
                             <Area type="monotone" dataKey="score" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" activeDot={{ r: 6, strokeWidth: 0, fill: '#4f46e5' }} />
                           </AreaChart>
-                        </ResponsiveContainer>
                        ) : (
                          <div className="h-full w-full bg-slate-50 rounded-lg animate-pulse" />
                        )}
