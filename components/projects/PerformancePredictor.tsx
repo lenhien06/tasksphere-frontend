@@ -1,10 +1,22 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Users, Search, Loader2, TrendingUp, AlertTriangle, ShieldAlert, Activity, Cpu, AlertCircle, CheckCircle2, Info } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Cpu,
+  Info,
+  Loader2,
+  Search,
+  ShieldAlert,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ProjectMemberService } from "@/app/services/project-member.service";
-import { UserService, PerformancePredictionResult } from "@/app/services/user.service";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { PerformancePredictionResult, UserService } from "@/app/services/user.service";
 
 interface PerformancePredictorProps {
   projectId: string;
@@ -15,129 +27,197 @@ interface Member {
   name: string;
 }
 
+const trendLabelMap: Record<string, string> = {
+  Excellent: "Xuất sắc",
+  Good: "Tốt",
+  Stable: "Ổn định",
+  Warning: "Cần chú ý",
+  Critical: "Nguy cấp",
+};
+
+const textTranslations: Array<[RegExp, string]> = [
+  [/High Late Task Rate \(\+(\d+)%\)/i, "Tỷ lệ task trễ hạn cao (+$1%)"],
+  [/Low Task Completion Rate \(\+(\d+)%\)/i, "Tỷ lệ hoàn thành task thấp (+$1%)"],
+  [/Excessive Working Hours \(\+(\d+)%\)/i, "Thời gian làm việc quá tải (+$1%)"],
+  [/Consistent Task Output \(\+(\d+)%\)/i, "Khối lượng task ổn định (+$1%)"],
+  [/Increasing late task ratio due to potential blockers or workload/i, "Tỷ lệ task trễ tăng, có thể do vướng mắc hoặc quá tải công việc"],
+  [/Declining productivity trend/i, "Xu hướng năng suất đang giảm"],
+  [/High overtime frequency relative to task output/i, "Tần suất làm thêm cao so với sản lượng task"],
+  [/Optimal workload balance/i, "Khối lượng công việc đang cân bằng"],
+  [/Review task assignment and deadline estimations/i, "Rà soát phân công task và ước lượng deadline"],
+  [/Check in with employee to identify productivity blockers/i, "Trao đổi với nhân sự để xác định điểm nghẽn năng suất"],
+  [/Reduce workload by 15% and monitor burnout/i, "Giảm khoảng 15% khối lượng công việc và theo dõi nguy cơ burnout"],
+  [/Maintain current project distribution/i, "Duy trì cách phân bổ công việc hiện tại"],
+  [/Schedule performance review and well-being meeting/i, "Sắp xếp buổi trao đổi về hiệu suất và tình trạng sức khỏe công việc"],
+];
+
+function translateAiText(value: string) {
+  const normalized = value.trim();
+  for (const [pattern, replacement] of textTranslations) {
+    if (pattern.test(normalized)) {
+      return normalized.replace(pattern, replacement);
+    }
+  }
+  return normalized;
+}
+
+function getErrorMessage(error: unknown) {
+  if (typeof error === "object" && error !== null) {
+    const maybeAxiosError = error as {
+      response?: { data?: { message?: string } };
+      message?: string;
+    };
+    return maybeAxiosError.response?.data?.message || maybeAxiosError.message;
+  }
+  return undefined;
+}
+
+function getTrendColor(trend: string) {
+  switch (trend) {
+    case "Excellent":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "Good":
+      return "border-teal-200 bg-teal-50 text-teal-700";
+    case "Stable":
+      return "border-blue-200 bg-blue-50 text-blue-700";
+    case "Warning":
+      return "border-orange-200 bg-orange-50 text-orange-700";
+    case "Critical":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-700";
+  }
+}
+
+function getScoreColor(score: number) {
+  if (score >= 70) return "#10b981";
+  if (score >= 50) return "#f59e0b";
+  return "#ef4444";
+}
+
+function getRiskLabel(probability: number) {
+  if (probability > 0.6) return "Nguy cơ cao";
+  if (probability > 0.3) return "Cần chú ý";
+  return "An toàn";
+}
+
+function getRiskClass(probability: number) {
+  if (probability > 0.6) return "bg-rose-100 text-rose-700";
+  if (probability > 0.3) return "bg-orange-100 text-orange-700";
+  return "bg-emerald-100 text-emerald-700";
+}
+
 export default function PerformancePredictor({ projectId }: PerformancePredictorProps) {
   const [members, setMembers] = useState<Member[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PerformancePredictionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  const [chartWidth, setChartWidth] = useState<number>(500);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted || !containerRef.current) return;
-    const updateWidth = () => {
-      const w = containerRef.current?.getBoundingClientRect().width || 500;
-      if (w > 0) setChartWidth(w);
-    };
-    updateWidth();
-    const observer = new ResizeObserver(() => updateWidth());
-    observer.observe(containerRef.current);
-    window.addEventListener("resize", updateWidth);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateWidth);
-    };
-  }, [mounted]);
 
   useEffect(() => {
     if (!projectId) return;
     ProjectMemberService.getMembers(projectId)
       .then((list) => {
-        const parsed = list.map((m) => ({ id: m.user.id.toString(), name: m.user.fullName || m.user.email }));
+        const parsed = list.map((member) => ({
+          id: member.user.id.toString(),
+          name: member.user.fullName || member.user.email,
+        }));
         setMembers(parsed);
         if (parsed.length > 0) {
           setSelectedUserId(parsed[0].id);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setError("Không thể tải danh sách thành viên dự án.");
+      });
   }, [projectId]);
+
+  const selectedMemberName = useMemo(
+    () => members.find((member) => member.id === selectedUserId)?.name ?? "Thành viên",
+    [members, selectedUserId]
+  );
+
+  const chartData = useMemo(() => {
+    if (!result?.history?.length) return [];
+    return result.history.map((score, index) => ({
+      name: index === result.history.length - 1 ? "Hiện tại" : `Kỳ ${index + 1}`,
+      score,
+    }));
+  }, [result]);
+
+  const translatedFactors = useMemo(
+    () => result?.topContributingFactors?.map(translateAiText) ?? [],
+    [result]
+  );
+
+  const translatedCauses = useMemo(
+    () => result?.rootCauses?.map(translateAiText) ?? [],
+    [result]
+  );
+
+  const translatedRecommendations = useMemo(
+    () => result?.recommendations?.map(translateAiText) ?? [],
+    [result]
+  );
 
   const handlePredict = async () => {
     if (!selectedUserId) return;
     setLoading(true);
     setError(null);
     setResult(null);
+
     try {
-      const res = await UserService.getPerformancePrediction(selectedUserId);
-      if (res.trend === 'Error' || res.errorMessage) {
-        setError(res.errorMessage || "Failed to predict performance.");
-      } else {
-        setResult(res);
+      const response = await UserService.getPerformancePrediction(selectedUserId);
+      if (response.trend === "Error" || response.errorMessage) {
+        setError(response.errorMessage || "Không thể phân tích hiệu suất nhân sự.");
+        return;
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || "Failed to load prediction from backend.");
+      setResult(response);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "Không thể tải kết quả phân tích từ hệ thống.");
     } finally {
       setLoading(false);
     }
   };
 
-  const getTrendColor = (trend: string) => {
-    switch(trend) {
-      case 'Excellent': return 'text-emerald-600 bg-emerald-50 border-emerald-200';
-      case 'Good': return 'text-teal-600 bg-teal-50 border-teal-200';
-      case 'Stable': return 'text-blue-600 bg-blue-50 border-blue-200';
-      case 'Warning': return 'text-orange-600 bg-orange-50 border-orange-200';
-      case 'Critical': return 'text-rose-600 bg-rose-50 border-rose-200';
-      default: return 'text-slate-600 bg-slate-50 border-slate-200';
-    }
-  };
-
-  const getTrendIcon = (trend: string) => {
-    if (['Excellent', 'Good', 'Stable'].includes(trend)) {
-      return <TrendingUp className="h-6 w-6" />;
-    }
-    return <TrendingUp className="h-6 w-6 rotate-180" />;
-  };
-
-  // Mock data for the chart if history is available
-  const chartData = result?.history ? result.history.map((score, index) => ({
-    name: `Sprint -${result.history.length - 1 - index}`,
-    score: score
-  })) : [];
-
-  // Override the last sprint name to 'Current'
-  if (chartData.length > 0) {
-    chartData[chartData.length - 1].name = 'Current';
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="w-full rounded-xl border border-slate-200 bg-white shadow-sm p-6">
-        {/* Header Section */}
-        <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 lg:flex-row lg:items-start lg:justify-between">
-          <div>
+    <div className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 px-4 py-5 sm:px-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <div className="bg-indigo-100 p-2 rounded-lg">
-                <Cpu className="h-6 w-6 text-indigo-600" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100">
+                <Cpu className="h-5 w-5 text-indigo-600" />
               </div>
-              <h2 className="text-[1.8rem] font-black tracking-tight text-slate-950">AI Analysis & Risk Prediction</h2>
+              <div className="min-w-0">
+                <h2 className="text-2xl font-black tracking-tight text-slate-950 sm:text-[1.65rem]">
+                  Phân tích AI & dự đoán rủi ro
+                </h2>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+                  Phân tích hiệu suất, xu hướng làm việc và nguy cơ burnout/nghỉ việc của nhân sự trong dự án.
+                </p>
+              </div>
             </div>
-            <p className="mt-2 text-base text-slate-600 pl-11">
-              Phân tích hiệu suất nâng cao, dự đoán rủi ro kiệt sức/nghỉ việc bằng Machine Learning.
-            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <div className="relative">
-              <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+          <div className="grid w-full gap-3 sm:grid-cols-[minmax(0,1fr)_auto] xl:w-auto xl:min-w-[460px]">
+            <div className="relative min-w-0">
+              <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               {members.length > 0 ? (
                 <select
                   value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="h-12 appearance-none rounded-2xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  onChange={(event) => setSelectedUserId(event.target.value)}
+                  className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 >
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
+                  {members.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name}
+                    </option>
                   ))}
                 </select>
               ) : (
-                <div className="h-12 rounded-2xl border border-slate-200 bg-slate-50 pl-9 pr-3 flex items-center text-sm font-medium text-slate-400">
-                  Loading members...
+                <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-medium text-slate-400">
+                  Đang tải thành viên...
                 </div>
               )}
             </div>
@@ -146,212 +226,227 @@ export default function PerformancePredictor({ projectId }: PerformancePredictor
               type="button"
               onClick={handlePredict}
               disabled={loading || !selectedUserId}
-              className="inline-flex h-12 items-center gap-2 rounded-2xl bg-indigo-600 px-6 text-base font-bold text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 transition-all active:scale-[0.98]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white shadow-sm shadow-indigo-200 transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
-              Phân tích ngay
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              Phân tích
             </button>
           </div>
         </div>
+      </div>
 
-        <div className="pt-6">
-          {error && (
-            <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 mb-6 animate-in fade-in">
-              <AlertTriangle className="h-5 w-5 shrink-0" />
-              <span className="font-medium">{error}</span>
+      <div className="px-4 py-5 sm:px-6">
+        {error ? (
+          <div className="mb-5 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        ) : null}
+
+        {!result && !error && !loading ? (
+          <div className="flex min-h-[360px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-5 py-12 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-slate-100 bg-white shadow-sm">
+              <Cpu className="h-7 w-7 text-slate-400" />
             </div>
-          )}
+            <p className="mt-4 text-lg font-bold text-slate-900">Chưa có dữ liệu phân tích</p>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-slate-500">
+              Chọn một thành viên và bấm phân tích để hệ thống tổng hợp điểm sức khỏe, rủi ro và đề xuất hành động.
+            </p>
+          </div>
+        ) : null}
 
-          {!result && !error && !loading && (
-            <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 px-8 py-20 text-center animate-in fade-in">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white border border-slate-100 shadow-sm mb-4">
-                <Cpu className="h-8 w-8 text-slate-400" />
-              </div>
-              <p className="text-xl font-bold text-slate-900">Chưa có dữ liệu phân tích</p>
-              <p className="mt-2 text-base text-slate-500 max-w-md mx-auto">Chọn một thành viên trong dự án và hệ thống AI sẽ trích xuất insight từ dữ liệu lịch sử làm việc.</p>
-            </div>
-          )}
+        {loading ? (
+          <div className="flex min-h-[360px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50/70 px-5 py-12 text-center">
+            <Cpu className="h-9 w-9 animate-pulse text-indigo-600" />
+            <p className="mt-5 text-base font-semibold text-slate-700">AI đang phân tích dữ liệu...</p>
+            <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+              Hệ thống đang đọc lịch sử làm việc và tính toán rủi ro. Vui lòng chờ trong giây lát.
+            </p>
+          </div>
+        ) : null}
 
-          {loading && (
-            <div className="flex flex-col min-h-[400px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50/50 animate-in fade-in">
-              <div className="relative flex items-center justify-center h-20 w-20">
-                <div className="absolute inset-0 rounded-full border-4 border-indigo-100"></div>
-                <div className="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin"></div>
-                <Cpu className="h-8 w-8 text-indigo-600 animate-pulse" />
-              </div>
-              <p className="mt-6 text-lg font-medium text-slate-600 animate-pulse">AI đang phân tích dữ liệu...</p>
-            </div>
-          )}
+        {result ? (
+          <div className="grid gap-5 xl:grid-cols-12">
+            <section className="xl:col-span-4">
+              <div className="flex h-full min-h-[300px] flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-indigo-600" />
+                    <h3 className="font-bold text-slate-900">Điểm sức khỏe tổng hợp</h3>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    Tin cậy {Math.round(result.confidence * 100)}%
+                  </span>
+                </div>
 
-          {result && (
-            <div className="grid gap-6 lg:grid-cols-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              
-              {/* Top Overview Cards */}
-              <div className="lg:col-span-4 flex flex-col gap-6">
-                <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col h-full relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-4">
-                    <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
-                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                       <span className="text-xs font-semibold text-slate-600">Độ tin cậy: {Math.round(result.confidence * 100)}%</span>
+                <div className="flex flex-1 flex-col items-center justify-center py-6">
+                  <div className="relative h-36 w-36">
+                    <svg className="h-36 w-36 -rotate-90" viewBox="0 0 144 144" aria-hidden="true">
+                      <circle cx="72" cy="72" r="60" fill="transparent" stroke="#f1f5f9" strokeWidth="14" />
+                      <circle
+                        cx="72"
+                        cy="72"
+                        r="60"
+                        fill="transparent"
+                        stroke={getScoreColor(result.healthScore)}
+                        strokeWidth="14"
+                        strokeDasharray="376.99"
+                        strokeDashoffset={376.99 - (376.99 * result.healthScore) / 100}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-4xl font-black tracking-tight text-slate-950">{result.healthScore}</span>
+                      <span className="text-xs font-semibold text-slate-500">/ 100</span>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2 mb-6">
-                    <Activity className="h-5 w-5 text-indigo-600" />
-                    <h3 className="font-bold text-slate-900">Health Score tổng hợp</h3>
+
+                  <div className={`mt-5 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-bold ${getTrendColor(result.trend)}`}>
+                    <TrendingUp className={`h-4 w-4 ${["Warning", "Critical"].includes(result.trend) ? "rotate-180" : ""}`} />
+                    {trendLabelMap[result.trend] ?? result.trend}
                   </div>
-                  
-                  <div className="flex-1 flex flex-col items-center justify-center">
-                     <div className="relative">
-                        <svg className="w-32 h-32 transform -rotate-90">
-                            <circle cx="64" cy="64" r="56" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
-                            <circle cx="64" cy="64" r="56" fill="transparent" 
-                                stroke={result.healthScore >= 70 ? '#10b981' : result.healthScore >= 50 ? '#f59e0b' : '#ef4444'} 
-                                strokeWidth="12" 
-                                strokeDasharray="351.8" 
-                                strokeDashoffset={351.8 - (351.8 * result.healthScore) / 100}
-                                strokeLinecap="round"
-                                className="transition-all duration-1000 ease-out"
-                            />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-4xl font-black tracking-tighter text-slate-900">{result.healthScore}</span>
-                        </div>
-                     </div>
-                     
-                     <div className={`mt-6 px-4 py-1.5 rounded-full border font-bold text-sm flex items-center gap-2 ${getTrendColor(result.trend)}`}>
-                        {getTrendIcon(result.trend)}
-                        {result.trend.toUpperCase()}
-                     </div>
-                  </div>
+                  <p className="mt-4 text-center text-sm text-slate-500">
+                    Nhân sự: <span className="font-semibold text-slate-700">{selectedMemberName}</span>
+                  </p>
                 </div>
               </div>
+            </section>
 
-              {/* Chart Section */}
-              <div className="lg:col-span-8 flex flex-col gap-6">
-                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm h-full">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5 text-indigo-600" />
-                            <h3 className="font-bold text-slate-900">Biểu đồ xu hướng hiệu suất (5 kỳ gần nhất)</h3>
-                        </div>
-                        <span className="text-sm font-medium text-slate-500">Mô hình AI Random Forest</span>
-                    </div>
-                    <div ref={containerRef} className="h-[200px] w-full">
-                       {mounted && chartData.length > 0 ? (
-                          <AreaChart width={chartWidth} height={200} data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} domain={[0, 100]} />
-                            <Tooltip 
-                              contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                              itemStyle={{ fontWeight: 'bold', color: '#0f172a' }}
-                            />
-                            <Area type="monotone" dataKey="score" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" activeDot={{ r: 6, strokeWidth: 0, fill: '#4f46e5' }} />
-                          </AreaChart>
-                       ) : (
-                         <div className="h-full w-full bg-slate-50 rounded-lg animate-pulse" />
-                       )}
-                     </div>
-                 </div>
+            <section className="xl:col-span-8">
+              <div className="h-full min-h-[300px] rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-indigo-600" />
+                    <h3 className="font-bold text-slate-900">Xu hướng hiệu suất 5 kỳ gần nhất</h3>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                    Điểm dự đoán: {Math.round(result.predictedPerformanceScore)}
+                  </span>
+                </div>
+
+                <div className="h-[230px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="performanceScoreFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.28} />
+                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} dy={8} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} domain={[0, 100]} />
+                      <Tooltip
+                        formatter={(value) => [`${value}`, "Điểm"]}
+                        labelFormatter={(label) => `${label}`}
+                        contentStyle={{ borderRadius: 10, border: "1px solid #e2e8f0" }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="score"
+                        stroke="#4f46e5"
+                        strokeWidth={3}
+                        fill="url(#performanceScoreFill)"
+                        activeDot={{ r: 5, strokeWidth: 0, fill: "#4f46e5" }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
+            </section>
 
-              {/* Attrition Risk & Features */}
-              <div className="lg:col-span-12 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                 
-                 {/* Attrition Risk */}
-                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-center gap-2 mb-6">
-                        <ShieldAlert className="h-5 w-5 text-indigo-600" />
-                        <h3 className="font-bold text-slate-900">Rủi ro nghỉ việc / Burnout</h3>
-                    </div>
-                    <div className="mt-4">
-                        <div className="flex justify-between items-end mb-2">
-                            <span className="text-5xl font-black tracking-tight text-slate-900">
-                                {Math.round(result.attritionProbability * 100)}<span className="text-2xl text-slate-500">%</span>
-                            </span>
-                            <span className={`text-sm font-bold px-2 py-1 rounded ${result.attritionProbability > 0.6 ? 'bg-rose-100 text-rose-700' : result.attritionProbability > 0.3 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                {result.attritionProbability > 0.6 ? 'Nguy cơ cao' : result.attritionProbability > 0.3 ? 'Cần chú ý' : 'An toàn'}
-                            </span>
-                        </div>
-                        <div className="w-full bg-slate-100 rounded-full h-3 mt-4 overflow-hidden">
-                           <div 
-                             className={`h-3 rounded-full transition-all duration-1000 ${result.attritionProbability > 0.6 ? 'bg-rose-500' : result.attritionProbability > 0.3 ? 'bg-orange-500' : 'bg-emerald-500'}`} 
-                             style={{ width: `${result.attritionProbability * 100}%` }}
-                           ></div>
-                        </div>
-                        <p className="mt-4 text-sm text-slate-600 leading-relaxed">
-                           Xác suất nhân sự gặp vấn đề burnout hoặc có nguy cơ rời dự án dựa trên lịch sử hoạt động và áp lực công việc.
-                        </p>
-                    </div>
-                 </div>
-
-                 {/* Top Factors & Root Causes */}
-                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            <div className="flex items-center gap-2 mb-4">
-                                <AlertCircle className="h-5 w-5 text-indigo-600" />
-                                <h3 className="font-bold text-slate-900">Yếu tố ảnh hưởng (AI Features)</h3>
-                            </div>
-                            <ul className="space-y-3">
-                                {result.topContributingFactors?.map((factor, i) => (
-                                    <li key={i} className="flex items-start gap-3 bg-slate-50 border border-slate-100 p-3 rounded-lg">
-                                        <div className="mt-0.5 rounded-full bg-indigo-100 p-1">
-                                            <Info className="h-3.5 w-3.5 text-indigo-600" />
-                                        </div>
-                                        <span className="text-sm font-medium text-slate-700">{factor}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-4">
-                                <Search className="h-5 w-5 text-indigo-600" />
-                                <h3 className="font-bold text-slate-900">Phân tích nguyên nhân (Root Causes)</h3>
-                            </div>
-                            <ul className="space-y-3">
-                                {result.rootCauses?.map((cause, i) => (
-                                    <li key={i} className="flex items-start gap-3 bg-slate-50 border border-slate-100 p-3 rounded-lg">
-                                        <div className="mt-0.5 rounded-full bg-rose-100 p-1">
-                                            <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-                                        </div>
-                                        <span className="text-sm font-medium text-slate-700">{cause}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-                 </div>
-
-                 {/* Recommendations */}
-                 <div className="lg:col-span-12 rounded-xl border border-indigo-100 bg-indigo-50/50 p-6 shadow-sm">
-                    <div className="flex items-center gap-2 mb-4">
-                        <CheckCircle2 className="h-5 w-5 text-indigo-600" />
-                        <h3 className="font-bold text-slate-900">Đề xuất hành động từ AI</h3>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-3">
-                        {result.recommendations?.map((rec, i) => (
-                            <div key={i} className="bg-white border border-indigo-100 rounded-xl p-4 shadow-sm flex items-start gap-3">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm">
-                                    {i + 1}
-                                </div>
-                                <p className="text-sm font-medium text-slate-700 mt-1">{rec}</p>
-                            </div>
-                        ))}
-                    </div>
-                 </div>
-
+            <section className="xl:col-span-4">
+              <div className="h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-5 flex items-center gap-2">
+                  <ShieldAlert className="h-5 w-5 text-indigo-600" />
+                  <h3 className="font-bold text-slate-900">Rủi ro burnout/nghỉ việc</h3>
+                </div>
+                <div className="flex items-end justify-between gap-4">
+                  <span className="text-5xl font-black tracking-tight text-slate-950">
+                    {Math.round(result.attritionProbability * 100)}
+                    <span className="text-2xl text-slate-500">%</span>
+                  </span>
+                  <span className={`rounded-md px-2.5 py-1 text-sm font-bold ${getRiskClass(result.attritionProbability)}`}>
+                    {getRiskLabel(result.attritionProbability)}
+                  </span>
+                </div>
+                <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      result.attritionProbability > 0.6
+                        ? "bg-rose-500"
+                        : result.attritionProbability > 0.3
+                          ? "bg-orange-500"
+                          : "bg-emerald-500"
+                    }`}
+                    style={{ width: `${Math.round(result.attritionProbability * 100)}%` }}
+                  />
+                </div>
+                <p className="mt-4 text-sm leading-6 text-slate-600">
+                  Xác suất nhân sự gặp áp lực công việc cao, burnout hoặc có nguy cơ rời dự án dựa trên lịch sử hoạt động.
+                </p>
               </div>
-            </div>
-          )}
-        </div>
+            </section>
+
+            <section className="xl:col-span-8">
+              <div className="grid h-full gap-5 md:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-4 flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-indigo-600" />
+                    <h3 className="font-bold text-slate-900">Yếu tố ảnh hưởng</h3>
+                  </div>
+                  <ul className="space-y-3">
+                    {translatedFactors.map((factor, index) => (
+                      <li key={`${factor}-${index}`} className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                        <span className="mt-0.5 rounded-full bg-indigo-100 p-1">
+                          <Info className="h-3.5 w-3.5 text-indigo-600" />
+                        </span>
+                        <span className="text-sm font-medium leading-6 text-slate-700">{factor}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-4 flex items-center gap-2">
+                    <Search className="h-5 w-5 text-indigo-600" />
+                    <h3 className="font-bold text-slate-900">Nguyên nhân chính</h3>
+                  </div>
+                  <ul className="space-y-3">
+                    {translatedCauses.map((cause, index) => (
+                      <li key={`${cause}-${index}`} className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                        <span className="mt-0.5 rounded-full bg-rose-100 p-1">
+                          <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                        </span>
+                        <span className="text-sm font-medium leading-6 text-slate-700">{cause}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            <section className="xl:col-span-12">
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-5 shadow-sm">
+                <div className="mb-4 flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-indigo-600" />
+                  <h3 className="font-bold text-slate-900">Đề xuất hành động từ AI</h3>
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {translatedRecommendations.map((recommendation, index) => (
+                    <div key={`${recommendation}-${index}`} className="flex items-start gap-3 rounded-xl border border-indigo-100 bg-white p-4 shadow-sm">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+                        {index + 1}
+                      </span>
+                      <p className="mt-1 text-sm font-medium leading-6 text-slate-700">{recommendation}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          </div>
+        ) : null}
       </div>
     </div>
   );

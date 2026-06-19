@@ -7,7 +7,6 @@ import {
   Download,
   Lightbulb,
   Loader2,
-  Activity,
 } from "lucide-react";
 import BurnoutDetector from "@/components/projects/BurnoutDetector";
 import PerformancePredictor from "@/components/projects/PerformancePredictor";
@@ -723,8 +722,8 @@ export default function ReportsPage({
           <ReportCard title="Burnup report" description="Visualize completed scope against total sprint scope to spot mid-sprint scope growth and completion risk." illustration={<MiniBurnupIllustration />} onClick={() => handleSelectReport("burnup")} />
           <ReportCard title="Sprint burndown chart" description="Track the remaining work in a sprint day by day and compare the actual burn rate with the planned ideal line." illustration={<MiniBurndownIllustration />} onClick={() => handleSelectReport("burndown")} />
           <ReportCard title="Velocity report" description="Compare committed points and completed points across the latest closed sprints to forecast future delivery capacity." illustration={<MiniVelocityIllustration />} onClick={() => handleSelectReport("velocity")} />
-          <ReportCard title="Team Health — Burnout Detector" description="Phát hiện chuỗi Lead Time tăng liên tục bằng Sliding Window và AI gợi ý can thiệp sớm qua Slack." illustration={<MiniBurnoutIllustration />} onClick={() => handleSelectReport("burnout")} />
-          <ReportCard title="AI Performance Predictor" description="Dự đoán điểm hiệu suất và xu hướng của nhân viên dựa trên khối lượng công việc, tỷ lệ trễ hạn và các yếu tố khác bằng Random Forest." illustration={<MiniPredictorIllustration />} onClick={() => handleSelectReport("aipredictor")} />
+          <ReportCard title="AI phát hiện burnout nhóm" description="Phát hiện chuỗi Lead Time tăng liên tục bằng Sliding Window và AI gợi ý can thiệp sớm qua Slack." illustration={<MiniBurnoutIllustration />} onClick={() => handleSelectReport("burnout")} />
+          <ReportCard title="AI phân tích hiệu suất & rủi ro" description="Dự đoán điểm hiệu suất, xu hướng làm việc và nguy cơ burnout/nghỉ việc của nhân sự dựa trên dữ liệu dự án." illustration={<MiniPredictorIllustration />} onClick={() => handleSelectReport("aipredictor")} />
         </div>
       </div>
     );
