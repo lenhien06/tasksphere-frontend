@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertCircle,
@@ -14,7 +14,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { ProjectMemberService } from "@/app/services/project-member.service";
 import { PerformancePredictionResult, UserService } from "@/app/services/user.service";
 
@@ -113,6 +113,8 @@ export default function PerformancePredictor({ projectId }: PerformancePredictor
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PerformancePredictionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [chartWidth, setChartWidth] = useState(0);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -139,10 +141,28 @@ export default function PerformancePredictor({ projectId }: PerformancePredictor
 
   const chartData = useMemo(() => {
     if (!result?.history?.length) return [];
-    return result.history.map((score, index) => ({
-      name: index === result.history.length - 1 ? "Hiện tại" : `Kỳ ${index + 1}`,
-      score,
-    }));
+    return result.history
+      .map((score, index) => ({
+        name: index === result.history.length - 1 ? "Hiện tại" : `Kỳ ${index + 1}`,
+        score: Number(score),
+      }))
+      .filter((item) => Number.isFinite(item.score));
+  }, [result]);
+
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!container || !result) return;
+
+    const updateChartWidth = () => {
+      const nextWidth = Math.floor(container.getBoundingClientRect().width);
+      setChartWidth(nextWidth > 0 ? nextWidth : 0);
+    };
+
+    updateChartWidth();
+    const resizeObserver = new ResizeObserver(updateChartWidth);
+    resizeObserver.observe(container);
+
+    return () => resizeObserver.disconnect();
   }, [result]);
 
   const translatedFactors = useMemo(
@@ -325,9 +345,15 @@ export default function PerformancePredictor({ projectId }: PerformancePredictor
                   </span>
                 </div>
 
-                <div className="h-[230px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+                <div ref={chartContainerRef} className="h-[230px] w-full min-w-0">
+                  {chartData.length > 0 && chartWidth > 0 ? (
+                    <AreaChart
+                      key={`${selectedUserId}-${chartWidth}`}
+                      width={chartWidth}
+                      height={230}
+                      data={chartData}
+                      margin={{ top: 8, right: 12, left: -18, bottom: 0 }}
+                    >
                       <defs>
                         <linearGradient id="performanceScoreFill" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#6366f1" stopOpacity={0.28} />
@@ -351,7 +377,13 @@ export default function PerformancePredictor({ projectId }: PerformancePredictor
                         activeDot={{ r: 5, strokeWidth: 0, fill: "#4f46e5" }}
                       />
                     </AreaChart>
-                  </ResponsiveContainer>
+                  ) : chartData.length === 0 ? (
+                    <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm font-medium text-slate-500">
+                      Chưa có dữ liệu lịch sử hiệu suất để hiển thị biểu đồ.
+                    </div>
+                  ) : (
+                    <div className="h-full w-full animate-pulse rounded-lg bg-slate-100" />
+                  )}
                 </div>
               </div>
             </section>
